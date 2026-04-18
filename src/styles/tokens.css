@@ -1,0 +1,74 @@
+/* WordPress Design System tokens */
+@import '@wordpress/theme/design-tokens.css';
+@import '@wordpress/components/build-style/style.css';
+@import '@wordpress/dataviews/build-style/style.css';
+
+:root {
+  /* Graph-specific colors (used by Cytoscape, Legend, DetailPanel badges) */
+  --hg-color-hotspot: #e85454;
+  --hg-color-dynamic: #e4b844;
+  --hg-color-overlap-action: #a8eef0;
+  --hg-color-overlap-filter: #d4c8f0;
+}
+
+body {
+  font-family: var(--wpds-font-family-body);
+  overflow: hidden;
+  height: 100vh;
+  margin: 0;
+}
+
+/* Keyframes used across components */
+@keyframes hg-fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes hg-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* GPU-composited spinner — animates smoothly even when main thread is blocked */
+.hg-spinner {
+  width: 40px;
+  height: 40px;
+  border: 2px solid #e0e0e0;
+  border-top-color: #3858e9;
+  border-radius: 50%;
+  animation: hg-spin 0.8s linear infinite;
+  will-change: transform;
+}
+
+/* App layout shell */
+.app-shell {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+}
+
+.graph-area {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 320px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--wpds-color-gray-200, #e0e0e0);
+  overflow-y: auto;
+  height: 100vh;
+  padding: var(--wpds-dimension-gap-lg, 16px);
+}
+.sidebar__header {
+  margin-bottom: var(--wpds-dimension-padding-lg);
+  padding-bottom: var(--wpds-dimension-padding-lg);
+  text-align: center;
+}
+.sidebar__title { font-family: 'Bradley Hand', 'Segoe Script', 'Comic Sans MS', cursive; font-size: var(--wpds-font-size-3xl); font-weight: 900; }
+.sidebar__subtitle { font-size: var(--wpds-font-size-xs); color: var(--wpds-color-gray-600); margin-top: 2px; }
+.sidebar__stats { display: grid; grid-template-columns: 1fr 1fr; margin-top: var(--wpds-dimension-gap-lg); }
+.stat-cell__value { display: block; font-family: var(--wpds-font-family-mono); font-size: var(--wpds-font-size-xl); font-weight: var(--wpds-font-weight-medium); font-feature-settings: 'tnum' 1; }
+.stat-cell__label { display: block; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px; }
+.sidebar__load-btn { width: 100%; margin-top: var(--wpds-dimension-padding-lg); }

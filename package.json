@@ -1,0 +1,35 @@
+{
+  "name": "hooks-graph",
+  "version": "1.0.0",
+  "description": "Parse WordPress PHP codebases for hook relationships and visualize them as an interactive graph.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "python3 -m venv venv && ./venv/bin/pip install -r requirements.txt",
+    "parse": "./venv/bin/python3 hooks_graph.py",
+    "parse:help": "./venv/bin/python3 hooks_graph.py --help",
+    "test": "npm run test:graph && npm run test:parser && npm run test:filters",
+    "test:graph": "./venv/bin/python -m pytest test_graph.py",
+    "test:parser": "./venv/bin/python test_parser.py",
+    "test:filters": "node test_filters.js",
+    "serve": "./venv/bin/python3 serve.py",
+    "setup:profile": "bash setup_profile.sh < /dev/tty",
+    "dev": "vite",
+    "build:ui": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@wordpress/components": "^32.6.0",
+    "@wordpress/dataviews": "^14.1.0",
+    "@wordpress/icons": "^12.2.0",
+    "@wordpress/theme": "^0.11.0",
+    "@wordpress/ui": "^0.11.0",
+    "cytoscape": "^3.33.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.0.1",
+    "vite": "^8.0.8"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(vendor/bin/phpunit tests/CallbackWrapperTest.php)",
+      "Bash(vendor/bin/phpunit:*)",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_evaluate"
+    ]
+  }
+}

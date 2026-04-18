@@ -1,0 +1,23 @@
+# Generated data
+storage/*
+!storage/.keep
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+venv/
+.venv/
+
+# Node
+node_modules/
+dist/
+
+# Tooling
+.superpowers/
+.playwright-mcp/
+.claude.local.md
+
+# OS
+.DS_Store
