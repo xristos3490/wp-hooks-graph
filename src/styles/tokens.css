@@ -66,8 +66,10 @@ body {
   padding-bottom: var(--wpds-dimension-padding-lg);
   text-align: center;
 }
-/* Shared logo — handwritten system font */
-.hg-logo { font-family: 'Bradley Hand', 'Segoe Script', 'Comic Sans MS', cursive; font-size: var(--wpds-font-size-2xl, 1.5rem); font-weight: 900; }
+/* Shared logo — SVG mark + handwritten wordmark */
+.hg-logo { display: inline-flex; align-items: center; gap: 0.5rem; }
+.hg-logo__mark { width: 1.75rem; height: 1.75rem; flex-shrink: 0; }
+.hg-logo__wordmark { font-family: 'Bradley Hand', 'Segoe Script', 'Comic Sans MS', cursive; font-size: var(--wpds-font-size-2xl, 1.5rem); font-weight: 900; line-height: 1; }
 .sidebar__subtitle { font-size: var(--wpds-font-size-xs); color: var(--wpds-color-gray-600); margin-top: 2px; }
 .sidebar__stats { display: grid; grid-template-columns: 1fr 1fr; gap: var(--wpds-dimension-gap-md); margin-top: var(--wpds-dimension-gap-lg); }
 .stat-cell__value { display: block; font-family: var(--wpds-font-family-mono); font-size: var(--wpds-font-size-xl); font-weight: var(--wpds-font-weight-medium); font-feature-settings: 'tnum' 1; }

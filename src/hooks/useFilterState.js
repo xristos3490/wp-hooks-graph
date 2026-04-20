@@ -1,7 +1,7 @@
 import { useReducer, useMemo, useCallback } from 'react';
 import {
   applyFilterPipeline,
-} from '../../filters.js';
+} from '../lib/filters.js';
 
 const ACTIONS = {
   TOGGLE_HOOK_TYPE: 'TOGGLE_HOOK_TYPE',

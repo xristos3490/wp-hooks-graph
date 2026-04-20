@@ -1,6 +1,5 @@
 import { useRef, useState, useCallback } from 'react';
 import { Button, EmptyState } from '@wordpress/ui';
-import { upload } from '@wordpress/icons';
 import Logo from './Logo';
 
 export default function LoadingScreen({ onFileLoad }) {
@@ -50,7 +49,6 @@ export default function LoadingScreen({ onFileLoad }) {
       onDrop={handleDrop}
     >
       <EmptyState.Root>
-        <EmptyState.Icon icon={upload} />
         <EmptyState.Title><Logo /></EmptyState.Title>
         <EmptyState.Description>
           {dragging

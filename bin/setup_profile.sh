@@ -9,7 +9,7 @@ HG_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 BLOCK=$(cat <<EOF
 $MARKER
-alias hooksgraph='$HG_DIR/bin/hooksgraph'
+alias hooksgraph='$HG_DIR/hooksgraph'
 # --- /WordPress Hooks Graph ---
 EOF
 )

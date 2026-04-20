@@ -5,15 +5,17 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "setup": "bash bin/setup_profile.sh < /dev/tty",
     "parse": "php hooks_graph.php",
     "parse:help": "php hooks_graph.php --help",
-    "test": "npm run test:php && npm run test:filters",
-    "test:php": "php tests/run.php",
-    "test:filters": "node test_filters.js",
-    "setup:alias": "bash setup_profile.sh < /dev/tty",
+    "serve": "bin/serve",
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "npm run test:php && npm run test:js",
+    "test:php": "php tests/run.php",
+    "test:js": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@wordpress/components": "^32.6.0",
@@ -27,6 +29,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^6.0.1",
-    "vite": "^8.0.8"
+    "vite": "^8.0.8",
+    "vitest": "^3.2.4"
   }
 }

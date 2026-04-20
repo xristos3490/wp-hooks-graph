@@ -15,33 +15,49 @@ Built on PHP's built-in `token_get_all()` tokenizer. No WordPress runtime, no da
 
 ```sh
 npm install
-npm run build          # build the React viewer into dist/
-bin/hooksgraph /path/to/wordpress
+npm run setup                     # installs the `hooksgraph` shell alias (one-time)
+source ~/.zshrc                   # pick up the alias in the current shell
+npm run build                     # build the React viewer into dist/
+hooksgraph /path/to/wordpress     # parse + serve + open
 ```
 
-`bin/hooksgraph` parses the given directory (or directories), starts a local PHP server, and opens the viewer in your browser. The port defaults to 8080 and falls back to the next free port.
+`hooksgraph <dir>` (shell alias → `bin/hooksgraph`) parses the given directory (or directories), starts a local PHP server on port 8080 (falls back to the next free port), and opens the viewer in your browser.
 
-Or run the steps separately:
+Don't want a global alias? Use the script directly: `bin/hooksgraph /path/to/wordpress`.
+
+When iterating, parse once and re-serve the same JSON without re-parsing:
 
 ```sh
 npm run parse -- /path/to/wordpress -o storage/wp.json
-HOOKS_JSON=storage/wp.json php -S 127.0.0.1:8080 -t dist server.php
+npm run serve -- storage/wp.json   # or: npm run serve  (picks latest in storage/)
 ```
 
 ## Commands
 
+**Setup**
+
 | Command | Description |
 |---------|-------------|
 | `npm install` | Install Node dependencies |
+| `npm run setup` | Install the `hooksgraph` shell alias (one-time; run `source ~/.zshrc` after) |
 | `npm run build` | Build the React viewer into `dist/` |
-| `npm run dev` | Vite dev server for the viewer |
+
+**Run**
+
+| Command | Description |
+|---------|-------------|
+| `hooksgraph <dirs...>` (or `bin/hooksgraph <dirs...>`) | Parse + serve + open browser in one step |
 | `npm run parse -- <dirs...>` | Parse PHP files; output path printed at the end |
-| `npm run parse -- <dirs...> --overlap-only` | Only include hooks shared across 2+ directories |
-| `npm run parse -- <dirs...> --exclude vendor,tests` | Exclude folders by name (in addition to .gitignore) |
-| `npm run parse -- <dirs...> -o storage/custom.json` | Custom output path |
-| `npm run parse:help` | Show full parser help |
-| `bin/hooksgraph <dirs...>` | Parse + serve + open browser in one step |
-| `npm test` | Run filter-pipeline tests |
+| `npm run parse:help` | Show full parser help (all flags + examples) |
+| `npm run serve -- [json]` | Serve the built viewer with a JSON (defaults to latest in `storage/`) |
+| `npm run dev -- --json <path>` | Vite dev server with hot reload, bound to a specific JSON |
+
+**Test**
+
+| Command | Description |
+|---------|-------------|
+| `npm test` | Run PHP + JS test suites |
+| `npm run test:php` / `test:js` / `test:watch` | PHP only / Vitest / Vitest watch mode |
 
 ## Parse Options
 
@@ -57,13 +73,16 @@ npm run parse -- ~/Code/wordpress ~/Code/my-plugin --overlap-only
 # Exclude folders by name (in addition to .gitignore)
 npm run parse -- ~/Code/wordpress --exclude vendor,tests,node_modules
 
+# Skip hooks by name (trailing * for prefix match)
+npm run parse -- ~/Code/wordpress --skip-hook-names wp_head,admin_*
+
 # Custom output file
 npm run parse -- ~/Code/wordpress -o storage/wp-core.json
 ```
 
 ## Viewer
 
-Run `bin/hooksgraph <dir>` (or `npm run dev` after parsing separately) to open the viewer. Features: search, layout switching (dagre/force/concentric), source filtering, hotspot highlighting, and a detail panel on node click.
+Run `hooksgraph <dir>` (or `npm run dev -- --json storage/wp.json` after parsing separately) to open the viewer. Features: search, layout switching (dagre/force/concentric), source filtering, hotspot highlighting, and a detail panel on node click.
 
 ## Limitations
 
@@ -77,18 +96,12 @@ This is a **static parser**, not a runtime tracer. A few things to keep in mind:
 ## Project Structure
 
 ```
-hooks_graph.php   PHP CLI parser + graph builder
-server.php        Router for `php -S`
-bin/hooksgraph    Parse + serve + open-browser wrapper
-src/              React viewer (Vite + Cytoscape)
-filters.js        Filter pipeline (shared by viewer and tests)
-storage/          Generated JSON output (git-ignored)
+hooks_graph.php      PHP CLI parser + graph builder
+server.php           Router for `php -S`
+bin/hooksgraph       Parse + serve + open-browser wrapper
+bin/serve            Serve a JSON with the built viewer (used by hooksgraph)
+bin/setup_profile.sh Installs the `hooksgraph` shell alias
+src/                 React viewer (Vite + Cytoscape); filter pipeline and its Vitest suite live here
+storage/             Generated JSON output (git-ignored)
 ```
 
-## Tests
-
-```sh
-npm test              # PHP parser/graph + JS filter pipeline
-npm run test:php      # PHP only (tests/run.php)
-npm run test:filters  # JS only (test_filters.js)
-```

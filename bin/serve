@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Serve the Vite-built viewer with a hooks JSON.
+# Usage: bin/serve [path/to/hooks.json]
+# No arg: uses the most recently modified JSON in storage/.
+
+set -euo pipefail
+
+HG="$(cd "$(dirname "$0")/.." && pwd)"
+
+if [ $# -ge 1 ]; then
+    HOOKS_JSON="$1"
+else
+    HOOKS_JSON=$(ls -t "$HG/storage/"*.json 2>/dev/null | head -n 1 || true)
+    if [ -z "$HOOKS_JSON" ]; then
+        echo "Error: no JSON path given and no files found in storage/." >&2
+        echo "Run 'npm run parse -- <dir>' first, or pass a path: bin/serve path/to/hooks.json" >&2
+        exit 1
+    fi
+    echo "Using $HOOKS_JSON (most recent in storage/)."
+fi
+
+if [ ! -f "$HOOKS_JSON" ]; then
+    echo "Error: $HOOKS_JSON not found." >&2
+    exit 1
+fi
+
+if [ ! -d "$HG/dist" ]; then
+    echo "Error: $HG/dist not found. Run 'npm run build' first." >&2
+    exit 1
+fi
+
+port=8080
+while lsof -iTCP:$port -sTCP:LISTEN >/dev/null 2>&1; do
+    port=$((port + 1))
+done
+
+HOOKS_JSON="$HOOKS_JSON" php -S "127.0.0.1:$port" -t "$HG/dist" "$HG/server.php" &
+srv=$!
+trap 'kill $srv 2>/dev/null' EXIT INT TERM
+
+sleep 0.3 && open "http://127.0.0.1:$port"
+wait $srv

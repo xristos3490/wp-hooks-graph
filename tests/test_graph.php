@@ -189,3 +189,52 @@ test('filter_overlap: drops files that only referenced filtered-out hooks', func
     sort($paths);
     assert_eq(['other.php', 'p.php'], $paths);
 });
+
+// ── filter_graph_by_hook_names ──────────────────────────────
+
+test('skip_hooks: drops hooks matching exact names', function () {
+    $g = build_graph([
+        mk_call(['hook_name' => 'init']),
+        mk_call(['hook_name' => 'wp_head']),
+        mk_call(['hook_name' => 'admin_init']),
+    ], ['/fake/wp-core'], 3);
+    $filtered = filter_graph_by_hook_names($g, ['wp_head']);
+    $names = array_map(function ($n) { return $n['name']; }, _nodes_of_type($filtered, 'hook'));
+    sort($names);
+    assert_eq(['admin_init', 'init'], $names);
+    assert_eq(['wp_head'], $filtered['metadata']['skip_hook_names']);
+    assert_eq(2, $filtered['metadata']['total_hooks']);
+});
+
+test('skip_hooks: trailing * matches by prefix', function () {
+    $g = build_graph([
+        mk_call(['hook_name' => 'init']),
+        mk_call(['hook_name' => 'admin_init']),
+        mk_call(['hook_name' => 'admin_menu']),
+    ], ['/fake/wp-core'], 3);
+    $filtered = filter_graph_by_hook_names($g, ['admin_*']);
+    $names = array_map(function ($n) { return $n['name']; }, _nodes_of_type($filtered, 'hook'));
+    assert_eq(['init'], $names);
+});
+
+test('skip_hooks: empty pattern list is a no-op', function () {
+    $g = build_graph([mk_call(['hook_name' => 'init'])], ['/fake/wp-core'], 1);
+    $filtered = filter_graph_by_hook_names($g, []);
+    assert_eq($g, $filtered);
+});
+
+test('skip_hooks: drops files left with no surviving edges', function () {
+    $g = build_graph([
+        mk_call(['hook_name' => 'wp_head',   'file' => '/fake/wp-core/only.php']),
+        mk_call(['hook_name' => 'init',      'file' => '/fake/wp-core/other.php']),
+        mk_call(['hook_name' => 'wp_footer', 'file' => '/fake/wp-core/other.php']),
+    ], ['/fake/wp-core'], 2);
+    $filtered = filter_graph_by_hook_names($g, ['wp_head']);
+    $paths = array_map(function ($f) { return $f['path']; }, _nodes_of_type($filtered, 'file'));
+    assert_eq(['other.php'], $paths);
+    $other = null;
+    foreach ($filtered['nodes'] as $n) {
+        if ($n['type'] === 'file' && $n['path'] === 'other.php') $other = $n;
+    }
+    assert_eq(2, $other['hook_count']);
+});
