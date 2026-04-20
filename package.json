@@ -12,8 +12,7 @@
     "test:graph": "./venv/bin/python -m pytest test_graph.py",
     "test:parser": "./venv/bin/python test_parser.py",
     "test:filters": "node test_filters.js",
-    "serve": "./venv/bin/python3 serve.py",
-    "setup:profile": "bash setup_profile.sh < /dev/tty",
+    "setup:alias": "bash setup_profile.sh < /dev/tty",
     "dev": "vite",
     "build:ui": "vite build",
     "preview": "vite preview"

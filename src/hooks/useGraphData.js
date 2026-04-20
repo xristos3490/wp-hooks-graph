@@ -34,7 +34,7 @@ export default function useGraphData() {
   // Auto-fetch from server
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/hooks.json')
+    fetch('/hooks.json')
       .then((r) => {
         if (!r.ok) throw new Error('No data');
         return r.text();

@@ -16,7 +16,7 @@ function hooksJsonPlugin() {
       }
     },
     configureServer(server) {
-      server.middlewares.use('/api/hooks.json', (req, res) => {
+      server.middlewares.use('/hooks.json', (req, res) => {
         if (!jsonPath || !existsSync(jsonPath)) {
           res.statusCode = 404;
           res.end('');

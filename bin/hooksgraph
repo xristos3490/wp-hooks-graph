@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+HG="$(cd "$(dirname "$0")/.." && pwd)"
+
+# Parse. --print-path makes the parser emit ONLY the output path on stdout;
+# its pretty UI output goes to stderr.
+out=$(php "$HG/hooks_graph.php" --print-path "$@")
+
+# Pick a free port starting at 8080.
+port=8080
+while lsof -iTCP:$port -sTCP:LISTEN >/dev/null 2>&1; do
+    port=$((port + 1))
+done
+
+HOOKS_JSON="$out" php -S "127.0.0.1:$port" -t "$HG/dist" "$HG/server.php" &
+srv=$!
+trap 'kill $srv 2>/dev/null' EXIT INT TERM
+
+sleep 0.3 && open "http://127.0.0.1:$port"
+wait $srv

@@ -30,10 +30,13 @@ define('FILTER_FUNCTIONS', ['apply_filters', 'apply_filters_ref_array', 'add_fil
 
 // ── ANSI styling ────────────────────────────────────────────
 
+// In --print-path mode stdout is reserved for the final path, and the pretty
+// UI is redirected to stderr; color it based on stderr's TTY status instead.
+$_tty_stream = in_array('--print-path', $argv, true) ? STDERR : STDOUT;
 if (function_exists('posix_isatty')) {
-    $IS_TTY = posix_isatty(STDOUT);
+    $IS_TTY = posix_isatty($_tty_stream);
 } elseif (function_exists('stream_isatty')) {
-    $IS_TTY = stream_isatty(STDOUT);
+    $IS_TTY = stream_isatty($_tty_stream);
 } else {
     $IS_TTY = false;
 }
@@ -780,7 +783,7 @@ function parse_cli_args($argv) {
         'output'       => null,
         'overlap_only' => false,
         'exclude'      => '',
-        'serve'        => false,
+        'print_path'   => false,
         'help'         => false,
     ];
     $n = count($argv);
@@ -795,8 +798,8 @@ function parse_cli_args($argv) {
             case '--exclude':
                 if ($i + 1 < $n) $args['exclude'] = $argv[++$i];
                 break;
-            case '--serve':
-                $args['serve'] = true;
+            case '--print-path':
+                $args['print_path'] = true;
                 break;
             case '-h': case '--help':
                 $args['help'] = true;
@@ -820,15 +823,16 @@ Arguments:
 
 Options:
   -o, --output PATH     Output JSON file path
-                        (default: $TMPDIR/hooksgraph-$USER/<dir-names>.json).
+                        (default: <project>/storage/<dir-names>.json).
   --overlap-only        Only output hooks present in 2+ scanned directories.
                         Useful for finding shared integration points between
                         a core codebase and plugins.
   --exclude a,b,c       Comma-separated list of folder names to exclude
                         (in addition to .gitignore). Matched against each
                         path component, e.g. --exclude vendor,tests.
-  --serve               Start the local dev server after parsing to view
-                        the graph.
+  --print-path          Print only the absolute path to the written JSON on
+                        stdout; route the pretty UI output to stderr. Used
+                        by the `hooksgraph` launcher to capture the path.
   -h, --help            Show this help message.
 
 Examples:
@@ -872,6 +876,15 @@ function main() {
         exit(1);
     }
 
+    // In --print-path mode the pretty UI must go to stderr so stdout can carry
+    // only the final output path. Redirect all echo/printf output to STDERR.
+    if ($args['print_path']) {
+        ob_start(function ($buffer) {
+            fwrite(STDERR, $buffer);
+            return '';
+        });
+    }
+
     // Parse exclude list
     $exclude_dirs = [];
     if ($args['exclude'] !== '') {
@@ -895,8 +908,7 @@ function main() {
     if ($output === null) {
         $names    = array_map(function ($d) { return basename(rtrim($d, DIRECTORY_SEPARATOR)); }, $dirs);
         $filename = implode('-', $names) . '.json';
-        $user     = getenv('USER') ?: 'unknown';
-        $output   = sys_get_temp_dir() . "/hooksgraph-{$user}/{$filename}";
+        $output   = __DIR__ . "/storage/{$filename}";
     }
 
     // Validate directories
@@ -1019,13 +1031,14 @@ function main() {
 
     // Output
     section("Output");
-    $display = str_replace(sys_get_temp_dir(), '$TMPDIR', $output);
-    echo "  " . style($display, _CYAN) . "\n";
+    echo "  " . style($output, _CYAN) . "\n";
 
-    // Optionally start dev server
-    if ($args['serve']) {
-        $serve_script = __DIR__ . '/serve.php';
-        passthru(PHP_BINARY . ' ' . escapeshellarg($serve_script) . ' --json ' . escapeshellarg($output));
+    // In --print-path mode: flush the pretty output to stderr, close the
+    // buffer, then emit only the absolute path on stdout.
+    if ($args['print_path']) {
+        ob_end_flush();
+        $abs = realpath($output);
+        echo ($abs !== false ? $abs : $output) . "\n";
     }
 }
 
