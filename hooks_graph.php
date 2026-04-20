@@ -7,7 +7,7 @@
  * (do_action, add_action, apply_filters, add_filter), and outputs a JSON
  * graph of hook relationships.
  *
- * Uses PHP's built-in token_get_all() tokenizer instead of tree-sitter.
+ * Uses PHP's built-in token_get_all() tokenizer.
  *
  * Usage:
  *     php hooks_graph.php /path/to/wordpress
@@ -1042,4 +1042,6 @@ function main() {
     }
 }
 
-main();
+if (PHP_SAPI === 'cli' && !defined('HOOKS_GRAPH_TESTING')) {
+    main();
+}

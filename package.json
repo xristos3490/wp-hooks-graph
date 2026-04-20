@@ -5,16 +5,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "python3 -m venv venv && ./venv/bin/pip install -r requirements.txt",
-    "parse": "./venv/bin/python3 hooks_graph.py",
-    "parse:help": "./venv/bin/python3 hooks_graph.py --help",
-    "test": "npm run test:graph && npm run test:parser && npm run test:filters",
-    "test:graph": "./venv/bin/python -m pytest test_graph.py",
-    "test:parser": "./venv/bin/python test_parser.py",
+    "parse": "php hooks_graph.php",
+    "parse:help": "php hooks_graph.php --help",
+    "test": "npm run test:php && npm run test:filters",
+    "test:php": "php tests/run.php",
     "test:filters": "node test_filters.js",
     "setup:alias": "bash setup_profile.sh < /dev/tty",
     "dev": "vite",
-    "build:ui": "vite build",
+    "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {

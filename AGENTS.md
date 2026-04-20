@@ -6,77 +6,80 @@ Parses WordPress PHP codebases for hook relationships (do_action/add_action/appl
 
 | Command | Description |
 |---------|-------------|
-| `npm run build` | Set up Python venv and install pip dependencies |
-| `npm run parse -- <dir> [dir2...] [--overlap-only] [--exclude a,b] [-o path]` | Parse PHP files, output defaults to `$TMPDIR/hooksgraph-$USER/hooks.json`. The `--` is required to pass args through npm to the Python script |
+| `npm install` | Install Node dependencies for the Vite/React viewer |
+| `npm run parse -- <dir> [dir2...] [--overlap-only] [--exclude a,b] [-o path]` | Parse PHP files. Output defaults to `$TMPDIR/hooksgraph-$USER/hooks.json`. The `--` is required to pass args through npm |
 | `npm run parse:help` | Show full parser help with all options, examples, and output format |
-| `npm run serve` | Start local dev server (port 8080, auto-fallback if busy) |
-| `npm test` | Run all tests (graph, parser, filters) |
-| `npm run test:graph` | Graph builder tests (pytest) |
-| `npm run test:parser` | Parser tests (37 tests, custom runner) |
-| `npm run test:filters` | Filter pipeline tests (Node.js) |
+| `npm run dev` | Vite dev server for the React viewer |
+| `npm run build` | Build the React viewer into `dist/` |
+| `npm run preview` | Preview the built viewer |
+| `bin/hooksgraph <dir>...` | Parse + serve: runs the parser then starts `php -S` with `server.php` as router, opens the browser |
+| `npm test` | Run PHP + JS test suites |
+| `npm run test:php` | PHP parser + graph tests (custom runner under `tests/`) |
+| `npm run test:filters` | Filter-pipeline tests (`test_filters.js`, Node.js) |
 
 ## Architecture
 
 ```
-hooks_graph.py    CLI entry point: argparse, file discovery, orchestration, progress/summary output
-parser.py         Tree-sitter PHP parsing: walks ASTs, extracts hook function calls
-graph.py          Graph construction: deduplicates hooks, builds nodes/edges/metadata JSON
-index.html        Self-contained Cytoscape.js viewer (upload-only, dagre/force/concentric layouts, search, filters)
-filters.js        Pure filter pipeline functions extracted from viewer (no DOM dependency, testable with Node)
-serve.py          Local dev server (port 8080, auto-fallback to random port if busy)
-storage/          Git-ignored output directory for generated JSON files (.keep tracked)
-test_parser.py    Parser tests (custom runner, no pytest)
-test_graph.py     Graph builder tests (pytest)
-test_filters.js   Filter pipeline tests (Node.js, custom runner)
+hooks_graph.php   PHP CLI entry point. Uses token_get_all() to tokenize PHP; walks tokens to extract hook calls.
+                  Handles file discovery, .gitignore respect, progress UI, graph construction, overlap filtering, JSON output.
+server.php        Router for `php -S`. Serves the parsed JSON at /hooks.json; delegates everything else to dist/.
+bin/hooksgraph    Bash wrapper: runs the parser, finds a free port, launches `php -S` with server.php, opens the browser.
+src/              React viewer (Vite + @wordpress/components + Cytoscape). Entry: src/main.jsx → src/App.jsx.
+filters.js        Pure filter-pipeline functions used by the viewer (src/hooks/useFilterState.js imports it).
+test_filters.js   Filter pipeline tests (Node.js, custom runner).
+tests/            PHP test suite (zero-dep runner + parser/graph tests).
+index.html        Vite entry HTML.
+index.legacy.html Pre-Vite self-contained viewer (kept for reference).
+dist/             Vite build output (git-ignored).
+storage/          Git-ignored output directory for generated JSON files (.keep tracked).
+setup_profile.sh  Installs a shell alias for `bin/hooksgraph`.
 ```
 
 ### Data flow
 
 ```
-PHP files → parser.parse_file() → list[dict] → graph.build_graph() → [optional: filter_graph_by_overlap()] → storage/hooks.json → index.html (upload)
+PHP files → hooks_graph.php (tokenize → extract → build graph → optional overlap filter) → JSON
+         → server.php serves JSON at /hooks.json
+         → React viewer renders via Cytoscape
 ```
 
 ## Key Files
 
-- `parser.py` — Core extraction logic. `parse_file(filepath, source_label)` returns list of hook call dicts
-- `graph.py` — `build_graph(hook_calls, scanned_dirs, total_files)` returns the full JSON structure; `filter_graph_by_overlap(graph)` filters to hooks that appear in multiple scanned directories
-- `hooks_graph.py` — CLI only; all logic lives in parser.py and graph.py
-- `index.html` — Loads Cytoscape.js + dagre from CDN. No build step. Upload-only file picker
+- `hooks_graph.php` — Single-file parser + graph builder. No external PHP dependencies; uses the built-in tokenizer.
+- `server.php` — Minimal router; any path other than `/hooks.json` falls through to the static file server rooted at `dist/`.
+- `bin/hooksgraph` — Primary user-facing entry point. `--print-path` makes the parser emit only the output path on stdout (pretty UI goes to stderr), which this script captures.
+- `src/App.jsx` — Top-level React component; orchestrates sidebar, graph canvas, and detail panel.
 
 ## Code Style
 
-- Private functions: `_leading_underscore`
-- Constants: `UPPER_SNAKE` (e.g., `HOOK_FUNCTIONS`)
-- Data structures: plain dicts, no dataclasses
-- Tests: `test_graph.py` uses pytest; `test_parser.py` uses custom `if __name__ == "__main__"` runner
+- PHP: constants via `define()`, private helpers prefixed with `_` are not used — functions are file-scope and named plainly
+- Constants: `UPPER_SNAKE` (e.g., `HOOK_FUNCTIONS`, `ACTION_FUNCTIONS`)
+- Data structures: associative arrays; no classes in the parser
 - Node IDs: `type::identifier` format (e.g., `hook::init`, `file::wp::wp-includes/plugin.php`)
-- UTF-8 decoding: always use `errors="replace"`
+- JS: ES modules, React function components, hooks in `src/hooks/`
 
 ## Testing
 
-- All Python commands run through the venv automatically via npm scripts
-- `npm test` — runs all three test suites
-- `npm run test:graph` — graph builder tests (pytest)
-- `npm run test:parser` — 37 parser tests (custom runner, not pytest)
-- `npm run test:filters` — filter pipeline tests (Node.js)
-- Test helpers: `_parse_php(code)` creates temp files, `_make_call(**overrides)` is a factory with defaults
+- `npm test` runs the PHP suite (`tests/run.php`) and the JS filter suite.
+- `tests/run.php` is a zero-dependency runner: each `tests/test_*.php` file calls `test('name', fn)` to register cases. `assert_eq`, `assert_null`, `assert_true`, `assert_false`, `assert_count`, and `assert_contains` are available.
+- `tests/test_parser.php` exercises `parse_php_file()` via a `parse_source($code, $label)` helper that writes the source to a temp file and parses it. Covers literal/concat/interpolated hook names, all callback shapes (string, array, `$this`, `self::class`, closure, arrow fn, variable), scope tracking, priority, doc comments, and rejection of method/nullsafe calls.
+- `tests/test_graph.php` exercises `build_graph()` and `filter_graph_by_overlap()` directly with in-memory call dicts (no temp files). A `mk_call($overrides)` helper provides sane defaults. Fake paths like `/fake/wp-core/...` are fine because `realpath()` fallbacks in the graph code tolerate missing dirs.
+- `hooks_graph.php` guards its `main()` call with `defined('HOOKS_GRAPH_TESTING')` so `require`-ing the file from tests does not execute the CLI.
 
 ## Gotchas
 
-- `graph.py` has a `_dynamic_counter` global that **must be reset** at the start of `build_graph()` — it already does this, but don't call `_hook_id()` outside of `build_graph()`
-- Tree-sitter line numbers are 0-indexed; the parser adds 1 (`start_point[0] + 1`) to match editor conventions
-- tree-sitter-php exposes `language_php()` not `language()` — the API name is non-obvious
-- `_extract_callback` must unwrap the `array_element_initializer` node before calling `_extract_string_value` — the AST wraps array elements in an extra node layer
 - Hook name extraction for concatenation (`'prefix_' . $var`) produces `prefix_*` — the `*` is a convention, not a glob
 - File IDs include source label to prevent collisions across scanned directories: `file::{source}::{rel_path}`
-- The HTML viewer's hotspot threshold is adaptive (top 10% of connections), not a fixed number
-- Comments in PHP are correctly ignored — tree-sitter parses them as separate AST nodes, not function calls
+- Dynamic hook names (bare variables, interpolations) get a `*` suffix or a synthetic counter id; don't rely on stability across runs
+- `--print-path` mode reserves stdout for the output file path; the progress UI is redirected to stderr. `bin/hooksgraph` depends on this
+- `server.php` returns `false` for unknown paths so `php -S` serves static files itself — don't add logic that returns `true` by default
+- The viewer's hotspot threshold is adaptive (top 10% of connections), not a fixed number
 
 ## Supported Hook Functions
 
-```python
-do_action, do_action_ref_array         → edge_type="fires", hook_type="action"
-apply_filters, apply_filters_ref_array → edge_type="fires", hook_type="filter"
+```
+do_action, do_action_ref_array         → edge_type="fires",   hook_type="action"
+apply_filters, apply_filters_ref_array → edge_type="fires",   hook_type="filter"
 add_action                             → edge_type="listens", hook_type="action"
 add_filter                             → edge_type="listens", hook_type="filter"
 ```

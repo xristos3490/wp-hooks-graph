@@ -2,39 +2,46 @@
 
 A static analysis tool that maps WordPress hook dependencies and visualizes them as an interactive graph. Point it at any combination of plugins, themes, and core — it parses every `do_action`, `add_action`, `apply_filters`, and `add_filter` call and shows you how they connect.
 
-Built on [tree-sitter](https://tree-sitter.github.io/tree-sitter/) for AST-level PHP parsing. No WordPress runtime, no database, no autoloading — just source files in, dependency graph out.
+Built on PHP's built-in `token_get_all()` tokenizer. No WordPress runtime, no database, no autoloading — just source files in, dependency graph out.
 
 ![Hooks Graph viewer showing the posts_clauses hook across WordPress and WooCommerce](wp-woo-screen-clauses.jpg)
+
+## Requirements
+
+- PHP 7.4+ (for the parser and dev server)
+- Node 18+ (for the React viewer)
 
 ## Quick Start
 
 ```sh
 npm install
-npm run build
-npm run parse -- /path/to/wordpress
+npm run build          # build the React viewer into dist/
+bin/hooksgraph /path/to/wordpress
 ```
 
-Then start the local server and open it in your browser:
+`bin/hooksgraph` parses the given directory (or directories), starts a local PHP server, and opens the viewer in your browser. The port defaults to 8080 and falls back to the next free port.
+
+Or run the steps separately:
 
 ```sh
-npm run serve
-# → http://localhost:8080 (falls back to a random port if 8080 is busy)
+npm run parse -- /path/to/wordpress -o storage/wp.json
+HOOKS_JSON=storage/wp.json php -S 127.0.0.1:8080 -t dist server.php
 ```
-
-Upload the generated JSON file from `storage/`.
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `npm run build` | Set up Python venv and install dependencies |
-| `npm run parse -- <dirs...>` | Parse PHP files and output to `storage/hooks.json` |
+| `npm install` | Install Node dependencies |
+| `npm run build` | Build the React viewer into `dist/` |
+| `npm run dev` | Vite dev server for the viewer |
+| `npm run parse -- <dirs...>` | Parse PHP files; output path printed at the end |
 | `npm run parse -- <dirs...> --overlap-only` | Only include hooks shared across 2+ directories |
 | `npm run parse -- <dirs...> --exclude vendor,tests` | Exclude folders by name (in addition to .gitignore) |
 | `npm run parse -- <dirs...> -o storage/custom.json` | Custom output path |
-| `npm run parse:help` | Show full parser help with all options, examples, and output format |
-| `npm run serve` | Start local server at http://localhost:8080 (auto-fallback if busy) |
-| `npm test` | Run all tests (graph, parser, filters) |
+| `npm run parse:help` | Show full parser help |
+| `bin/hooksgraph <dirs...>` | Parse + serve + open browser in one step |
+| `npm test` | Run filter-pipeline tests |
 
 ## Parse Options
 
@@ -56,9 +63,7 @@ npm run parse -- ~/Code/wordpress -o storage/wp-core.json
 
 ## Viewer
 
-Run `npm run serve` and open http://localhost:8080. Click **Upload JSON file** to load a generated graph from `storage/`.
-
-Features: search, layout switching (dagre/force/concentric), source filtering, hotspot highlighting, and detail panel on node click.
+Run `bin/hooksgraph <dir>` (or `npm run dev` after parsing separately) to open the viewer. Features: search, layout switching (dagre/force/concentric), source filtering, hotspot highlighting, and a detail panel on node click.
 
 ## Limitations
 
@@ -72,20 +77,18 @@ This is a **static parser**, not a runtime tracer. A few things to keep in mind:
 ## Project Structure
 
 ```
-hooks_graph.py    CLI entry point
-parser.py         Tree-sitter PHP parsing
-graph.py          Graph construction and deduplication
-index.html        Cytoscape.js interactive viewer
+hooks_graph.php   PHP CLI parser + graph builder
+server.php        Router for `php -S`
+bin/hooksgraph    Parse + serve + open-browser wrapper
+src/              React viewer (Vite + Cytoscape)
 filters.js        Filter pipeline (shared by viewer and tests)
-serve.py          Local dev server (port 8080, auto-fallback if busy)
 storage/          Generated JSON output (git-ignored)
 ```
 
 ## Tests
 
 ```sh
-npm test              # all tests
-npm run test:graph    # graph builder (pytest)
-npm run test:parser   # parser (37 tests)
-npm run test:filters  # filter pipeline (Node.js)
+npm test              # PHP parser/graph + JS filter pipeline
+npm run test:php      # PHP only (tests/run.php)
+npm run test:filters  # JS only (test_filters.js)
 ```
