@@ -1,10 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import {
-  Button,
-  __experimentalText as Text,
-  __experimentalHStack as HStack,
-  __experimentalVStack as VStack,
-} from '@wordpress/components';
+import { IconButton, Text, Stack } from '@wordpress/ui';
 import { DataViews } from '@wordpress/dataviews';
 import '@wordpress/dataviews/build-style/style.css';
 import { close } from '@wordpress/icons';
@@ -25,6 +20,9 @@ const PANEL_INSET = 'var(--wpds-dimension-padding-xl)';
 const sectionHeadingStyle = {
   padding: `0 ${PANEL_INSET}`,
   marginBottom: 'var(--wpds-dimension-gap-md)',
+  display: 'block',
+  textTransform: 'uppercase',
+  opacity: 0.6,
 };
 
 const monoStyle = {
@@ -144,10 +142,12 @@ export default function DetailPanel() {
             zIndex: 1,
           }}>
             <div style={{ position: 'absolute', top: 18, right: 18 }}>
-              <Button
+              <IconButton
                 icon={close}
                 onClick={clearSelection}
                 label="Close"
+                variant="minimal"
+                tone="neutral"
                 size="small"
               />
             </div>
@@ -155,7 +155,7 @@ export default function DetailPanel() {
             {d.type === 'file' && <FileHeader d={d} />}
             {d.type === 'class' && <ClassHeader d={d} />}
           </div>
-          <div style={{ paddingBottom: 'var(--wpds-dimension-padding-3xl)' }}>
+          <div style={{ paddingTop: 'var(--wpds-dimension-gap-lg)', paddingBottom: 'var(--wpds-dimension-padding-3xl)' }}>
             {d.type === 'hook' && <HookBody d={d} cy={cy} onEdgeClick={handleEdgeClick} />}
             {d.type === 'file' && <FileBody d={d} cy={cy} onEdgeClick={handleEdgeClick} />}
             {d.type === 'class' && <ClassBody d={d} cy={cy} onEdgeClick={handleEdgeClick} />}
@@ -211,7 +211,7 @@ function HookHeader({ d }) {
         {d.name}
       </h3>
       {sourceName && (
-        <Text variant="muted" style={{ display: 'block', fontSize: 'var(--wpds-font-size-sm)' }}>
+        <Text variant="body-sm" style={{ display: 'block', opacity: 0.6 }}>
           {sourceName}
         </Text>
       )}
@@ -243,7 +243,7 @@ function FileHeader({ d }) {
       }}>
         {d.path}
       </h3>
-      <Text variant="muted" style={{ display: 'block', fontSize: 'var(--wpds-font-size-sm)' }}>
+      <Text variant="body-sm" style={{ display: 'block', opacity: 0.6 }}>
         {d.source}
       </Text>
     </>
@@ -261,7 +261,7 @@ function ClassHeader({ d }) {
       }}>
         {d.name}
       </h3>
-      <Text variant="muted" style={{ display: 'block', fontSize: 'var(--wpds-font-size-sm)' }}>
+      <Text variant="body-sm" style={{ display: 'block', opacity: 0.6 }}>
         {d.source}
       </Text>
     </>
@@ -357,9 +357,9 @@ function CallbackRef({ children }) {
 
 function EdgeMeta({ children }) {
   return (
-    <HStack spacing={3} style={{ marginTop: 'var(--wpds-dimension-gap-xs)' }} wrap>
+    <Stack direction="row" gap="sm" wrap="wrap" style={{ marginTop: 'var(--wpds-dimension-gap-xs)' }}>
       {children}
-    </HStack>
+    </Stack>
   );
 }
 
@@ -470,7 +470,7 @@ function HookBody({ d, cy, onEdgeClick }) {
 
       {fireData.length > 0 && (
         <section style={{ marginBottom: 'var(--wpds-dimension-gap-2xl)' }}>
-          <Text as="h4" upperCase variant="muted" isBlock style={sectionHeadingStyle}>Fired by ({fireData.length})</Text>
+          <Text variant="body-sm" render={<h4 />} style={sectionHeadingStyle}>Fired by ({fireData.length})</Text>
           <DataViews
             data={fireData}
             fields={edgeFields}
@@ -489,7 +489,7 @@ function HookBody({ d, cy, onEdgeClick }) {
 
       {listenData.length > 0 && (
         <section>
-          <Text as="h4" upperCase variant="muted" isBlock style={sectionHeadingStyle}>Listened by ({listenEdges.length})</Text>
+          <Text variant="body-sm" render={<h4 />} style={sectionHeadingStyle}>Listened by ({listenEdges.length})</Text>
           <DataViews
             data={listenData}
             fields={edgeFields}
@@ -504,11 +504,12 @@ function HookBody({ d, cy, onEdgeClick }) {
             <DataViews.Layout />
           </DataViews>
           {sortedListens.length > LISTEN_TRUNCATION_LIMIT && (
-            <Text variant="muted" style={{
+            <Text variant="body-sm" style={{
               display: 'block',
               fontSize: 'var(--wpds-font-size-xs)',
               textAlign: 'center',
               padding: `var(--wpds-dimension-padding-sm) ${PANEL_INSET} 0`,
+              opacity: 0.6,
             }}>
               ... showing {LISTEN_TRUNCATION_LIMIT} of {sortedListens.length}
             </Text>
@@ -575,7 +576,7 @@ function FileBody({ d, cy, onEdgeClick }) {
 
       {fireData.length > 0 && (
         <section style={{ marginBottom: 'var(--wpds-dimension-gap-2xl)' }}>
-          <Text as="h4" upperCase variant="muted" isBlock style={sectionHeadingStyle}>Fires ({fireData.length})</Text>
+          <Text variant="body-sm" render={<h4 />} style={sectionHeadingStyle}>Fires ({fireData.length})</Text>
           <DataViews
             data={fireData}
             fields={edgeFields}
@@ -594,7 +595,7 @@ function FileBody({ d, cy, onEdgeClick }) {
 
       {listenData.length > 0 && (
         <section>
-          <Text as="h4" upperCase variant="muted" isBlock style={sectionHeadingStyle}>Listens to ({listenData.length})</Text>
+          <Text variant="body-sm" render={<h4 />} style={sectionHeadingStyle}>Listens to ({listenData.length})</Text>
           <DataViews
             data={listenData}
             fields={edgeFields}
@@ -665,7 +666,7 @@ function ClassBody({ d, cy, onEdgeClick }) {
     <>
       {d.files && d.files.length > 0 && (
         <section style={{ marginBottom: 'var(--wpds-dimension-gap-2xl)' }}>
-          <Text as="h4" upperCase variant="muted" isBlock style={sectionHeadingStyle}>Files ({d.files.length})</Text>
+          <Text variant="body-sm" render={<h4 />} style={sectionHeadingStyle}>Files ({d.files.length})</Text>
           {d.files.map((f) => (
             <div key={f} style={{
               padding: `var(--wpds-dimension-padding-sm) ${PANEL_INSET}`,
@@ -684,7 +685,7 @@ function ClassBody({ d, cy, onEdgeClick }) {
 
       {fireData.length > 0 && (
         <section style={{ marginBottom: 'var(--wpds-dimension-gap-2xl)' }}>
-          <Text as="h4" upperCase variant="muted" isBlock style={sectionHeadingStyle}>Fires ({fireData.length})</Text>
+          <Text variant="body-sm" render={<h4 />} style={sectionHeadingStyle}>Fires ({fireData.length})</Text>
           <DataViews
             data={fireData}
             fields={edgeFields}
@@ -703,7 +704,7 @@ function ClassBody({ d, cy, onEdgeClick }) {
 
       {listenData.length > 0 && (
         <section>
-          <Text as="h4" upperCase variant="muted" isBlock style={sectionHeadingStyle}>Listens to ({listenData.length})</Text>
+          <Text variant="body-sm" render={<h4 />} style={sectionHeadingStyle}>Listens to ({listenData.length})</Text>
           <DataViews
             data={listenData}
             fields={edgeFields}

@@ -1,15 +1,15 @@
-import { OVERLAP_ACTION, OVERLAP_FILTER } from './constants.js';
+import { OVERLAP_ACTION, OVERLAP_FILTER, THEME_COLORS } from './constants.js';
 
 /**
  * Build the Cytoscape stylesheet array.
  * Extracted from index.html _initGraphDeferred() lines 1622-1853.
  */
-export function buildCytoscapeStyles(sourceLabels, repoPalettes, themeColors, isLargeGraph) {
+export function buildCytoscapeStyles(sourceLabels, repoPalettes, isLargeGraph) {
   const curveStyle = isLargeGraph ? 'straight' : 'bezier';
   const transitionDur = isLargeGraph ? '0ms' : '200ms';
   const edgeTransitionDur = isLargeGraph ? '0ms' : '150ms';
   const minZoomedFont = isLargeGraph ? 8 : 0;
-  const tc = themeColors;
+  const tc = THEME_COLORS;
 
   return [
     // Base hook style

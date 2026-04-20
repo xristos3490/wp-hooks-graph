@@ -26,7 +26,6 @@ export default function GraphCanvas() {
     clearSelection,
     searchQuery,
     groupBy,
-    currentThemeColors,
     hookDataCache,
   } = useGraphContext();
 
@@ -41,8 +40,7 @@ export default function GraphCanvas() {
     if (!containerRef.current || !data) return;
 
     setGraphReady(false);
-    const tc = currentThemeColors();
-    const styles = buildCytoscapeStyles(sourceLabels, repoPalettes, tc, isLargeGraph);
+    const styles = buildCytoscapeStyles(sourceLabels, repoPalettes, isLargeGraph);
     const built = buildElements(data, sourceLabels, groupBy);
     const elements = [...built.nodes, ...built.edges];
 
@@ -234,24 +232,6 @@ export default function GraphCanvas() {
       { duration: 300 }
     );
   }, [selectedNode, graphReady]);
-
-  // --- Apply theme changes ---
-  useEffect(() => {
-    const cy = cyRef.current;
-    if (!cy) return;
-    const tc = currentThemeColors();
-    cy.style()
-      .selector('node[type="hook"]').style({ color: tc.nodeText })
-      .selector('node[type="file"]').style({ color: tc.nodeText })
-      .selector('node[type="class"]').style({ color: tc.nodeText, 'border-color': tc.classBorder })
-      .selector('node.highlighted[type="hook"]').style({
-        color: tc.highlightHookText,
-        'text-background-color': tc.highlightTextBg,
-      })
-      .selector('node.highlighted[type="file"]').style({ color: tc.highlightFileText })
-      .selector('node.selected-node').style({ 'border-color': tc.selectedBorder })
-      .update();
-  });
 
   return (
     <>

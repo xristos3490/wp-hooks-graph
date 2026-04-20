@@ -1,9 +1,6 @@
 import { useEffect, useState } from 'react';
-import {
-  ColorIndicator,
-  __experimentalHStack as HStack,
-  __experimentalText as Text,
-} from '@wordpress/components';
+import { ColorIndicator } from '@wordpress/components';
+import { Stack, Text } from '@wordpress/ui';
 import { useGraphContext } from '../context/GraphContext';
 import { OVERLAP_ACTION, OVERLAP_FILTER } from '../lib/constants';
 
@@ -39,52 +36,52 @@ export default function Legend() {
     }}>
       {/* Source dots */}
       {sourceLabels.map((label) => (
-        <HStack key={label} spacing={1} expanded={false} alignment="center">
+        <Stack key={label} direction="row" gap="xs" align="center">
           <ColorIndicator colorValue={repoPalettes[label].action} />
-          <Text style={{ fontSize: 'inherit' }}>
+          <Text variant="body-sm" style={{ fontSize: 'inherit' }}>
             {label}
           </Text>
-        </HStack>
+        </Stack>
       ))}
 
       <Separator />
 
       {/* Edge types */}
-      <HStack spacing={1} expanded={false} alignment="center">
+      <Stack direction="row" gap="xs" align="center">
         <span style={{
           display: 'inline-block',
           width: 22,
           borderTop: '2px solid currentColor',
           flexShrink: 0,
         }} />
-        <Text style={{ fontSize: 'inherit' }}>fires</Text>
-      </HStack>
-      <HStack spacing={1} expanded={false} alignment="center">
+        <Text variant="body-sm" style={{ fontSize: 'inherit' }}>fires</Text>
+      </Stack>
+      <Stack direction="row" gap="xs" align="center">
         <span style={{
           display: 'inline-block',
           width: 22,
           borderTop: '2px dashed currentColor',
           flexShrink: 0,
         }} />
-        <Text style={{ fontSize: 'inherit' }}>listens</Text>
-      </HStack>
+        <Text variant="body-sm" style={{ fontSize: 'inherit' }}>listens</Text>
+      </Stack>
 
       {/* Overlap dots */}
       {hasOverlap && (
         <>
           <Separator />
-          <HStack spacing={1} expanded={false} alignment="center">
+          <Stack direction="row" gap="xs" align="center">
             <ColorIndicator colorValue={OVERLAP_ACTION} />
-            <Text style={{ fontSize: 'inherit' }}>
+            <Text variant="body-sm" style={{ fontSize: 'inherit' }}>
               overlap action
             </Text>
-          </HStack>
-          <HStack spacing={1} expanded={false} alignment="center">
+          </Stack>
+          <Stack direction="row" gap="xs" align="center">
             <ColorIndicator colorValue={OVERLAP_FILTER} />
-            <Text style={{ fontSize: 'inherit' }}>
+            <Text variant="body-sm" style={{ fontSize: 'inherit' }}>
               overlap filter
             </Text>
-          </HStack>
+          </Stack>
         </>
       )}
     </div>

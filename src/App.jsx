@@ -3,7 +3,7 @@ import GraphContext from './context/GraphContext';
 import useGraphData from './hooks/useGraphData';
 import useFilterState from './hooks/useFilterState';
 import { generateRepoPalette } from './lib/color-palette';
-import { THEME_COLORS, LARGE_GRAPH_THRESHOLD } from './lib/constants';
+import { LARGE_GRAPH_THRESHOLD } from './lib/constants';
 import LoadingScreen from './components/LoadingScreen';
 import Sidebar from './components/Sidebar';
 import GraphCanvas from './components/GraphCanvas';
@@ -66,14 +66,6 @@ export default function App() {
   const selectNode = useCallback((id) => setSelectedNode(id), []);
   const clearSelection = useCallback(() => setSelectedNode(null), []);
 
-  function isLightTheme() {
-    return document.documentElement.classList.contains('light');
-  }
-
-  function currentThemeColors() {
-    return THEME_COLORS[isLightTheme() ? 'light' : 'dark'];
-  }
-
   const contextValue = useMemo(
     () => ({
       data,
@@ -98,15 +90,14 @@ export default function App() {
       setSearchQuery,
       groupBy,
       setGroupBy,
-      isLightTheme,
-      currentThemeColors,
+      loadFile,
     }),
     [
       data, sourceLabels, repoPalettes, hookDataCache, isLargeGraph,
       defaultThreshold, maxConnections, filterState, filterResult,
       toggleHookType, toggleBoolFilter, toggleRepo, toggleHighTraffic,
       setHighTrafficValue, selectedNode, selectNode, clearSelection,
-      searchQuery, groupBy,
+      searchQuery, groupBy, loadFile,
     ]
   );
 

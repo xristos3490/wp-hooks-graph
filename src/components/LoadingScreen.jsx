@@ -1,51 +1,78 @@
-import { useRef } from 'react';
-import { Button } from '@wordpress/components';
+import { useRef, useState, useCallback } from 'react';
+import { Button, EmptyState } from '@wordpress/ui';
+import { upload } from '@wordpress/icons';
+import Logo from './Logo';
 
 export default function LoadingScreen({ onFileLoad }) {
   const inputRef = useRef(null);
+  const [dragging, setDragging] = useState(false);
+  const dragCounter = useRef(0);
 
   function handleChange(e) {
     const file = e.target.files[0];
     if (file) onFileLoad(file);
   }
 
+  const handleDragEnter = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current++;
+    setDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current--;
+    if (dragCounter.current === 0) setDragging(false);
+  }, []);
+
+  const handleDragOver = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDrop = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragging(false);
+    dragCounter.current = 0;
+    const file = e.dataTransfer.files[0];
+    if (file) onFileLoad(file);
+  }, [onFileLoad]);
+
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 100,
-    }}>
-      <div style={{ textAlign: 'center' }}>
-        <h2 style={{
-          fontSize: 'var(--wpds-font-size-xl)',
-          fontWeight: 'var(--wpds-font-weight-medium)',
-          marginBottom: 'var(--wpds-dimension-gap-sm)',
-        }}>
-          Hooks Graph
-        </h2>
-        <p style={{
-          fontSize: 'var(--wpds-font-size-md)',
-          marginBottom: 'var(--wpds-dimension-gap-xl)',
-        }}>
-          Load a generated hooks file to explore hook relationships.
-        </p>
-        <Button
-          variant="secondary"
-          onClick={() => inputRef.current?.click()}
-        >
-          Upload JSON file
-        </Button>
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".json"
-          onChange={handleChange}
-          style={{ display: 'none' }}
-        />
-      </div>
+    <div
+      className={`loading-screen ${dragging ? 'loading-screen--dragging' : ''}`}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      <EmptyState.Root>
+        <EmptyState.Icon icon={upload} />
+        <EmptyState.Title><Logo /></EmptyState.Title>
+        <EmptyState.Description>
+          {dragging
+            ? 'Drop your JSON file here'
+            : 'Drag & drop a hooks file, or click to browse.'}
+        </EmptyState.Description>
+        <EmptyState.Actions>
+          <Button
+            variant="outline"
+            onClick={() => inputRef.current?.click()}
+          >
+            Browse files
+          </Button>
+        </EmptyState.Actions>
+      </EmptyState.Root>
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".json"
+        onChange={handleChange}
+        style={{ display: 'none' }}
+      />
     </div>
   );
 }

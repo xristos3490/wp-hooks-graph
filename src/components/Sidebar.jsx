@@ -1,7 +1,8 @@
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useRef } from 'react';
 import { DataForm } from '@wordpress/dataviews';
-import { Button } from '@wordpress/components';
+import { Button } from '@wordpress/ui';
 import { useGraphContext } from '../context/GraphContext';
+import Logo from './Logo';
 
 export default function Sidebar() {
   const {
@@ -14,7 +15,10 @@ export default function Sidebar() {
     toggleRepo,
     toggleHighTraffic,
     setHighTrafficValue,
+    loadFile,
   } = useGraphContext();
+
+  const fileInputRef = useRef(null);
 
   const meta = data.metadata;
   const hookNodes = data.nodes.filter((n) => n.type === 'hook');
@@ -208,7 +212,7 @@ export default function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="sidebar__header">
-        <h4 className="sidebar__title">Hooks Graph</h4>
+        <Logo />
         <p className="sidebar__subtitle">{subtitleText}</p>
         <div className="sidebar__stats">
           <StatCell number={meta.total_files} label="FILES" />
@@ -223,9 +227,21 @@ export default function Sidebar() {
         form={form}
         onChange={handleChange}
       />
-      <Button variant="tertiary" className="sidebar__load-btn">
+      <Button
+        variant="minimal"
+        tone="neutral"
+        className="sidebar__load-btn"
+        onClick={() => fileInputRef.current?.click()}
+      >
         Load JSON file
       </Button>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json"
+        onChange={(e) => { const f = e.target.files[0]; if (f) loadFile(f); }}
+        style={{ display: 'none' }}
+      />
     </aside>
   );
 }
