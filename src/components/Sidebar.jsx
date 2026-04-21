@@ -290,7 +290,7 @@ export default function Sidebar() {
     fields: [
       {
         id: 'metrics',
-        label: 'Metrics',
+        label: 'Summary',
         layout: { type: 'card', isOpened: true },
         children: [
           panelRow('metric_files'),
@@ -352,7 +352,7 @@ export default function Sidebar() {
   return (
     <aside className="sidebar">
       <header className="sidebar__header">
-        <Stack gap="sm">
+        <Stack direction="row" align="center" gap="sm">
           <Logo />
           <Text variant="body-sm">{metadataLine}</Text>
         </Stack>
