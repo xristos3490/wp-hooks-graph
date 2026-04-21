@@ -6,7 +6,8 @@ import {
 const ACTIONS = {
   TOGGLE_HOOK_TYPE: 'TOGGLE_HOOK_TYPE',
   TOGGLE_BOOL_FILTER: 'TOGGLE_BOOL_FILTER',
-  TOGGLE_REPO: 'TOGGLE_REPO',
+  TOGGLE_FIRE_REPO: 'TOGGLE_FIRE_REPO',
+  TOGGLE_LISTEN_REPO: 'TOGGLE_LISTEN_REPO',
   TOGGLE_HIGH_TRAFFIC: 'TOGGLE_HIGH_TRAFFIC',
   SET_HIGH_TRAFFIC_VALUE: 'SET_HIGH_TRAFFIC_VALUE',
   INIT_REPOS: 'INIT_REPOS',
@@ -25,10 +26,15 @@ function filterReducer(state, action) {
       };
     case ACTIONS.TOGGLE_BOOL_FILTER:
       return { ...state, [action.key]: !state[action.key] };
-    case ACTIONS.TOGGLE_REPO:
+    case ACTIONS.TOGGLE_FIRE_REPO:
       return {
         ...state,
-        repos: { ...state.repos, [action.label]: !state.repos[action.label] },
+        fireRepos: { ...state.fireRepos, [action.label]: !state.fireRepos[action.label] },
+      };
+    case ACTIONS.TOGGLE_LISTEN_REPO:
+      return {
+        ...state,
+        listenRepos: { ...state.listenRepos, [action.label]: !state.listenRepos[action.label] },
       };
     case ACTIONS.TOGGLE_HIGH_TRAFFIC:
       return {
@@ -44,9 +50,13 @@ function filterReducer(state, action) {
         highTraffic: { ...state.highTraffic, minConnections: action.value },
       };
     case ACTIONS.INIT_REPOS: {
-      const repos = {};
-      action.labels.forEach((l) => (repos[l] = true));
-      return { ...state, repos };
+      const fireRepos = {};
+      const listenRepos = {};
+      action.labels.forEach((l) => {
+        fireRepos[l] = true;
+        listenRepos[l] = true;
+      });
+      return { ...state, fireRepos, listenRepos };
     }
     case ACTIONS.SET_DEFAULT_THRESHOLD:
       return {
@@ -62,8 +72,11 @@ const initialState = {
   hookType: { actions: true, filters: true },
   dynamic: false,
   overlapping: false,
+  includeFireOnly: true,
+  includeListenOnly: true,
   highTraffic: { enabled: false, minConnections: 10 },
-  repos: {},
+  fireRepos: {},
+  listenRepos: {},
 };
 
 export default function useFilterState(hookDataCache) {
@@ -88,8 +101,12 @@ export default function useFilterState(hookDataCache) {
     (key) => dispatch({ type: ACTIONS.TOGGLE_BOOL_FILTER, key }),
     []
   );
-  const toggleRepo = useCallback(
-    (label) => dispatch({ type: ACTIONS.TOGGLE_REPO, label }),
+  const toggleFireRepo = useCallback(
+    (label) => dispatch({ type: ACTIONS.TOGGLE_FIRE_REPO, label }),
+    []
+  );
+  const toggleListenRepo = useCallback(
+    (label) => dispatch({ type: ACTIONS.TOGGLE_LISTEN_REPO, label }),
     []
   );
   const toggleHighTraffic = useCallback(
@@ -115,7 +132,8 @@ export default function useFilterState(hookDataCache) {
     filterResult,
     toggleHookType,
     toggleBoolFilter,
-    toggleRepo,
+    toggleFireRepo,
+    toggleListenRepo,
     toggleHighTraffic,
     setHighTrafficValue,
     initRepos,

@@ -51,7 +51,7 @@ export default function App() {
 
   const {
     filterState, filterResult,
-    toggleHookType, toggleBoolFilter, toggleRepo,
+    toggleHookType, toggleBoolFilter, toggleFireRepo, toggleListenRepo,
     toggleHighTraffic, setHighTrafficValue, initRepos, setDefaultThreshold,
   } = useFilterState(hookDataCache);
 
@@ -80,7 +80,8 @@ export default function App() {
       filterResult,
       toggleHookType,
       toggleBoolFilter,
-      toggleRepo,
+      toggleFireRepo,
+      toggleListenRepo,
       toggleHighTraffic,
       setHighTrafficValue,
       selectedNode,
@@ -95,7 +96,7 @@ export default function App() {
     [
       data, sourceLabels, repoPalettes, hookDataCache, isLargeGraph,
       defaultThreshold, maxConnections, filterState, filterResult,
-      toggleHookType, toggleBoolFilter, toggleRepo, toggleHighTraffic,
+      toggleHookType, toggleBoolFilter, toggleFireRepo, toggleListenRepo, toggleHighTraffic,
       setHighTrafficValue, selectedNode, selectNode, clearSelection,
       searchQuery, groupBy, loadFile,
     ]

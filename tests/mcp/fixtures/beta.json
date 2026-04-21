@@ -1,0 +1,65 @@
+{
+  "metadata": {
+    "scanned_dirs": ["/fake/beta"],
+    "source_labels": ["beta"],
+    "total_files": 2,
+    "total_hooks": 2,
+    "dynamic_hooks": 0,
+    "scan_date": "2026-04-21T00:00:00+00:00"
+  },
+  "nodes": [
+    {
+      "id": "hook::init",
+      "type": "hook",
+      "hook_type": "action",
+      "name": "init",
+      "fire_count": 0,
+      "listen_count": 1,
+      "dynamic": false,
+      "sources": ["beta"]
+    },
+    {
+      "id": "hook::beta_only",
+      "type": "hook",
+      "hook_type": "filter",
+      "name": "beta_only",
+      "fire_count": 1,
+      "listen_count": 0,
+      "dynamic": false,
+      "sources": ["beta"]
+    },
+    {
+      "id": "file::beta::main.php",
+      "type": "file",
+      "path": "main.php",
+      "source": "beta",
+      "hook_count": 2
+    },
+    {
+      "id": "file::beta::lib/helpers.php",
+      "type": "file",
+      "path": "lib/helpers.php",
+      "source": "beta",
+      "hook_count": 0
+    }
+  ],
+  "edges": [
+    {
+      "source": "file::beta::main.php",
+      "target": "hook::init",
+      "type": "listens",
+      "line": 15,
+      "callback": "beta_boot",
+      "callback_method": "beta_boot",
+      "callback_type": "function",
+      "priority": 5
+    },
+    {
+      "source": "file::beta::main.php",
+      "target": "hook::beta_only",
+      "type": "fires",
+      "line": 30,
+      "scope_function": "beta_render"
+    }
+  ]
+}

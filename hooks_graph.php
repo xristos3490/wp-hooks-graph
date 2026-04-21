@@ -672,70 +672,6 @@ function build_graph($hook_calls, $scanned_dirs, $total_files = 0) {
     ];
 }
 
-function hook_name_matches_patterns($name, $patterns) {
-    foreach ($patterns as $p) {
-        if ($p === '') continue;
-        if (substr($p, -1) === '*') {
-            $stem = substr($p, 0, -1);
-            if ($stem === '' || strpos($name, $stem) === 0) return true;
-        } elseif ($name === $p) {
-            return true;
-        }
-    }
-    return false;
-}
-
-function filter_graph_by_hook_names($graph, $skip_patterns) {
-    if (empty($skip_patterns)) return $graph;
-
-    $original_hooks = array_filter($graph['nodes'], function ($n) { return $n['type'] === 'hook'; });
-
-    $drop_ids = [];
-    foreach ($original_hooks as $n) {
-        if (hook_name_matches_patterns($n['name'], $skip_patterns)) {
-            $drop_ids[$n['id']] = true;
-        }
-    }
-
-    if (empty($drop_ids)) return $graph;
-
-    $kept_edges = array_values(array_filter($graph['edges'], function ($e) use ($drop_ids) {
-        return !isset($drop_ids[$e['target']]);
-    }));
-
-    $kept_file_ids = [];
-    $file_edge_cnt = [];
-    foreach ($kept_edges as $e) {
-        $kept_file_ids[$e['source']] = true;
-        $file_edge_cnt[$e['source']] = ($file_edge_cnt[$e['source']] ?? 0) + 1;
-    }
-
-    $kept_hooks = [];
-    $kept_files = [];
-    foreach ($graph['nodes'] as $n) {
-        if ($n['type'] === 'hook') {
-            if (!isset($drop_ids[$n['id']])) $kept_hooks[] = $n;
-        } elseif ($n['type'] === 'file' && isset($kept_file_ids[$n['id']])) {
-            $n['hook_count'] = $file_edge_cnt[$n['id']] ?? 0;
-            $kept_files[] = $n;
-        }
-    }
-
-    usort($kept_hooks, function ($a, $b) { return strcmp($a['id'], $b['id']); });
-    usort($kept_files, function ($a, $b) { return strcmp($a['id'], $b['id']); });
-
-    $meta = $graph['metadata'];
-    $meta['skip_hook_names']   = $skip_patterns;
-    $meta['total_hooks']       = count($kept_hooks);
-    $meta['dynamic_hooks']     = count(array_filter($kept_hooks, function ($n) { return !empty($n['dynamic']); }));
-
-    return [
-        'metadata' => $meta,
-        'nodes'    => array_merge($kept_hooks, $kept_files),
-        'edges'    => $kept_edges,
-    ];
-}
-
 function filter_graph_by_overlap($graph) {
     $original_hooks = array_filter($graph['nodes'], function ($n) { return $n['type'] === 'hook'; });
 
@@ -847,7 +783,6 @@ function parse_cli_args($argv) {
         'output'       => null,
         'overlap_only' => false,
         'exclude'      => '',
-        'skip_hooks'   => '',
         'print_path'   => false,
         'help'         => false,
     ];
@@ -862,9 +797,6 @@ function parse_cli_args($argv) {
                 break;
             case '--exclude':
                 if ($i + 1 < $n) $args['exclude'] = $argv[++$i];
-                break;
-            case '--skip-hook-names':
-                if ($i + 1 < $n) $args['skip_hooks'] = $argv[++$i];
                 break;
             case '--print-path':
                 $args['print_path'] = true;
@@ -898,9 +830,6 @@ Options:
   --exclude a,b,c       Comma-separated list of folder names to exclude
                         (in addition to .gitignore). Matched against each
                         path component, e.g. --exclude vendor,tests.
-  --skip-hook-names a,b Comma-separated list of hook names to drop from the
-                        graph. Supports a trailing * wildcard, e.g.
-                        --skip-hook-names post_class,wp_head,admin_*
   --print-path          Print only the absolute path to the written JSON on
                         stdout; route the pretty UI output to stderr. Used
                         by the `hooksgraph` launcher to capture the path.
@@ -910,7 +839,6 @@ Examples:
   php hooks_graph.php ~/Code/wordpress
   php hooks_graph.php ~/Code/wordpress ~/Code/my-plugin --overlap-only
   php hooks_graph.php ~/Code/wordpress --exclude vendor,tests,node_modules
-  php hooks_graph.php ~/Code/wordpress --skip-hook-names wp_head,admin_*
   php hooks_graph.php ~/Code/wordpress -o storage/wp-core.json
 
 Supported hook functions:
@@ -963,15 +891,6 @@ function main() {
         foreach (explode(',', $args['exclude']) as $name) {
             $name = trim($name);
             if ($name !== '') $exclude_dirs[] = $name;
-        }
-    }
-
-    // Parse skip-hook-names list
-    $skip_hook_names = [];
-    if ($args['skip_hooks'] !== '') {
-        foreach (explode(',', $args['skip_hooks']) as $name) {
-            $name = trim($name);
-            if ($name !== '') $skip_hook_names[] = $name;
         }
     }
 
@@ -1051,13 +970,6 @@ function main() {
     // Build graph
     echo "\n" . style("Building graph...", _BOLD) . "\n";
     $graph = build_graph($all_calls, $dirs, $total);
-
-    if (!empty($skip_hook_names)) {
-        $before = $graph['metadata']['total_hooks'];
-        $graph  = filter_graph_by_hook_names($graph, $skip_hook_names);
-        $dropped = $before - $graph['metadata']['total_hooks'];
-        echo "  Skipped $dropped hooks matching: " . style(implode(', ', $skip_hook_names), _YELLOW) . "\n";
-    }
 
     if ($args['overlap_only']) {
         $graph = filter_graph_by_overlap($graph);

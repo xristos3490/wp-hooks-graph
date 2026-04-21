@@ -12,7 +12,8 @@ export default function Sidebar() {
     maxConnections,
     toggleHookType,
     toggleBoolFilter,
-    toggleRepo,
+    toggleFireRepo,
+    toggleListenRepo,
     toggleHighTraffic,
     setHighTrafficValue,
     loadFile,
@@ -37,11 +38,14 @@ export default function Sidebar() {
       filters: filterState.hookType.filters,
       dynamic: filterState.dynamic,
       overlapping: filterState.overlapping,
+      includeFireOnly: filterState.includeFireOnly,
+      includeListenOnly: filterState.includeListenOnly,
       hotspots: filterState.highTraffic.enabled,
       minConnections: filterState.highTraffic.minConnections,
     };
     sourceLabels.forEach((label) => {
-      flat[`repo__${label}`] = filterState.repos[label] !== false;
+      flat[`fire_repo__${label}`] = filterState.fireRepos[label] !== false;
+      flat[`listen_repo__${label}`] = filterState.listenRepos[label] !== false;
     });
     return flat;
   }, [filterState, sourceLabels]);
@@ -51,17 +55,24 @@ export default function Sidebar() {
     Object.entries(changes).forEach(([key, value]) => {
       if (key === 'actions' || key === 'filters') {
         toggleHookType(key);
-      } else if (key === 'dynamic' || key === 'overlapping') {
+      } else if (
+        key === 'dynamic' ||
+        key === 'overlapping' ||
+        key === 'includeFireOnly' ||
+        key === 'includeListenOnly'
+      ) {
         toggleBoolFilter(key);
       } else if (key === 'hotspots') {
         toggleHighTraffic();
       } else if (key === 'minConnections') {
         setHighTrafficValue(value);
-      } else if (key.startsWith('repo__')) {
-        toggleRepo(key.slice(6));
+      } else if (key.startsWith('fire_repo__')) {
+        toggleFireRepo(key.slice('fire_repo__'.length));
+      } else if (key.startsWith('listen_repo__')) {
+        toggleListenRepo(key.slice('listen_repo__'.length));
       }
     });
-  }, [toggleHookType, toggleBoolFilter, toggleHighTraffic, setHighTrafficValue, toggleRepo]);
+  }, [toggleHookType, toggleBoolFilter, toggleHighTraffic, setHighTrafficValue, toggleFireRepo, toggleListenRepo]);
 
   // ---------------------------------------------------------------------------
   // Fields — atomic data: type, edit control, display formatting, validation
@@ -96,6 +107,22 @@ export default function Sidebar() {
         id: 'overlapping',
         label: 'Overlapping',
         description: 'Found in more than one repo',
+        type: 'boolean',
+        Edit: 'toggle',
+      },
+
+      // Orphan opt-ins — raw-data one-sided hooks
+      {
+        id: 'includeFireOnly',
+        label: 'Include fire-only hooks',
+        description: 'Hooks fired in the scan with no listener found anywhere',
+        type: 'boolean',
+        Edit: 'toggle',
+      },
+      {
+        id: 'includeListenOnly',
+        label: 'Include listen-only hooks',
+        description: 'Hooks listened to with no fire location found anywhere',
         type: 'boolean',
         Edit: 'toggle',
       },
@@ -146,17 +173,25 @@ export default function Sidebar() {
         label: '',
         readOnly: true,
         getValue: ({ item }) => {
-          const active = sourceLabels.filter((l) => item[`repo__${l}`] !== false).length;
-          return `${active} of ${sourceLabels.length}`;
+          const f = sourceLabels.filter((l) => item[`fire_repo__${l}`] !== false).length;
+          const n = sourceLabels.filter((l) => item[`listen_repo__${l}`] !== false).length;
+          return `${f}/${sourceLabels.length} fires · ${n}/${sourceLabels.length} listens`;
         },
       },
     ];
 
-    // One toggle per scanned repo
+    // Two toggles per scanned repo — one for fire-sources, one for listen-sources.
+    // Arrow prefixes mirror graph edge direction: repo → hook (fires), repo ← hook (listens).
     sourceLabels.forEach((label) => {
       f.push({
-        id: `repo__${label}`,
-        label,
+        id: `fire_repo__${label}`,
+        label: '→ Fires',
+        type: 'boolean',
+        Edit: 'toggle',
+      });
+      f.push({
+        id: `listen_repo__${label}`,
+        label: '← Listens',
         type: 'boolean',
         Edit: 'toggle',
       });
@@ -182,7 +217,7 @@ export default function Sidebar() {
         label: 'Focus',
         description: 'Narrow what\u2019s visible',
         layout: { type: 'card', isOpened: false },
-        children: meta.overlap_filter
+        children: (meta.overlap_filter || sourceLabels.length <= 1)
           ? ['dynamic']
           : ['dynamic', 'overlapping'],
       },
@@ -202,9 +237,28 @@ export default function Sidebar() {
       {
         id: 'sources',
         label: 'Sources',
-        description: 'Scanned repositories',
+        description: 'Fire and listen sources per scanned repo',
         layout: { type: 'card', summary: 'sources_summary' },
-        children: sourceLabels.map((label) => `repo__${label}`),
+        children: [
+          ...sourceLabels.map((label) => ({
+            id: `source-row__${label}`,
+            label,
+            layout: {
+              type: 'row',
+              styles: {
+                [`fire_repo__${label}`]: { flex: '1 1 0' },
+                [`listen_repo__${label}`]: { flex: '1 1 0' },
+              },
+            },
+            children: [`fire_repo__${label}`, `listen_repo__${label}`],
+          })),
+          {
+            id: 'sources-orphans',
+            label: 'One-sided hooks',
+            layout: { type: 'details' },
+            children: ['includeFireOnly', 'includeListenOnly'],
+          },
+        ],
       },
     ],
   }), [sourceLabels, meta.overlap_filter]);

@@ -73,9 +73,6 @@ npm run parse -- ~/Code/wordpress ~/Code/my-plugin --overlap-only
 # Exclude folders by name (in addition to .gitignore)
 npm run parse -- ~/Code/wordpress --exclude vendor,tests,node_modules
 
-# Skip hooks by name (trailing * for prefix match)
-npm run parse -- ~/Code/wordpress --skip-hook-names wp_head,admin_*
-
 # Custom output file
 npm run parse -- ~/Code/wordpress -o storage/wp-core.json
 ```
@@ -83,6 +80,40 @@ npm run parse -- ~/Code/wordpress -o storage/wp-core.json
 ## Viewer
 
 Run `hooksgraph <dir>` (or `npm run dev -- --json storage/wp.json` after parsing separately) to open the viewer. Features: search, layout switching (dagre/force/concentric), source filtering, hotspot highlighting, and a detail panel on node click.
+
+The **Sources** card in the sidebar holds per-repo fire/listen toggles, plus two opt-ins for raw fire-only and listen-only hooks (hooks the scan found on just one side of the edge).
+
+## MCP Server
+
+`bin/hooks-mcp.js` is a local MCP stdio server that exposes every parsed codebase in `storage/` as structured, paginated tools — so any agent on the machine can query your graphs without slurping JSON into context.
+
+**Register with Claude Code:**
+
+```sh
+claude mcp add hooks-graph -- \
+  node /absolute/path/to/wp-hooks-graph/bin/hooks-mcp.js \
+  --storage /absolute/path/to/wp-hooks-graph/storage
+```
+
+The `--` is required — without it `claude mcp add` swallows `--storage` as its own option and the server registers with an empty command.
+
+Or run directly for testing: `npm run mcp -- --storage storage`. Storage also falls back to `$HOOKSGRAPH_STORAGE` and then `./storage` relative to cwd.
+
+**Tools:**
+
+| Tool | Purpose |
+|---|---|
+| `list_codebases` | Enumerate available codebases with their scan metadata |
+| `find_hook(name, codebase?)` | Exact-name hook lookup, single codebase or across all |
+| `listeners_of(hook, codebase, limit?, offset?)` | Every `add_action`/`add_filter` for a hook |
+| `firers_of(hook, codebase, limit?, offset?)` | Every `do_action`/`apply_filters` call site for a hook |
+| `hooks_in_file(file_path, codebase, limit?, offset?)` | All hook activity in a specific file |
+| `search_callbacks(substring, codebase?, limit?, offset?)` | Case-insensitive substring search over listener callbacks, optionally cross-codebase |
+| `hotspots(codebase, metric?, limit?)` | Top hooks by `total`, `fires`, or `listens` |
+
+Re-parse a codebase (`npm run parse -- ...`) and the next MCP call picks up the new data automatically (mtime-based invalidation — no daemon, no restart).
+
+What to ask it: *"Which callbacks in `woocommerce-bookings` listen on `woocommerce_before_single_product`?"* or *"Across every codebase, anything with `gateway_stripe_webhook` in the callback name?"*
 
 ## Limitations
 
@@ -100,8 +131,10 @@ hooks_graph.php      PHP CLI parser + graph builder
 server.php           Router for `php -S`
 bin/hooksgraph       Parse + serve + open-browser wrapper
 bin/serve            Serve a JSON with the built viewer (used by hooksgraph)
+bin/hooks-mcp.js     MCP stdio server over the storage/ JSONs
 bin/setup_profile.sh Installs the `hooksgraph` shell alias
 src/                 React viewer (Vite + Cytoscape); filter pipeline and its Vitest suite live here
+src/mcp/             MCP server implementation (registry, per-codebase indexes, tool handlers)
 storage/             Generated JSON output (git-ignored)
 ```
 

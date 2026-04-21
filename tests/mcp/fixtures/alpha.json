@@ -1,0 +1,148 @@
+{
+  "metadata": {
+    "scanned_dirs": ["/fake/alpha"],
+    "source_labels": ["alpha"],
+    "total_files": 3,
+    "total_hooks": 4,
+    "dynamic_hooks": 1,
+    "scan_date": "2026-04-21T00:00:00+00:00"
+  },
+  "nodes": [
+    {
+      "id": "hook::init",
+      "type": "hook",
+      "hook_type": "action",
+      "name": "init",
+      "fire_count": 1,
+      "listen_count": 3,
+      "dynamic": false,
+      "sources": ["alpha"]
+    },
+    {
+      "id": "hook::the_content",
+      "type": "hook",
+      "hook_type": "filter",
+      "name": "the_content",
+      "fire_count": 1,
+      "listen_count": 1,
+      "dynamic": false,
+      "sources": ["alpha"]
+    },
+    {
+      "id": "hook::save_post_*",
+      "type": "hook",
+      "hook_type": "action",
+      "name": "save_post_*",
+      "fire_count": 0,
+      "listen_count": 1,
+      "dynamic": true,
+      "sources": ["alpha"]
+    },
+    {
+      "id": "hook::shared_hook",
+      "type": "hook",
+      "hook_type": "action",
+      "name": "shared_hook",
+      "fire_count": 1,
+      "listen_count": 0,
+      "dynamic": false,
+      "sources": ["alpha"]
+    },
+    {
+      "id": "file::alpha::core.php",
+      "type": "file",
+      "path": "core.php",
+      "source": "alpha",
+      "hook_count": 3
+    },
+    {
+      "id": "file::alpha::plugin.php",
+      "type": "file",
+      "path": "plugin.php",
+      "source": "alpha",
+      "hook_count": 2
+    },
+    {
+      "id": "file::alpha::extras.php",
+      "type": "file",
+      "path": "extras.php",
+      "source": "alpha",
+      "hook_count": 1
+    }
+  ],
+  "edges": [
+    {
+      "source": "file::alpha::core.php",
+      "target": "hook::init",
+      "type": "fires",
+      "line": 10,
+      "scope_function": "bootstrap"
+    },
+    {
+      "source": "file::alpha::plugin.php",
+      "target": "hook::init",
+      "type": "listens",
+      "line": 20,
+      "callback": "alpha_setup",
+      "callback_method": "alpha_setup",
+      "callback_type": "function",
+      "priority": 10,
+      "scope_function": "alpha_boot"
+    },
+    {
+      "source": "file::alpha::plugin.php",
+      "target": "hook::init",
+      "type": "listens",
+      "line": 25,
+      "callback": "Alpha\\Loader::register",
+      "callback_method": "Alpha\\Loader::register",
+      "callback_type": "static_method",
+      "priority": 20,
+      "scope_function": "alpha_boot"
+    },
+    {
+      "source": "file::alpha::extras.php",
+      "target": "hook::init",
+      "type": "listens",
+      "line": 5,
+      "callback": "alpha_extras_hook",
+      "callback_method": "alpha_extras_hook",
+      "callback_type": "function",
+      "priority": 10
+    },
+    {
+      "source": "file::alpha::core.php",
+      "target": "hook::the_content",
+      "type": "fires",
+      "line": 40,
+      "scope_function": "render_content"
+    },
+    {
+      "source": "file::alpha::plugin.php",
+      "target": "hook::the_content",
+      "type": "listens",
+      "line": 55,
+      "callback": "alpha_filter_content",
+      "callback_method": "alpha_filter_content",
+      "callback_type": "function",
+      "priority": 10
+    },
+    {
+      "source": "file::alpha::plugin.php",
+      "target": "hook::save_post_*",
+      "type": "listens",
+      "line": 70,
+      "callback": "alpha_save",
+      "callback_method": "alpha_save",
+      "callback_type": "function",
+      "priority": 10
+    },
+    {
+      "source": "file::alpha::core.php",
+      "target": "hook::shared_hook",
+      "type": "fires",
+      "line": 80,
+      "scope_function": "shared_trigger"
+    }
+  ]
+}

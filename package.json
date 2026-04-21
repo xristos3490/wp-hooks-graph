@@ -4,6 +4,9 @@
   "description": "Parse WordPress PHP codebases for hook relationships and visualize them as an interactive graph.",
   "private": true,
   "type": "module",
+  "bin": {
+    "hooks-mcp": "bin/hooks-mcp.js"
+  },
   "scripts": {
     "setup": "bash bin/setup_profile.sh < /dev/tty",
     "parse": "php hooks_graph.php",
@@ -12,12 +15,14 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "mcp": "node bin/hooks-mcp.js",
     "test": "npm run test:php && npm run test:js",
     "test:php": "php tests/run.php",
     "test:js": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@wordpress/components": "^32.6.0",
     "@wordpress/dataviews": "^14.1.0",
     "@wordpress/icons": "^12.2.0",

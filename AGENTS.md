@@ -19,6 +19,7 @@ Parses WordPress PHP codebases for hook relationships (do_action/add_action/appl
 | `npm run test:php` | PHP parser + graph tests (custom runner under `tests/`) |
 | `npm run test:js` | Vitest suite for JS (currently `src/lib/filters.test.js`) |
 | `npm run test:watch` | Vitest in watch mode |
+| `npm run mcp -- [--storage <dir>]` | Run the stdio MCP server (wraps `bin/hooks-mcp.js`). Storage resolves CLI arg → `HOOKSGRAPH_STORAGE` env → `./storage` |
 
 ## Architecture
 
@@ -32,7 +33,12 @@ bin/setup_profile.sh Installs the `hooksgraph` alias in `~/.zshrc`.
 src/              React viewer (Vite + @wordpress/components + Cytoscape). Entry: src/main.jsx → src/App.jsx.
 src/lib/          Framework-agnostic helpers: `filters.js` (pure filter pipeline) + `filters.test.js` (Vitest),
                   `cytoscape-setup.js`, `color-palette.js`, `constants.js`.
+src/mcp/          MCP server that exposes the parsed graph JSONs as tools. `server.js` (McpServer + stdio transport),
+                  `registry.js` (lists codebases from a storage dir), `index.js` (mtime-cached graph index),
+                  `tools/` (list_codebases, find_hook, listeners_of, firers_of, hooks_in_file, search_callbacks, hotspots),
+                  `lib/` (paginate, shape helpers).
 tests/            PHP test suite (zero-dep runner + parser/graph tests).
+tests/mcp/        Vitest suite for the MCP server (tools, registry, pagination, fixtures under `tests/mcp/fixtures/`).
 index.html        Vite entry HTML.
 dist/             Vite build output (git-ignored).
 storage/          Git-ignored output directory for generated JSON files (.keep tracked).
@@ -53,6 +59,7 @@ PHP files → hooks_graph.php (tokenize → extract → build graph → optional
 - `bin/hooksgraph` — Primary user-facing entry point. `--print-path` makes the parser emit only the output path on stdout (pretty UI goes to stderr), which this script captures and hands to `bin/serve`.
 - `bin/serve` — Serving half of `hooksgraph`. Also invoked directly by `npm run serve`. Accepts an optional JSON path; when omitted, picks the most recently modified file in `storage/`.
 - `src/App.jsx` — Top-level React component; orchestrates sidebar, graph canvas, and detail panel.
+- `bin/hooks-mcp.js` — Node entry point for the MCP server (exposed as the `hooks-mcp` bin in package.json). Parses `--storage` / `-h`, resolves the storage dir, and hands off to `runStdioServer()` in `src/mcp/server.js`.
 
 ## Code Style
 
@@ -64,11 +71,12 @@ PHP files → hooks_graph.php (tokenize → extract → build graph → optional
 
 ## Testing
 
-- `npm test` runs the PHP suite (`tests/run.php`) and the JS suite (Vitest — picks up `src/**/*.test.js`).
+- `npm test` runs the PHP suite (`tests/run.php`) and the JS suite (Vitest — picks up `src/**/*.test.js` and `tests/**/*.test.js`).
 - `tests/run.php` is a zero-dependency runner: each `tests/test_*.php` file calls `test('name', fn)` to register cases. `assert_eq`, `assert_null`, `assert_true`, `assert_false`, `assert_count`, and `assert_contains` are available.
 - `tests/test_parser.php` exercises `parse_php_file()` via a `parse_source($code, $label)` helper that writes the source to a temp file and parses it. Covers literal/concat/interpolated hook names, all callback shapes (string, array, `$this`, `self::class`, closure, arrow fn, variable), scope tracking, priority, doc comments, and rejection of method/nullsafe calls.
 - `tests/test_graph.php` exercises `build_graph()` and `filter_graph_by_overlap()` directly with in-memory call dicts (no temp files). A `mk_call($overrides)` helper provides sane defaults. Fake paths like `/fake/wp-core/...` are fine because `realpath()` fallbacks in the graph code tolerate missing dirs.
 - `hooks_graph.php` guards its `main()` call with `defined('HOOKS_GRAPH_TESTING')` so `require`-ing the file from tests does not execute the CLI.
+- `tests/mcp/` covers each MCP tool plus the registry and pagination helper. `tests/mcp/helpers.js` exposes `makeCtx(storageDir)` backed by `tests/mcp/fixtures/` JSON files so tools can be called in-process without spinning up a transport.
 
 ## Gotchas
 
@@ -78,6 +86,9 @@ PHP files → hooks_graph.php (tokenize → extract → build graph → optional
 - `--print-path` mode reserves stdout for the output file path; the progress UI is redirected to stderr. `bin/hooksgraph` depends on this
 - `server.php` returns `false` for unknown paths so `php -S` serves static files itself — don't add logic that returns `true` by default
 - The viewer's hotspot threshold is adaptive (top 10% of connections), not a fixed number
+- MCP storage dir resolves in this order: CLI `--storage` → `HOOKSGRAPH_STORAGE` env → `cwd/storage`. A missing dir throws `MissingStorageError` — don't fall back silently.
+- The MCP graph index caches parsed JSON by file path and invalidates on `mtime` change. Rewriting a storage JSON with the same mtime (rare, but possible with `touch -t`) will not refresh the cache.
+- MCP tools receive `{ registry, index }` via a shared ctx from `createServer()`. `UnknownCodebaseError` / `CodebaseLoadError` / `MissingStorageError` are converted to `isError` tool results; anything else bubbles up and crashes the transport.
 
 ## Supported Hook Functions
 

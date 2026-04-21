@@ -5,7 +5,12 @@
       "Bash(vendor/bin/phpunit:*)",
       "mcp__playwright__browser_snapshot",
       "mcp__playwright__browser_click",
-      "mcp__playwright__browser_evaluate"
+      "mcp__playwright__browser_evaluate",
+      "Bash(npx vitest *)",
+      "mcp__hooks-graph__list_codebases",
+      "mcp__hooks-graph__find_hook",
+      "mcp__hooks-graph__listeners_of",
+      "mcp__hooks-graph__firers_of"
     ]
   }
 }

@@ -59,7 +59,9 @@ function filterEdgesByRepo(edges, fileNodes, visibleHookIds, state) {
   return edges.filter(function(e) {
     if (!visibleHookIds.has(e.target)) return false;
     var source = fileSourceMap[e.source];
-    if (source && !state.repos[source]) return false;
+    if (!source) return true;
+    var map = e.type === 'fires' ? state.fireRepos : state.listenRepos;
+    if (!map[source]) return false;
     return true;
   });
 }
@@ -73,6 +75,9 @@ function deriveFileVisibility(visibleEdges) {
 }
 
 function applyFilterPipeline(hooks, edges, fileNodes, state) {
+  var hooksById = {};
+  for (var h = 0; h < hooks.length; h++) hooksById[hooks[h].id] = hooks[h];
+
   var sets = [
     filterByHookType(hooks, state),
     filterByDynamic(hooks, state),
@@ -82,12 +87,24 @@ function applyFilterPipeline(hooks, edges, fileNodes, state) {
   var visibleHookIds = intersectSets(sets);
   var visibleEdges = filterEdgesByRepo(edges, fileNodes, visibleHookIds, state);
 
-  // Narrow hooks to only those with surviving edges
-  var hooksWithEdges = new Set();
+  // Two-sided by default; raw orphans surface only when opted in.
+  var hooksWithFire = new Set();
+  var hooksWithListen = new Set();
   for (var i = 0; i < visibleEdges.length; i++) {
-    hooksWithEdges.add(visibleEdges[i].target);
+    var e = visibleEdges[i];
+    if (e.type === 'fires') hooksWithFire.add(e.target);
+    else if (e.type === 'listens') hooksWithListen.add(e.target);
   }
-  visibleHookIds = new Set([...visibleHookIds].filter(function(id) { return hooksWithEdges.has(id); }));
+  visibleHookIds = new Set([...visibleHookIds].filter(function(id) {
+    var hook = hooksById[id];
+    var hasFire = hooksWithFire.has(id);
+    var hasListen = hooksWithListen.has(id);
+    if (hasFire && hasListen) return true;
+    if (hasFire && hook.listen_count === 0 && state.includeFireOnly) return true;
+    if (hasListen && hook.fire_count === 0 && state.includeListenOnly) return true;
+    return false;
+  }));
+  visibleEdges = visibleEdges.filter(function(e) { return visibleHookIds.has(e.target); });
 
   var visibleFileIds = deriveFileVisibility(visibleEdges);
   return { visibleHookIds: visibleHookIds, visibleEdges: visibleEdges, visibleFileIds: visibleFileIds };
