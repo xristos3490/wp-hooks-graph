@@ -24,10 +24,30 @@ if [ ! -f "$HOOKS_JSON" ]; then
     exit 1
 fi
 
+# Auto-build the viewer on first run (or if dist/ was cleaned).
 if [ ! -d "$HG/dist" ]; then
-    echo "Error: $HG/dist not found. Run 'npm run build' first." >&2
-    exit 1
+    if ! command -v npm >/dev/null 2>&1; then
+        echo "Error: $HG/dist not found and 'npm' isn't on PATH." >&2
+        echo "Install Node.js, then run 'npm install && npm run build'." >&2
+        exit 1
+    fi
+    if [ ! -d "$HG/node_modules" ]; then
+        echo "Installing Node dependencies..." >&2
+        (cd "$HG" && npm install --silent)
+    fi
+    echo "Building viewer (first run)..." >&2
+    (cd "$HG" && npm run build --silent)
 fi
+
+# Pick a browser opener: macOS `open`, Linux `xdg-open`, WSL `wslview`,
+# Windows `start` — otherwise fall back to printing the URL.
+OPENER=""
+for candidate in open xdg-open wslview start; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+        OPENER="$candidate"
+        break
+    fi
+done
 
 port=8080
 while lsof -iTCP:$port -sTCP:LISTEN >/dev/null 2>&1; do
@@ -38,5 +58,10 @@ HOOKS_JSON="$HOOKS_JSON" php -S "127.0.0.1:$port" -t "$HG/dist" "$HG/server.php"
 srv=$!
 trap 'kill $srv 2>/dev/null' EXIT INT TERM
 
-sleep 0.3 && open "http://127.0.0.1:$port"
+URL="http://127.0.0.1:$port"
+if [ -n "$OPENER" ]; then
+    (sleep 0.3 && "$OPENER" "$URL" >/dev/null 2>&1) &
+else
+    echo "Open $URL in your browser." >&2
+fi
 wait $srv

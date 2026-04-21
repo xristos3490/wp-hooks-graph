@@ -75,6 +75,28 @@ body {
 .hg-logo { display: inline-flex; align-items: center; gap: 0.5rem; }
 .hg-logo__mark { width: 1.75rem; height: 1.75rem; flex-shrink: 0; }
 .hg-logo__wordmark { font-size: var(--wpds-typography-font-size-md); font-weight: var(--wpds-typography-font-weight-medium); line-height: 1; letter-spacing: -0.01em; }
+.hg-logo__mark g:nth-of-type(2) circle {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: hg-logo-flash 1.5s ease-out 3;
+}
+.hg-logo__mark g:nth-of-type(2) circle:nth-child(1) { animation-delay: 0s; }
+.hg-logo__mark g:nth-of-type(2) circle:nth-child(2) { animation-delay: 0.2s; }
+.hg-logo__mark g:nth-of-type(2) circle:nth-child(3) { animation-delay: 0.4s; }
+.hg-logo__mark g:nth-of-type(2) circle:nth-child(4) { animation-delay: 0.6s; }
+.hg-logo__mark g:nth-of-type(2) circle:nth-child(5) { animation-delay: 0.8s; }
+.hg-logo__mark g:nth-of-type(2) circle:nth-child(6) { animation-delay: 1s; }
+@keyframes hg-logo-flash {
+  0%, 15%, 100% { transform: scale(1); filter: none; fill: #ffffff; }
+  7% {
+    transform: scale(1.4);
+    filter: drop-shadow(0 0 6px var(--wpds-color-fg-interactive-brand));
+    fill: var(--wpds-color-fg-interactive-brand);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hg-logo__mark g:nth-of-type(2) circle { animation: none; }
+}
 .sidebar__load-btn { width: 100%; margin-top: var(--wpds-dimension-padding-lg); }
 /* DataForm row-layout renders the header and the children row as siblings in a plain div (no Stack gap). Give the header breathing room. */
 .sidebar .dataforms-layouts-row__header { margin-bottom: var(--wpds-dimension-gap-sm); }

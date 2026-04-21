@@ -15,14 +15,13 @@ Parses every `do_action`, `add_action`, `apply_filters`, and `add_filter` call u
 ```sh
 npm install
 npm run setup                    # one-time: installs the `hooksgraph` shell alias
-source ~/.zshrc                  # pick up the alias in this shell
-npm run build                    # build the React viewer
+                                 # (tells you which RC file to `source` afterwards)
 hooksgraph /path/to/wordpress    # parse + serve + open
 ```
 
-`hooksgraph <dir>` parses the given directory (or directories), starts a local PHP server on port 8080 (falls back to the next free port), and opens the viewer in your browser.
+`hooksgraph <dir>` parses the given directory (or directories), builds the viewer on first run, starts a local PHP server on port 8080 (falls back to the next free port), and opens the viewer in your default browser.
 
-*Don't want a global alias? Call `bin/hooksgraph /path/to/wordpress` directly.*
+Setup supports zsh, bash, and fish — it picks the right RC file based on `$SHELL` and prints the exact `source` command to re-run. *Don't want a global alias? Call `bin/hooksgraph /path/to/wordpress` directly — no setup step needed.*
 
 ### Iterate faster
 
@@ -33,7 +32,7 @@ npm run parse -- /path/to/wordpress -o storage/wp.json
 npm run serve -- storage/wp.json   # omit the path to use the latest file in storage/
 ```
 
-*Common pitfall: the `--` is required so npm forwards arguments to the parser instead of consuming them itself.*
+*Pitfall: `--` is required before any flag that starts with `--` (e.g. `--overlap-only`, `--exclude`), otherwise npm silently consumes them. Positional paths work either side, but putting everything after `--` is the safe habit.*
 
 ---
 
@@ -44,8 +43,8 @@ npm run serve -- storage/wp.json   # omit the path to use the latest file in sto
 | Command | Description |
 |---|---|
 | `npm install` | Install Node dependencies |
-| `npm run setup` | Install the `hooksgraph` shell alias (run `source ~/.zshrc` after) |
-| `npm run build` | Build the React viewer into `dist/` |
+| `npm run setup` | Install the `hooksgraph` shell alias (zsh / bash / fish — the script picks the right RC file) |
+| `npm run build` | Build the React viewer into `dist/` (automatic on first run; re-run after source changes) |
 
 ### Run
 

@@ -856,7 +856,9 @@ Output format:
     metadata  Scan summary (dirs, file count, hook count, timestamp).
 
 Viewing results:
-  Open index.html in a browser and upload the generated JSON file.
+  bin/hooksgraph DIR              parse + serve + open the viewer in one step
+  npm run serve -- PATH.json      serve the viewer against an already-parsed JSON
+                                  (omit the path to use the most recent in storage/)
 
 HELP;
 }

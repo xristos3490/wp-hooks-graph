@@ -10,7 +10,12 @@
       "mcp__hooks-graph__list_codebases",
       "mcp__hooks-graph__find_hook",
       "mcp__hooks-graph__listeners_of",
-      "mcp__hooks-graph__firers_of"
+      "mcp__hooks-graph__firers_of",
+      "Bash(npm run *)",
+      "Bash(curl -sS \"http://127.0.0.1:8080/hooks.json\")",
+      "Bash(curl -sI \"http://127.0.0.1:8080/\")",
+      "Bash(kill %1)",
+      "Bash(wait)"
     ]
   }
 }
