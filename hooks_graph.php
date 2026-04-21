@@ -812,8 +812,8 @@ function parse_cli_args($argv) {
     return $args;
 }
 
-function show_help() {
-    echo <<<'HELP'
+function build_help_text() {
+    $help = <<<'HELP'
 Usage: php hooks_graph.php [options] DIR [DIR...]
 
 Scan WordPress codebases and build a hook relationship graph.
@@ -861,6 +861,23 @@ Viewing results:
                                   (omit the path to use the most recent in storage/)
 
 HELP;
+
+    $invoked_as = getenv('HOOKSGRAPH_INVOKED_AS');
+    if ($invoked_as === false || $invoked_as === '') {
+        return $help;
+    }
+
+    $replacements = [
+        'Usage: php hooks_graph.php'       => "Usage: $invoked_as",
+        'php hooks_graph.php '             => "$invoked_as ",
+        'bin/hooksgraph DIR              ' => 'hooksgraph <dir>                ',
+        'npm run serve -- PATH.json'       => 'hooksgraph serve PATH.json',
+    ];
+    return strtr($help, $replacements);
+}
+
+function show_help() {
+    echo build_help_text();
 }
 
 function main() {

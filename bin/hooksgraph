@@ -1,27 +1,56 @@
 #!/usr/bin/env bash
-# Parse WordPress PHP dirs for hook relationships, then serve the viewer.
-# Usage: hooksgraph <dir>... [parser flags]
+# Parse WordPress PHP dirs for hook relationships and serve the viewer.
+#
+# Subcommands:
+#   hooksgraph <dir>...                    parse + serve + open (shortcut)
+#   hooksgraph parse <dir>... [flags]      parse only (wraps hooks_graph.php)
+#   hooksgraph serve [path/to/hooks.json]  serve only (wraps bin/serve)
+#   hooksgraph --help | -h                 top-level help
 set -euo pipefail
 
 HG="$(cd "$(dirname "$0")/.." && pwd)"
 
-# If the user is asking for help or passed no args, run the parser directly so
-# its stdout (help text) / stderr (usage error) reach the terminal. Capturing
-# stdout via `$(... --print-path)` in those cases would swallow the help output
-# into a bogus "path" and confuse bin/serve.
-for arg in "$@"; do
-    case "$arg" in
-        -h|--help)
-            exec php "$HG/hooks_graph.php" "$@"
-            ;;
-    esac
-done
+print_top_help() {
+    cat <<'USAGE'
+hooksgraph — parse WordPress PHP codebases and visualize hook relationships
 
+Usage:
+  hooksgraph <dir>...              Parse and open the viewer (default shortcut)
+  hooksgraph parse <dir>...        Parse only; write JSON to storage/
+  hooksgraph serve [path]          Serve the viewer; defaults to most recent JSON
+  hooksgraph <subcommand> --help   Show help for a subcommand
+
+Examples:
+  hooksgraph ~/Code/wordpress
+  hooksgraph parse ~/Code/wordpress ~/Code/my-plugin --overlap-only
+  hooksgraph serve storage/wp-core.json
+USAGE
+}
+
+# Top-level: no args or help flag.
 if [ "$#" -eq 0 ]; then
-    exec php "$HG/hooks_graph.php"
+    print_top_help
+    exit 0
 fi
 
-# Parse. --print-path makes the parser emit ONLY the output path on stdout;
+case "$1" in
+    -h|--help|help)
+        print_top_help
+        exit 0
+        ;;
+    parse)
+        shift
+        export HOOKSGRAPH_INVOKED_AS="hooksgraph parse"
+        exec php "$HG/hooks_graph.php" "$@"
+        ;;
+    serve)
+        shift
+        exec "$HG/bin/serve" "$@"
+        ;;
+esac
+
+# Fall-through: legacy shortcut — parse + serve + open.
+# --print-path makes the parser emit ONLY the output path on stdout;
 # its pretty UI output goes to stderr.
 out=$(php "$HG/hooks_graph.php" --print-path "$@")
 

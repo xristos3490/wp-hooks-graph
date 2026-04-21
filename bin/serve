@@ -8,6 +8,20 @@ set -euo pipefail
 HG="$(cd "$(dirname "$0")/.." && pwd)"
 
 if [ $# -ge 1 ]; then
+    case "$1" in
+        -h|--help)
+            cat <<'USAGE'
+hooksgraph serve — serve the built viewer against a parsed hooks JSON
+
+Usage:
+  hooksgraph serve                 Use the most recent JSON in storage/
+  hooksgraph serve PATH            Use a specific JSON file
+
+The viewer opens in your browser automatically when available.
+USAGE
+            exit 0
+            ;;
+    esac
     HOOKS_JSON="$1"
 else
     HOOKS_JSON=$(ls -t "$HG/storage/"*.json 2>/dev/null | head -n 1 || true)

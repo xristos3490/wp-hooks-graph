@@ -4,7 +4,7 @@
 
 Parses every `do_action`, `add_action`, `apply_filters`, and `add_filter` call using PHP's built-in `token_get_all()` tokenizer. No WordPress runtime, no database, no autoloading — just source files in, dependency graph out.
 
-![Hooks Graph viewer showing the posts_clauses hook across WordPress and WooCommerce](wp-woo-screen-clauses.jpg)
+![Hooks Graph viewer exploring the Gutenberg codebase](images/gutenberg-hooksgraph-demo.jpg)
 
 ## Requirements
 
@@ -23,16 +23,20 @@ hooksgraph /path/to/wordpress    # parse + serve + open
 
 Setup supports zsh, bash, and fish — it picks the right RC file based on `$SHELL` and prints the exact `source` command to re-run. *Don't want a global alias? Call `bin/hooksgraph /path/to/wordpress` directly — no setup step needed.*
 
+### AI-assisted setup (Claude Code)
+
+Working in Claude Code? This repo ships an onboarding skill at [`.ai/skills/hooksgraph-setup/`](.ai/skills/hooksgraph-setup/SKILL.md). Open the repo and say something like *"set up wp-hooks-graph"* — the skill runs `npm install`, wires the shell alias, and registers the [`hooks-graph` MCP server](#mcp-server) in one pass, asking for confirmation before touching your shell RC. Reruns are idempotent, so it's also the fastest way to repair a partial setup.
+
 ### Iterate faster
 
 Parse once, re-serve the same JSON without re-parsing:
 
 ```sh
-npm run parse -- /path/to/wordpress -o storage/wp.json
-npm run serve -- storage/wp.json   # omit the path to use the latest file in storage/
+hooksgraph parse /path/to/wordpress -o storage/wp.json
+hooksgraph serve storage/wp.json   # omit the path to use the latest file in storage/
 ```
 
-*Pitfall: `--` is required before any flag that starts with `--` (e.g. `--overlap-only`, `--exclude`), otherwise npm silently consumes them. Positional paths work either side, but putting everything after `--` is the safe habit.*
+Run `hooksgraph --help` for the top-level command list, or `hooksgraph parse --help` / `hooksgraph serve --help` for per-subcommand flags.
 
 ---
 
@@ -51,9 +55,10 @@ npm run serve -- storage/wp.json   # omit the path to use the latest file in sto
 | Command | Description |
 |---|---|
 | `hooksgraph <dirs...>` *(or `bin/hooksgraph`)* | Parse + serve + open browser in one step |
-| `npm run parse -- <dirs...>` | Parse PHP files; output path printed at the end |
-| `npm run parse:help` | Show full parser help (all flags + examples) |
-| `npm run serve -- [json]` | Serve the built viewer with a JSON (defaults to latest in `storage/`) |
+| `hooksgraph parse <dirs...>` | Parse PHP files; output path printed at the end |
+| `hooksgraph parse --help` | Show full parser help (all flags + examples) |
+| `hooksgraph serve [json]` | Serve the built viewer with a JSON (defaults to latest in `storage/`) |
+| `hooksgraph --help` | Top-level command list |
 | `npm run dev -- --json <path>` | Vite dev server with hot reload, bound to a specific JSON |
 
 ### Test
@@ -67,27 +72,25 @@ npm run serve -- storage/wp.json   # omit the path to use the latest file in sto
 
 ## Parse Options
 
-Everything after `--` is forwarded to the parser:
-
 ```sh
 # Single directory
-npm run parse -- ~/Code/wordpress
+hooksgraph parse ~/Code/wordpress
 
 # Multiple directories (useful with --overlap-only)
-npm run parse -- ~/Code/wordpress ~/Code/my-plugin --overlap-only
+hooksgraph parse ~/Code/wordpress ~/Code/my-plugin --overlap-only
 
 # Exclude folders by name (in addition to .gitignore)
-npm run parse -- ~/Code/wordpress --exclude vendor,tests,node_modules
+hooksgraph parse ~/Code/wordpress --exclude vendor,tests,node_modules
 
 # Custom output file
-npm run parse -- ~/Code/wordpress -o storage/wp-core.json
+hooksgraph parse ~/Code/wordpress -o storage/wp-core.json
 ```
 
 ---
 
 ## Viewer
 
-Run `hooksgraph <dir>` — or `npm run dev -- --json storage/wp.json` after parsing separately — to open the viewer.
+Run `hooksgraph <dir>` — or `hooksgraph serve` / `npm run dev -- --json storage/wp.json` after parsing separately — to open the viewer.
 
 **Features:** search, layout switching (dagre / force / concentric), source filtering, hotspot highlighting, and a detail panel on node click.
 
@@ -101,7 +104,7 @@ The **Sources** card in the sidebar holds per-repo fire/listen toggles, plus two
 
 ### Register with Claude Code
 
-User scope (available in every project):
+The [`hooksgraph-setup` skill](#ai-assisted-setup-claude-code) handles this for you. To do it manually at user scope (available in every project):
 
 ```sh
 claude mcp add hooks-graph --scope user -- \
@@ -126,7 +129,7 @@ Or run directly for testing: `npm run mcp -- --storage storage`. Storage also fa
 | `search_callbacks(substring, codebase?, limit?, offset?)` | Case-insensitive substring search over listener callbacks, optionally cross-codebase |
 | `hotspots(codebase, metric?, limit?)` | Top hooks by `total`, `fires`, or `listens` |
 
-Re-parse a codebase (`npm run parse -- ...`) and the next MCP call picks up the new data automatically — mtime-based invalidation, no daemon, no restart.
+Re-parse a codebase (`hooksgraph parse ...`) and the next MCP call picks up the new data automatically — mtime-based invalidation, no daemon, no restart.
 
 **What to ask it:**
 

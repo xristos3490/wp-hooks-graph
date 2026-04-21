@@ -8,13 +8,15 @@ Parses WordPress PHP codebases for hook relationships (do_action/add_action/appl
 |---------|-------------|
 | `npm install` | Install Node dependencies for the Vite/React viewer |
 | `npm run setup` | Install the `hooksgraph` shell alias (wraps `bin/setup_profile.sh`) |
-| `npm run parse -- <dir> [dir2...] [--overlap-only] [--exclude a,b] [-o path]` | Parse PHP files. Output defaults to `storage/<dirnames>.json`. The `--` is required to pass args through npm |
-| `npm run parse:help` | Show full parser help with all options, examples, and output format |
-| `npm run serve -- [path/to/hooks.json]` | Serve the built viewer with a JSON. No arg = most recent file in `storage/`. Wraps `bin/serve` |
+| `hooksgraph <dir>...` (or `bin/hooksgraph`) | Parse + serve + open browser shortcut. Dispatcher falls through to this when the first arg isn't a known subcommand |
+| `hooksgraph parse <dir> [dir2...] [--overlap-only] [--exclude a,b] [-o path]` | Parse only; output defaults to `storage/<dirnames>.json`. Dispatcher exports `HOOKSGRAPH_INVOKED_AS` and execs `php hooks_graph.php` |
+| `hooksgraph parse --help` | Parser help with Usage / Examples / Viewing-results sections rebranded via `HOOKSGRAPH_INVOKED_AS` |
+| `hooksgraph serve [path/to/hooks.json]` | Serve the built viewer with a JSON. No arg = most recent file in `storage/`. Wraps `bin/serve` |
+| `hooksgraph serve --help` | Serve help (bash) |
+| `hooksgraph --help` (or `hooksgraph` with no args) | Top-level help listing the subcommands (bash) |
 | `npm run dev` | Vite dev server for the React viewer (accepts `--json <path>` to bind a specific hooks JSON) |
 | `npm run build` | Build the React viewer into `dist/` |
 | `npm run preview` | Preview the built viewer |
-| `bin/hooksgraph <dir>...` (or `hooksgraph` if alias installed) | Parse + serve + open browser. Delegates the serve step to `bin/serve` |
 | `npm test` | Run PHP + JS test suites |
 | `npm run test:php` | PHP parser + graph tests (custom runner under `tests/`) |
 | `npm run test:js` | Vitest suite for JS (currently `src/lib/filters.test.js`) |
@@ -56,7 +58,7 @@ PHP files → hooks_graph.php (tokenize → extract → build graph → optional
 
 - `hooks_graph.php` — Single-file parser + graph builder. No external PHP dependencies; uses the built-in tokenizer.
 - `server.php` — Minimal router; any path other than `/hooks.json` falls through to the static file server rooted at `dist/`.
-- `bin/hooksgraph` — Primary user-facing entry point. `--print-path` makes the parser emit only the output path on stdout (pretty UI goes to stderr), which this script captures and hands to `bin/serve`.
+- `bin/hooksgraph` — Primary user-facing entry point. Dispatches on the first arg: `parse` (sets `HOOKSGRAPH_INVOKED_AS` and execs PHP), `serve` (execs `bin/serve`), `-h`/`--help`/no-args (prints top-level help), anything else (legacy shortcut: `--print-path` captures the JSON path on stdout — pretty UI goes to stderr — then hands off to `bin/serve`).
 - `bin/serve` — Serving half of `hooksgraph`. Also invoked directly by `npm run serve`. Accepts an optional JSON path; when omitted, picks the most recently modified file in `storage/`.
 - `src/App.jsx` — Top-level React component; orchestrates sidebar, graph canvas, and detail panel.
 - `bin/hooks-mcp.js` — Node entry point for the MCP server (exposed as the `hooks-mcp` bin in package.json). Parses `--storage` / `-h`, resolves the storage dir, and hands off to `runStdioServer()` in `src/mcp/server.js`.
