@@ -87,15 +87,19 @@ The **Sources** card in the sidebar holds per-repo fire/listen toggles, plus two
 
 `bin/hooks-mcp.js` is a local MCP stdio server that exposes every parsed codebase in `storage/` as structured, paginated tools — so any agent on the machine can query your graphs without slurping JSON into context.
 
-**Register with Claude Code:**
+**Register with Claude Code (user scope — available in every project):**
 
 ```sh
-claude mcp add hooks-graph -- \
+claude mcp add hooks-graph --scope user -- \
   node /absolute/path/to/wp-hooks-graph/bin/hooks-mcp.js \
   --storage /absolute/path/to/wp-hooks-graph/storage
 ```
 
+`--scope user` registers the server in your user-level Claude config so it's available across every repo you open — handy when you want to query `wordpress` or `woocommerce` graphs from a plugin directory. Drop `--scope user` to register at the default local (per-project) scope instead.
+
 The `--` is required — without it `claude mcp add` swallows `--storage` as its own option and the server registers with an empty command.
+
+Verify with `claude mcp list` (should show `hooks-graph: ✓ Connected`) and `claude mcp get hooks-graph`. Remove with `claude mcp remove hooks-graph -s user`.
 
 Or run directly for testing: `npm run mcp -- --storage storage`. Storage also falls back to `$HOOKSGRAPH_STORAGE` and then `./storage` relative to cwd.
 
