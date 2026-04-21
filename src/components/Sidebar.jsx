@@ -4,6 +4,27 @@ import { Button, Stack, Text } from '@wordpress/ui';
 import { useGraphContext } from '../context/GraphContext';
 import Logo from './Logo';
 
+const REPO_STATE_ELEMENTS = [
+  { value: 'off',     label: 'Off' },
+  { value: 'fires',   label: 'Fires' },
+  { value: 'listens', label: 'Listens' },
+  { value: 'both',    label: 'Both' },
+];
+
+function encodeRepoState(fireOn, listenOn) {
+  if (fireOn && listenOn) return 'both';
+  if (fireOn) return 'fires';
+  if (listenOn) return 'listens';
+  return 'off';
+}
+
+function decodeRepoState(value) {
+  return {
+    fireOn: value === 'both' || value === 'fires',
+    listenOn: value === 'both' || value === 'listens',
+  };
+}
+
 export default function Sidebar() {
   const {
     data,
@@ -24,6 +45,20 @@ export default function Sidebar() {
   const meta = data.metadata;
   const hookNodes = data.nodes.filter((n) => n.type === 'hook');
   const overlapCount = hookNodes.filter((n) => n.overlap).length;
+  const actionCount = hookNodes.filter((n) => n.hook_type === 'action').length;
+  const filterCount = hookNodes.filter((n) => n.hook_type === 'filter').length;
+  const fireEdgeCount = data.edges.filter((e) => e.type === 'fires').length;
+  const listenEdgeCount = data.edges.filter((e) => e.type === 'listens').length;
+
+  const scanDateFormatted = useMemo(() => {
+    if (!meta.scan_date) return '—';
+    const d = new Date(meta.scan_date);
+    if (Number.isNaN(d.getTime())) return meta.scan_date;
+    return d.toLocaleString(undefined, {
+      year: 'numeric', month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+  }, [meta.scan_date]);
 
   const repoCount = sourceLabels.length;
   const metadataLine = useMemo(() => {
@@ -48,13 +83,30 @@ export default function Sidebar() {
       includeListenOnly: filterState.includeListenOnly,
       hotspots: filterState.highTraffic.enabled,
       minConnections: filterState.highTraffic.minConnections,
+
+      metric_files:   (meta.total_files ?? 0).toLocaleString(),
+      metric_hooks:   meta.total_hooks.toLocaleString(),
+      metric_actions: actionCount.toLocaleString(),
+      metric_filters: filterCount.toLocaleString(),
+      metric_dynamic: meta.dynamic_hooks.toLocaleString(),
+      metric_overlap: overlapCount.toLocaleString(),
+      metric_fires:   fireEdgeCount.toLocaleString(),
+      metric_listens: listenEdgeCount.toLocaleString(),
+      metric_scan:    scanDateFormatted,
     };
     sourceLabels.forEach((label) => {
-      flat[`fire_repo__${label}`] = filterState.fireRepos[label] !== false;
-      flat[`listen_repo__${label}`] = filterState.listenRepos[label] !== false;
+      flat[`repo__${label}`] = encodeRepoState(
+        filterState.fireRepos[label] !== false,
+        filterState.listenRepos[label] !== false
+      );
     });
     return flat;
-  }, [filterState, sourceLabels]);
+  }, [
+    filterState, sourceLabels,
+    meta.total_files, meta.total_hooks, meta.dynamic_hooks,
+    actionCount, filterCount, overlapCount, fireEdgeCount, listenEdgeCount,
+    scanDateFormatted,
+  ]);
 
   // Bridge DataForm onChange back to the existing reducer dispatches
   const handleChange = useCallback((changes) => {
@@ -72,19 +124,32 @@ export default function Sidebar() {
         toggleHighTraffic();
       } else if (key === 'minConnections') {
         setHighTrafficValue(value);
-      } else if (key.startsWith('fire_repo__')) {
-        toggleFireRepo(key.slice('fire_repo__'.length));
-      } else if (key.startsWith('listen_repo__')) {
-        toggleListenRepo(key.slice('listen_repo__'.length));
+      } else if (key.startsWith('repo__')) {
+        const label = key.slice('repo__'.length);
+        const prev = decodeRepoState(formData[key]);
+        const next = decodeRepoState(value);
+        if (prev.fireOn !== next.fireOn) toggleFireRepo(label);
+        if (prev.listenOn !== next.listenOn) toggleListenRepo(label);
       }
     });
-  }, [toggleHookType, toggleBoolFilter, toggleHighTraffic, setHighTrafficValue, toggleFireRepo, toggleListenRepo]);
+  }, [formData, toggleHookType, toggleBoolFilter, toggleHighTraffic, setHighTrafficValue, toggleFireRepo, toggleListenRepo]);
 
   // ---------------------------------------------------------------------------
   // Fields — atomic data: type, edit control, display formatting, validation
   // ---------------------------------------------------------------------------
   const fields = useMemo(() => {
     const f = [
+      // Scan metrics — readOnly text rows rendered via DataForm panel layout
+      { id: 'metric_files',   label: 'Files scanned', type: 'text', readOnly: true },
+      { id: 'metric_hooks',   label: 'Hooks',         type: 'text', readOnly: true },
+      { id: 'metric_actions', label: 'Actions',       type: 'text', readOnly: true },
+      { id: 'metric_filters', label: 'Filters',       type: 'text', readOnly: true },
+      { id: 'metric_dynamic', label: 'Dynamic',       type: 'text', readOnly: true },
+      { id: 'metric_overlap', label: 'Overlapping',   type: 'text', readOnly: true },
+      { id: 'metric_fires',   label: 'Fire calls',    type: 'text', readOnly: true },
+      { id: 'metric_listens', label: 'Listeners',     type: 'text', readOnly: true },
+      { id: 'metric_scan',    label: 'Scanned',       type: 'text', readOnly: true },
+
       // Hook type toggles
       {
         id: 'actions',
@@ -179,8 +244,14 @@ export default function Sidebar() {
         label: '',
         readOnly: true,
         getValue: ({ item }) => {
-          const f = sourceLabels.filter((l) => item[`fire_repo__${l}`] !== false).length;
-          const n = sourceLabels.filter((l) => item[`listen_repo__${l}`] !== false).length;
+          const f = sourceLabels.filter((l) => {
+            const v = item[`repo__${l}`];
+            return v === 'fires' || v === 'both';
+          }).length;
+          const n = sourceLabels.filter((l) => {
+            const v = item[`repo__${l}`];
+            return v === 'listens' || v === 'both';
+          }).length;
           return `${f}/${sourceLabels.length} fires · ${n}/${sourceLabels.length} listens`;
         },
       },
@@ -188,18 +259,12 @@ export default function Sidebar() {
 
     sourceLabels.forEach((label) => {
       f.push({
-        id: `fire_repo__${label}`,
-        label: 'fires',
-        description: `Hooks fired in ${label}`,
-        type: 'boolean',
-        Edit: 'toggle',
-      });
-      f.push({
-        id: `listen_repo__${label}`,
-        label: 'listens',
-        description: `Hooks listened to in ${label}`,
-        type: 'boolean',
-        Edit: 'toggle',
+        id: `repo__${label}`,
+        label,
+        description: 'Show fires and/or listens from this repo',
+        type: 'text',
+        Edit: 'toggleGroup',
+        elements: REPO_STATE_ELEMENTS,
       });
     });
 
@@ -209,8 +274,33 @@ export default function Sidebar() {
   // ---------------------------------------------------------------------------
   // Form — structural layout: card grouping, summaries, nested overrides
   // ---------------------------------------------------------------------------
-  const form = useMemo(() => ({
+  const form = useMemo(() => {
+    const panelRow = (id) => ({ id, layout: { type: 'panel', labelPosition: 'side' } });
+    const pairRow = (idA, idB) => ({
+      id: `row__${idA}__${idB}`,
+      layout: {
+        type: 'row',
+        styles: { [idA]: { flex: 1 }, [idB]: { flex: 1 } },
+      },
+      children: [panelRow(idA), panelRow(idB)],
+    });
+    const showOverlapRow = overlapCount > 0 && sourceLabels.length > 1;
+
+    return {
     fields: [
+      {
+        id: 'metrics',
+        label: 'Metrics',
+        layout: { type: 'card', isOpened: true },
+        children: [
+          panelRow('metric_files'),
+          panelRow('metric_scan'),
+          pairRow('metric_hooks', 'metric_dynamic'),
+          pairRow('metric_actions', 'metric_filters'),
+          pairRow('metric_fires', 'metric_listens'),
+          ...(showOverlapRow ? [panelRow('metric_overlap')] : []),
+        ],
+      },
       {
         id: 'hook-types',
         label: 'Hook Types',
@@ -246,12 +336,7 @@ export default function Sidebar() {
         description: 'Fire and listen sources per scanned repo',
         layout: { type: 'card', summary: 'sources_summary' },
         children: [
-          ...sourceLabels.map((label) => ({
-            id: `source-row__${label}`,
-            label,
-            layout: { type: 'row' },
-            children: [`fire_repo__${label}`, `listen_repo__${label}`],
-          })),
+          ...sourceLabels.map((label) => `repo__${label}`),
           {
             id: 'sources-orphans',
             label: 'One-sided hooks',
@@ -261,7 +346,8 @@ export default function Sidebar() {
         ],
       },
     ],
-  }), [sourceLabels, meta.overlap_filter]);
+    };
+  }, [sourceLabels, meta.overlap_filter, overlapCount]);
 
   return (
     <aside className="sidebar">

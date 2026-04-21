@@ -246,7 +246,7 @@ export default function GraphCanvas() {
           justifyContent: 'center',
           zIndex: 20,
           gap: 'var(--wpds-dimension-gap-lg)',
-          background: '#fff',
+          background: 'var(--wpds-color-bg-surface-neutral-weak)',
         }}>
           <div className="hg-spinner" />
           <div style={{

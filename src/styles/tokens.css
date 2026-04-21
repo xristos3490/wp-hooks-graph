@@ -62,6 +62,12 @@ body {
   height: 100vh;
   padding: var(--wpds-dimension-gap-lg);
 }
+/* Chromium/WebKit ignore padding-bottom on scroll containers (crbug.com/84191) — use a spacer instead. */
+.sidebar::after {
+  content: '';
+  display: block;
+  height: calc(var(--wpds-dimension-padding-3xl) * 2);
+}
 .sidebar__header {
   margin-bottom: var(--wpds-dimension-padding-lg);
 }
@@ -72,6 +78,8 @@ body {
 .sidebar__load-btn { width: 100%; margin-top: var(--wpds-dimension-padding-lg); }
 /* DataForm row-layout renders the header and the children row as siblings in a plain div (no Stack gap). Give the header breathing room. */
 .sidebar .dataforms-layouts-row__header { margin-bottom: var(--wpds-dimension-gap-sm); }
+/* Metrics card: panel rows are read-only key/value pairs — right-align the values for column-style scanning. */
+.sidebar .dataforms-layouts-panel__field-control { justify-content: flex-end; text-align: right; }
 
 /* Loading screen / drop zone */
 .loading-screen {
