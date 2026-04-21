@@ -112,10 +112,7 @@ claude mcp add hooks-graph --scope user -- \
 
 `--scope user` registers the server in your user-level Claude config so it's available across every repo you open — handy when you want to query `wordpress` or `woocommerce` graphs from a plugin directory. Drop `--scope user` to register at the default local (per-project) scope instead.
 
-*Common pitfall: the `--` before `node` is required. Without it, `claude mcp add` swallows `--storage` as its own option and the server registers with an empty command.*
-
 Verify with `claude mcp list` (should show `hooks-graph: ✓ Connected`) and `claude mcp get hooks-graph`. Remove with `claude mcp remove hooks-graph -s user`.
-
 Or run directly for testing: `npm run mcp -- --storage storage`. Storage also falls back to `$HOOKSGRAPH_STORAGE` and then `./storage` relative to cwd.
 
 ### Tools
