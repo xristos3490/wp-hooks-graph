@@ -31,6 +31,7 @@ export default function GraphCanvas() {
 
   const [progress, setProgress] = useState(null);
   const [graphReady, setGraphReady] = useState(false);
+  const [showSlowWarning, setShowSlowWarning] = useState(false);
   const hoverTimerRef = useRef(null);
   const hookDataCacheRef = useRef(hookDataCache);
   hookDataCacheRef.current = hookDataCache;
@@ -145,6 +146,17 @@ export default function GraphCanvas() {
     };
   }, [data, sourceLabels, repoPalettes, isLargeGraph, groupBy]);
 
+  // --- Show an unresponsive-page hint if "Building graph" lingers ---
+  const progressLabel = progress?.label ?? null;
+  useEffect(() => {
+    if (progressLabel !== 'Building graph…') {
+      setShowSlowWarning(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowSlowWarning(true), 4000);
+    return () => clearTimeout(timer);
+  }, [progressLabel]);
+
   // --- Apply filter results (only after graph is ready) ---
   useEffect(() => {
     const cy = cyRef.current;
@@ -258,6 +270,18 @@ export default function GraphCanvas() {
           {progress.detail && (
             <div style={{ fontSize: 'var(--wpds-typography-font-size-sm)' }}>
               {progress.detail}
+            </div>
+          )}
+          {showSlowWarning && (
+            <div style={{
+              fontSize: 'var(--wpds-typography-font-size-sm)',
+              fontStyle: 'italic',
+              opacity: 0.7,
+              maxWidth: '32rem',
+              textAlign: 'center',
+              padding: '0 var(--wpds-dimension-gap-lg)',
+            }}>
+              Large imports can make the browser flag this page as unresponsive (to be improved). If that happens, click <strong>Wait</strong> a few times — the graph just needs a moment to finish.
             </div>
           )}
         </div>
