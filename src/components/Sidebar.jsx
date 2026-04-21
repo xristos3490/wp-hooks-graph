@@ -3,6 +3,15 @@ import { DataForm } from '@wordpress/dataviews';
 import { Button, Stack, Text } from '@wordpress/ui';
 import { useGraphContext } from '../context/GraphContext';
 import Logo from './Logo';
+import McpInstructionsDialog from './McpInstructionsDialog';
+
+function renderMetric({ item, field }) {
+  return (
+    <Text style={{ fontWeight: 'var(--wpds-typography-font-weight-medium)' }}>
+      {field.getValue({ item })}
+    </Text>
+  );
+}
 
 const REPO_STATE_ELEMENTS = [
   { value: 'off',     label: 'Off' },
@@ -38,6 +47,7 @@ export default function Sidebar() {
     toggleHighTraffic,
     setHighTrafficValue,
     loadFile,
+    isBusy,
   } = useGraphContext();
 
   const fileInputRef = useRef(null);
@@ -139,16 +149,16 @@ export default function Sidebar() {
   // ---------------------------------------------------------------------------
   const fields = useMemo(() => {
     const f = [
-      // Scan metrics — readOnly text rows rendered via DataForm panel layout
-      { id: 'metric_files',   label: 'Files scanned', type: 'text', readOnly: true },
-      { id: 'metric_hooks',   label: 'Hooks',         type: 'text', readOnly: true },
-      { id: 'metric_actions', label: 'Actions',       type: 'text', readOnly: true },
-      { id: 'metric_filters', label: 'Filters',       type: 'text', readOnly: true },
-      { id: 'metric_dynamic', label: 'Dynamic',       type: 'text', readOnly: true },
-      { id: 'metric_overlap', label: 'Overlapping',   type: 'text', readOnly: true },
-      { id: 'metric_fires',   label: 'Fire calls',    type: 'text', readOnly: true },
-      { id: 'metric_listens', label: 'Listeners',     type: 'text', readOnly: true },
-      { id: 'metric_scan',    label: 'Scanned',       type: 'text', readOnly: true },
+      // Scan metrics — readOnly rows rendered via a custom Text render
+      { id: 'metric_files',   label: 'Files scanned', type: 'text', readOnly: true, render: renderMetric },
+      { id: 'metric_hooks',   label: 'Hooks',         type: 'text', readOnly: true, render: renderMetric },
+      { id: 'metric_actions', label: 'Actions',       type: 'text', readOnly: true, render: renderMetric },
+      { id: 'metric_filters', label: 'Filters',       type: 'text', readOnly: true, render: renderMetric },
+      { id: 'metric_dynamic', label: 'Dynamic',       type: 'text', readOnly: true, render: renderMetric },
+      { id: 'metric_overlap', label: 'Overlapping',   type: 'text', readOnly: true, render: renderMetric },
+      { id: 'metric_fires',   label: 'Fire calls',    type: 'text', readOnly: true, render: renderMetric },
+      { id: 'metric_listens', label: 'Listeners',     type: 'text', readOnly: true, render: renderMetric },
+      { id: 'metric_scan',    label: 'Scanned',       type: 'text', readOnly: true, render: renderMetric },
 
       // Hook type toggles
       {
@@ -275,14 +285,14 @@ export default function Sidebar() {
   // Form — structural layout: card grouping, summaries, nested overrides
   // ---------------------------------------------------------------------------
   const form = useMemo(() => {
-    const panelRow = (id) => ({ id, layout: { type: 'panel', labelPosition: 'side' } });
+    const summaryRow = (id) => ({ id, layout: { type: 'regular', labelPosition: 'top' } });
     const pairRow = (idA, idB) => ({
       id: `row__${idA}__${idB}`,
       layout: {
         type: 'row',
         styles: { [idA]: { flex: 1 }, [idB]: { flex: 1 } },
       },
-      children: [panelRow(idA), panelRow(idB)],
+      children: [summaryRow(idA), summaryRow(idB)],
     });
     const showOverlapRow = overlapCount > 0 && sourceLabels.length > 1;
 
@@ -291,14 +301,14 @@ export default function Sidebar() {
       {
         id: 'metrics',
         label: 'Summary',
-        layout: { type: 'card', isOpened: true },
+        layout: { type: 'card', isOpened: false },
         children: [
-          panelRow('metric_files'),
-          panelRow('metric_scan'),
+          summaryRow('metric_files'),
+          summaryRow('metric_scan'),
           pairRow('metric_hooks', 'metric_dynamic'),
           pairRow('metric_actions', 'metric_filters'),
           pairRow('metric_fires', 'metric_listens'),
-          ...(showOverlapRow ? [panelRow('metric_overlap')] : []),
+          ...(showOverlapRow ? [summaryRow('metric_overlap')] : []),
         ],
       },
       {
@@ -368,6 +378,7 @@ export default function Sidebar() {
         tone="neutral"
         className="sidebar__load-btn"
         onClick={() => fileInputRef.current?.click()}
+        disabled={isBusy}
       >
         Load JSON file
       </Button>
@@ -378,6 +389,7 @@ export default function Sidebar() {
         onChange={(e) => { const f = e.target.files[0]; if (f) loadFile(f); }}
         style={{ display: 'none' }}
       />
+      <McpInstructionsDialog disabled={isBusy} />
     </aside>
   );
 }

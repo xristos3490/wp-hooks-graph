@@ -53,7 +53,7 @@ export default function LoadingScreen({ onFileLoad }) {
         <EmptyState.Description>
           {dragging
             ? 'Drop your JSON file here'
-            : 'Drag & drop a hooks file, or click to browse.'}
+            : 'Drag and drop a hooks JSON file, or click to browse.'}
         </EmptyState.Description>
         <EmptyState.Actions>
           <Button

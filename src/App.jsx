@@ -17,6 +17,7 @@ export default function App() {
   const [selectedNode, setSelectedNode] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [groupBy, setGroupBy] = useState('file');
+  const [isComputing, setIsComputing] = useState(false);
   const cyRef = useRef(null);
 
   // Derive source labels + palettes from data
@@ -92,6 +93,10 @@ export default function App() {
       groupBy,
       setGroupBy,
       loadFile,
+      isLoading,
+      isComputing,
+      setIsComputing,
+      isBusy: isLoading || isComputing,
     }),
     [
       data, sourceLabels, repoPalettes, hookDataCache, isLargeGraph,
@@ -99,6 +104,7 @@ export default function App() {
       toggleHookType, toggleBoolFilter, toggleFireRepo, toggleListenRepo, toggleHighTraffic,
       setHighTrafficValue, selectedNode, selectNode, clearSelection,
       searchQuery, groupBy, loadFile,
+      isLoading, isComputing,
     ]
   );
 

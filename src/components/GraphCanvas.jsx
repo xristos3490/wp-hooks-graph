@@ -9,7 +9,7 @@ import {
 import { BATCH_SIZE } from '../lib/constants';
 
 function yieldToMain() {
-  return new Promise((resolve) => setTimeout(resolve, 0));
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
 }
 
 export default function GraphCanvas() {
@@ -27,11 +27,11 @@ export default function GraphCanvas() {
     searchQuery,
     groupBy,
     hookDataCache,
+    setIsComputing,
   } = useGraphContext();
 
   const [progress, setProgress] = useState(null);
   const [graphReady, setGraphReady] = useState(false);
-  const [showSlowWarning, setShowSlowWarning] = useState(false);
   const hoverTimerRef = useRef(null);
   const hookDataCacheRef = useRef(hookDataCache);
   hookDataCacheRef.current = hookDataCache;
@@ -41,6 +41,7 @@ export default function GraphCanvas() {
     if (!containerRef.current || !data) return;
 
     setGraphReady(false);
+    setIsComputing(true);
     const styles = buildCytoscapeStyles(sourceLabels, repoPalettes, isLargeGraph);
     const built = buildElements(data, sourceLabels, groupBy);
     const elements = [...built.nodes, ...built.edges];
@@ -68,6 +69,10 @@ export default function GraphCanvas() {
 
     // Batch-add elements
     (async () => {
+      // Yield once so the initial overlay paints before heavy work begins.
+      await yieldToMain();
+      if (destroyed) return;
+
       const total = elements.length;
       for (let i = 0; i < total; i += BATCH_SIZE) {
         if (destroyed) return;
@@ -83,7 +88,7 @@ export default function GraphCanvas() {
 
       if (destroyed) return;
 
-      setProgress({ label: 'Computing layout\u2026', detail: isLargeGraph ? 'This may take a moment for large graphs' : '' });
+      setProgress({ label: 'Computing layout\u2026', detail: isLargeGraph ? 'This may take a moment.' : '' });
       await yieldToMain();
 
       if (destroyed) return;
@@ -93,6 +98,7 @@ export default function GraphCanvas() {
         if (!destroyed) {
           setProgress(null);
           setGraphReady(true);
+          setIsComputing(false);
         }
       };
       cy.layout(layoutOpts).run();
@@ -143,19 +149,9 @@ export default function GraphCanvas() {
       destroyed = true;
       cy.destroy();
       cyRef.current = null;
+      setIsComputing(false);
     };
   }, [data, sourceLabels, repoPalettes, isLargeGraph, groupBy]);
-
-  // --- Show an unresponsive-page hint if "Building graph" lingers ---
-  const progressLabel = progress?.label ?? null;
-  useEffect(() => {
-    if (progressLabel !== 'Building graph…') {
-      setShowSlowWarning(false);
-      return;
-    }
-    const timer = setTimeout(() => setShowSlowWarning(true), 4000);
-    return () => clearTimeout(timer);
-  }, [progressLabel]);
 
   // --- Apply filter results (only after graph is ready) ---
   useEffect(() => {
@@ -272,7 +268,7 @@ export default function GraphCanvas() {
               {progress.detail}
             </div>
           )}
-          {showSlowWarning && (
+          {isLargeGraph && (
             <div style={{
               fontSize: 'var(--wpds-typography-font-size-sm)',
               fontStyle: 'italic',
@@ -281,7 +277,7 @@ export default function GraphCanvas() {
               textAlign: 'center',
               padding: '0 var(--wpds-dimension-gap-lg)',
             }}>
-              Large imports can make the browser flag this page as unresponsive (to be improved). If that happens, click <strong>Wait</strong> a few times — the graph just needs a moment to finish.
+              If the browser warns that this page is unresponsive, click <strong>Wait</strong>. It may prompt more than once while the layout finishes computing.
             </div>
           )}
         </div>

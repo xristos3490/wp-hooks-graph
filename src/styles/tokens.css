@@ -9,6 +9,9 @@
   --hg-color-dynamic: #e4b844;
   --hg-color-overlap-action: #a8eef0;
   --hg-color-overlap-filter: #d4c8f0;
+
+  /* Lift @wordpress/ui Dialog above the search overlay (z-index: 20). */
+  --wp-ui-dialog-z-index: 100;
 }
 
 body {
@@ -78,26 +81,31 @@ body {
 .hg-logo__mark g:nth-of-type(2) circle {
   transform-box: fill-box;
   transform-origin: center;
-  animation: hg-logo-flash 1.8s cubic-bezier(0.34, 0.1, 0.3, 1) 3;
+  animation-duration: 7s, 7s;
+  animation-timing-function: cubic-bezier(0.34, 0.1, 0.3, 1);
+  animation-iteration-count: infinite, infinite;
+  animation-name: hg-logo-flash, hg-logo-flash;
 }
-.hg-logo__mark g:nth-of-type(2) circle:nth-child(1) { animation-delay: 0s; }
-.hg-logo__mark g:nth-of-type(2) circle:nth-child(2) { animation-delay: 0.14s; }
-.hg-logo__mark g:nth-of-type(2) circle:nth-child(3) { animation-delay: 0.28s; }
-.hg-logo__mark g:nth-of-type(2) circle:nth-child(4) { animation-delay: 0.42s; }
-.hg-logo__mark g:nth-of-type(2) circle:nth-child(5) { animation-delay: 0.56s; }
-.hg-logo__mark g:nth-of-type(2) circle:nth-child(6) { animation-delay: 0.7s; }
+/* Forward pass at 0.5s; reverse starts 0.3s after forward ends. Cycle repeats every 7s. */
+.hg-logo__mark g:nth-of-type(2) circle:nth-child(1) { animation-delay: 0.5s, 2.3s; }
+.hg-logo__mark g:nth-of-type(2) circle:nth-child(2) { animation-delay: 0.6s, 2.2s; }
+.hg-logo__mark g:nth-of-type(2) circle:nth-child(3) { animation-delay: 0.7s, 2.1s; }
+.hg-logo__mark g:nth-of-type(2) circle:nth-child(4) { animation-delay: 0.8s, 2.0s; }
+.hg-logo__mark g:nth-of-type(2) circle:nth-child(5) { animation-delay: 0.9s, 1.9s; }
+.hg-logo__mark g:nth-of-type(2) circle:nth-child(6) { animation-delay: 1.0s, 1.8s; }
+/* Pulse occupies the first ~7% (0.5s) of the 7s cycle; the rest is idle. */
 @keyframes hg-logo-flash {
-  0%, 100% { transform: scale(1); }
-  4% { transform: scale(1.25); }
-  9% { transform: scale(1.5); }
-  18% { transform: scale(0.96); }
-  26% { transform: scale(1.03); }
-  34% { transform: scale(1); }
+  0%   { transform: scale(1); }
+  2%   { transform: scale(1.5); }
+  4%   { transform: scale(0.97); }
+  5.5% { transform: scale(1.03); }
+  7%, 100% { transform: scale(1); }
 }
 @media (prefers-reduced-motion: reduce) {
   .hg-logo__mark g:nth-of-type(2) circle { animation: none; }
 }
 .sidebar__load-btn { width: 100%; margin-top: var(--wpds-dimension-padding-lg); }
+.sidebar__mcp-btn { width: 100%; margin-top: var(--wpds-dimension-gap-sm); }
 /* DataForm row-layout renders the header and the children row as siblings in a plain div (no Stack gap). Give the header breathing room. */
 .sidebar .dataforms-layouts-row__header { margin-bottom: var(--wpds-dimension-gap-sm); }
 /* Metrics card: panel rows are read-only key/value pairs — right-align the values for column-style scanning. */
