@@ -250,13 +250,13 @@ export default function GraphCanvas() {
         }}>
           <div className="hg-spinner" />
           <div style={{
-            fontSize: 'var(--wpds-font-size-lg)',
-            fontWeight: 'var(--wpds-font-weight-medium)',
+            fontSize: 'var(--wpds-typography-font-size-lg)',
+            fontWeight: 'var(--wpds-typography-font-weight-medium)',
           }}>
             {progress.label}
           </div>
           {progress.detail && (
-            <div style={{ fontSize: 'var(--wpds-font-size-sm)' }}>
+            <div style={{ fontSize: 'var(--wpds-typography-font-size-sm)' }}>
               {progress.detail}
             </div>
           )}

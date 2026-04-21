@@ -12,10 +12,11 @@
 }
 
 body {
-  font-family: var(--wpds-font-family-body);
+  font-family: var(--wpds-typography-font-family-body);
   overflow: hidden;
   height: 100vh;
   margin: 0;
+  background-color: var(--wpds-color-bg-surface-neutral-weak);
 }
 
 /* Keyframes used across components */
@@ -56,25 +57,21 @@ body {
 .sidebar {
   width: 320px;
   flex-shrink: 0;
-  border-right: 1px solid var(--wpds-color-gray-200, #e0e0e0);
+  border-right: 1px solid var(--wpds-color-stroke-surface-neutral);
   overflow-y: auto;
   height: 100vh;
-  padding: var(--wpds-dimension-gap-lg, 16px);
+  padding: var(--wpds-dimension-gap-lg);
 }
 .sidebar__header {
   margin-bottom: var(--wpds-dimension-padding-lg);
-  padding-bottom: var(--wpds-dimension-padding-lg);
-  text-align: center;
 }
 /* Shared logo — SVG mark + handwritten wordmark */
 .hg-logo { display: inline-flex; align-items: center; gap: 0.5rem; }
 .hg-logo__mark { width: 1.75rem; height: 1.75rem; flex-shrink: 0; }
-.hg-logo__wordmark { font-family: 'Bradley Hand', 'Segoe Script', 'Comic Sans MS', cursive; font-size: var(--wpds-font-size-2xl, 1.5rem); font-weight: 900; line-height: 1; }
-.sidebar__subtitle { font-size: var(--wpds-font-size-xs); color: var(--wpds-color-gray-600); margin-top: 2px; }
-.sidebar__stats { display: grid; grid-template-columns: 1fr 1fr; gap: var(--wpds-dimension-gap-md); margin-top: var(--wpds-dimension-gap-lg); }
-.stat-cell__value { display: block; font-family: var(--wpds-font-family-mono); font-size: var(--wpds-font-size-xl); font-weight: var(--wpds-font-weight-medium); font-feature-settings: 'tnum' 1; }
-.stat-cell__label { display: block; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px; }
+.hg-logo__wordmark { font-size: var(--wpds-typography-font-size-md); font-weight: var(--wpds-typography-font-weight-medium); line-height: 1; letter-spacing: -0.01em; }
 .sidebar__load-btn { width: 100%; margin-top: var(--wpds-dimension-padding-lg); }
+/* DataForm row-layout renders the header and the children row as siblings in a plain div (no Stack gap). Give the header breathing room. */
+.sidebar .dataforms-layouts-row__header { margin-bottom: var(--wpds-dimension-gap-sm); }
 
 /* Loading screen / drop zone */
 .loading-screen {
@@ -88,7 +85,7 @@ body {
   transition: background-color 0.15s ease;
 }
 .loading-screen--dragging {
-  background-color: var(--wpds-color-blue-50, #f0f6ff);
-  outline: 2px dashed var(--wpds-color-blue-400, #3858e9);
+  background-color: var(--wpds-color-bg-surface-brand);
+  outline: 2px dashed var(--wpds-color-stroke-focus-brand);
   outline-offset: -12px;
 }

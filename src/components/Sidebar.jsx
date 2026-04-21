@@ -1,6 +1,6 @@
 import { useMemo, useCallback, useRef } from 'react';
 import { DataForm } from '@wordpress/dataviews';
-import { Button } from '@wordpress/ui';
+import { Button, Stack, Text } from '@wordpress/ui';
 import { useGraphContext } from '../context/GraphContext';
 import Logo from './Logo';
 
@@ -26,10 +26,16 @@ export default function Sidebar() {
   const overlapCount = hookNodes.filter((n) => n.overlap).length;
 
   const repoCount = sourceLabels.length;
-  const subtitleText =
-    repoCount === 1
-      ? sourceLabels[0]
-      : sourceLabels[0] + ' + ' + (repoCount - 1) + ' repo' + (repoCount > 2 ? 's' : '');
+  const metadataLine = useMemo(() => {
+    const repoPart = repoCount === 1 ? sourceLabels[0] : `${repoCount} repos`;
+    const parts = [
+      repoPart,
+      `${meta.total_hooks.toLocaleString()} hooks`,
+    ];
+    if (meta.dynamic_hooks > 0) parts.push(`${meta.dynamic_hooks.toLocaleString()} dynamic`);
+    if (overlapCount > 0) parts.push(`${overlapCount.toLocaleString()} overlap`);
+    return parts.join(' · ');
+  }, [repoCount, sourceLabels, meta.total_hooks, meta.dynamic_hooks, overlapCount]);
 
   // Flatten nested filterState into a single object for DataForm
   const formData = useMemo(() => {
@@ -180,18 +186,18 @@ export default function Sidebar() {
       },
     ];
 
-    // Two toggles per scanned repo — one for fire-sources, one for listen-sources.
-    // Arrow prefixes mirror graph edge direction: repo → hook (fires), repo ← hook (listens).
     sourceLabels.forEach((label) => {
       f.push({
         id: `fire_repo__${label}`,
-        label: '→ Fires',
+        label: 'fires',
+        description: `Hooks fired in ${label}`,
         type: 'boolean',
         Edit: 'toggle',
       });
       f.push({
         id: `listen_repo__${label}`,
-        label: '← Listens',
+        label: 'listens',
+        description: `Hooks listened to in ${label}`,
         type: 'boolean',
         Edit: 'toggle',
       });
@@ -243,19 +249,13 @@ export default function Sidebar() {
           ...sourceLabels.map((label) => ({
             id: `source-row__${label}`,
             label,
-            layout: {
-              type: 'row',
-              styles: {
-                [`fire_repo__${label}`]: { flex: '1 1 0' },
-                [`listen_repo__${label}`]: { flex: '1 1 0' },
-              },
-            },
+            layout: { type: 'row' },
             children: [`fire_repo__${label}`, `listen_repo__${label}`],
           })),
           {
             id: 'sources-orphans',
             label: 'One-sided hooks',
-            layout: { type: 'details' },
+            layout: { type: 'regular' },
             children: ['includeFireOnly', 'includeListenOnly'],
           },
         ],
@@ -265,16 +265,12 @@ export default function Sidebar() {
 
   return (
     <aside className="sidebar">
-      <div className="sidebar__header">
-        <Logo />
-        <p className="sidebar__subtitle">{subtitleText}</p>
-        <div className="sidebar__stats">
-          <StatCell number={meta.total_files} label="FILES" />
-          <StatCell number={meta.total_hooks} label="HOOKS" />
-          <StatCell number={meta.dynamic_hooks} label="DYNAMIC" />
-          <StatCell number={overlapCount} label="OVERLAP" />
-        </div>
-      </div>
+      <header className="sidebar__header">
+        <Stack gap="sm">
+          <Logo />
+          <Text variant="body-sm">{metadataLine}</Text>
+        </Stack>
+      </header>
       <DataForm
         data={formData}
         fields={fields}
@@ -297,14 +293,5 @@ export default function Sidebar() {
         style={{ display: 'none' }}
       />
     </aside>
-  );
-}
-
-function StatCell({ number, label }) {
-  return (
-    <div className="stat-cell">
-      <span className="stat-cell__value">{number.toLocaleString()}</span>
-      <span className="stat-cell__label">{label}</span>
-    </div>
   );
 }

@@ -26,7 +26,7 @@ export default function Legend() {
       transform: 'translateX(-50%)',
       borderRadius: 'var(--wpds-border-radius-lg)',
       padding: 'var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-md)',
-      fontSize: 'var(--wpds-font-size-xs)',
+      fontSize: 'var(--wpds-typography-font-size-xs)',
       zIndex: 5,
       display: 'flex',
       gap: 'var(--wpds-dimension-gap-lg)',

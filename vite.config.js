@@ -2,6 +2,8 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
+import dsTokenFallbacksPostcss from '@wordpress/theme/postcss-plugins/postcss-ds-token-fallbacks';
+import dsTokenFallbacksVite from '@wordpress/theme/vite-plugins/vite-ds-token-fallbacks';
 
 function hooksJsonPlugin() {
   let jsonPath = null;
@@ -30,7 +32,12 @@ function hooksJsonPlugin() {
 }
 
 export default defineConfig({
-  plugins: [react(), hooksJsonPlugin()],
+  plugins: [react(), hooksJsonPlugin(), dsTokenFallbacksVite()],
+  css: {
+    postcss: {
+      plugins: [dsTokenFallbacksPostcss()],
+    },
+  },
   server: {
     port: 8080,
     strictPort: false,

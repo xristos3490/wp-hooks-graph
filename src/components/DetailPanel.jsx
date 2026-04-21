@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { IconButton, Text, Stack } from '@wordpress/ui';
+import { IconButton, Text, Stack, Badge } from '@wordpress/ui';
 import { DataViews } from '@wordpress/dataviews';
 import '@wordpress/dataviews/build-style/style.css';
 import { close } from '@wordpress/icons';
@@ -26,7 +26,7 @@ const sectionHeadingStyle = {
 };
 
 const monoStyle = {
-  fontFamily: 'var(--wpds-font-family-mono)',
+  fontFamily: 'var(--wpds-typography-font-family-mono)',
   fontFeatureSettings: "'tnum' 1, 'kern' 1",
 };
 
@@ -36,7 +36,7 @@ const edgeFields = [
     label: 'Name',
     render: ({ item }) => (
       <span style={{
-        fontWeight: 'var(--wpds-font-weight-medium)',
+        fontWeight: 'var(--wpds-typography-font-weight-medium)',
         wordBreak: 'break-all',
         overflowWrap: 'anywhere',
       }}>
@@ -62,7 +62,7 @@ const edgeFields = [
         {item.docComment && (
           <span style={{
             display: 'block',
-            fontSize: 'var(--wpds-font-size-xs)',
+            fontSize: 'var(--wpds-typography-font-size-xs)',
             fontStyle: 'italic',
             marginTop: 2,
             padding: 'var(--wpds-dimension-padding-xs) var(--wpds-dimension-padding-sm)',
@@ -115,7 +115,7 @@ export default function DetailPanel() {
   const panelStyle = {
     width: 420,
     borderLeft: '1px solid #e0e0e0',
-    fontSize: 'var(--wpds-font-size-md)',
+    fontSize: 'var(--wpds-typography-font-size-md)',
     transform: isOpen ? 'translateX(0)' : 'translateX(100%)',
     opacity: isOpen ? 1 : 0,
     transition: 'transform 280ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms ease',
@@ -168,37 +168,17 @@ export default function DetailPanel() {
 
 // --- Header sub-components ---
 
-function TypeBadge({ color, label }) {
-  return (
-    <span style={{
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 5,
-      ...monoStyle,
-      fontSize: 10.5,
-      fontWeight: 'var(--wpds-font-weight-medium)',
-      textTransform: 'uppercase',
-      letterSpacing: '0.05em',
-      padding: '3px var(--wpds-dimension-padding-sm)',
-      borderRadius: 'var(--wpds-border-radius-md)',
-      marginBottom: 'var(--wpds-dimension-gap-sm)',
-    }}>
-      <span style={{
-        width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
-        background: color,
-      }} />
-      {label}
-    </span>
-  );
-}
+const BADGE_WRAPPER_STYLE = { display: 'block', marginBottom: 'var(--wpds-dimension-gap-sm)' };
 
 function HookHeader({ d }) {
-  const badgeDotColor = d.hook_type === 'action' ? 'var(--hg-color-overlap-action)' : 'var(--hg-color-overlap-filter)';
+  const intent = d.hook_type === 'action' ? 'medium' : 'informational';
   const sourceName = d.sources && d.sources.length === 1 ? d.sources[0] : (d.sources ? d.sources.join(', ') : '');
 
   return (
     <>
-      <TypeBadge color={badgeDotColor} label={d.hook_type + (d.dynamic ? ' \u00b7 dynamic' : '')} />
+      <div style={BADGE_WRAPPER_STYLE}>
+        <Badge intent={intent}>{d.hook_type + (d.dynamic ? ' \u00b7 dynamic' : '')}</Badge>
+      </div>
       <h3 style={{
         fontSize: 16,
         fontWeight: 600,
@@ -235,7 +215,9 @@ function HookHeader({ d }) {
 function FileHeader({ d }) {
   return (
     <>
-      <TypeBadge color="#999" label="file" />
+      <div style={BADGE_WRAPPER_STYLE}>
+        <Badge>file</Badge>
+      </div>
       <h3 style={{
         fontSize: 16, fontWeight: 600,
         marginBottom: 'var(--wpds-dimension-gap-xs)', lineHeight: 1.4,
@@ -253,7 +235,9 @@ function FileHeader({ d }) {
 function ClassHeader({ d }) {
   return (
     <>
-      <TypeBadge color="#999" label="class" />
+      <div style={BADGE_WRAPPER_STYLE}>
+        <Badge>class</Badge>
+      </div>
       <h3 style={{
         fontSize: 16, fontWeight: 600,
         marginBottom: 'var(--wpds-dimension-gap-xs)', lineHeight: 1.4,
@@ -291,7 +275,7 @@ function StatCell({ number, label }) {
       <div style={{
         ...monoStyle,
         fontSize: 22,
-        fontWeight: 'var(--wpds-font-weight-medium)',
+        fontWeight: 'var(--wpds-typography-font-weight-medium)',
       }}>
         {number}
       </div>
@@ -315,7 +299,7 @@ function EdgeItem({ onClick, children }) {
       onClick={onClick}
       style={{
         padding: 'var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-md)',
-        fontSize: 'var(--wpds-font-size-sm)',
+        fontSize: 'var(--wpds-typography-font-size-sm)',
         lineHeight: 1.5,
         borderRadius: 'var(--wpds-border-radius-lg)',
         cursor: 'pointer',
@@ -345,8 +329,8 @@ function FileRef({ children, style: s }) {
 function CallbackRef({ children }) {
   return (
     <span style={{
-      fontSize: 'var(--wpds-font-size-md)',
-      fontWeight: 'var(--wpds-font-weight-medium)',
+      fontSize: 'var(--wpds-typography-font-size-md)',
+      fontWeight: 'var(--wpds-typography-font-weight-medium)',
       display: 'block',
       marginBottom: 2,
     }}>
@@ -389,7 +373,7 @@ function ScopeRef({ children }) {
 function DocComment({ children }) {
   return (
     <span style={{
-      fontSize: 'var(--wpds-font-size-xs)',
+      fontSize: 'var(--wpds-typography-font-size-xs)',
       fontStyle: 'italic',
       display: 'block',
       marginTop: 'var(--wpds-dimension-gap-xs)',
@@ -506,7 +490,7 @@ function HookBody({ d, cy, onEdgeClick }) {
           {sortedListens.length > LISTEN_TRUNCATION_LIMIT && (
             <Text variant="body-sm" style={{
               display: 'block',
-              fontSize: 'var(--wpds-font-size-xs)',
+              fontSize: 'var(--wpds-typography-font-size-xs)',
               textAlign: 'center',
               padding: `var(--wpds-dimension-padding-sm) ${PANEL_INSET} 0`,
               opacity: 0.6,
