@@ -393,4 +393,32 @@ describe('applyFilterPipeline', () => {
     // hook::the_title is dynamic, fire+listen count >= 2, and has both fire and listen edges.
     expect(result.visibleHookIds).toEqual(new Set(['hook::the_title']));
   });
+
+  test('visibleEdgeIndices match the positions of visibleEdges in the input array', () => {
+    // GraphCanvas relies on these indices to look up Cytoscape edges by their
+    // `edge-${i}` id. If the indices and visibleEdges array drift apart,
+    // the diff-based filter apply will hide or show the wrong elements.
+    const state = {
+      ...baseState,
+      hookType: { actions: true, filters: false },
+    };
+    const result = applyFilterPipeline(hooks, edges, fileNodes, state);
+    expect(result.visibleEdgeIndices).toBeInstanceOf(Set);
+    expect(result.visibleEdgeIndices.size).toBe(result.visibleEdges.length);
+    // Every index must point back to an edge that survived the filter.
+    result.visibleEdgeIndices.forEach((i) => {
+      expect(result.visibleEdges).toContainEqual(edges[i]);
+    });
+  });
+
+  test('visibleEdgeIndices is empty when no edges survive', () => {
+    const state = {
+      ...baseState,
+      fireRepos: { wp: false, plugin: false },
+      listenRepos: { wp: false, plugin: false },
+    };
+    const result = applyFilterPipeline(hooks, edges, fileNodes, state);
+    expect(result.visibleEdgeIndices.size).toBe(0);
+    expect(result.visibleEdges).toHaveLength(0);
+  });
 });

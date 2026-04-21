@@ -36,6 +36,14 @@ export default function GraphCanvas() {
   const hookDataCacheRef = useRef(hookDataCache);
   hookDataCacheRef.current = hookDataCache;
 
+  // Indices built once per Cytoscape instance; rebuilt when the init effect
+  // tears down and re-mounts (e.g. on groupBy change). Used by applyFilters
+  // to jump directly from an id to an element, skipping selector scans.
+  const indexesRef = useRef(null);
+  // Snapshot of visible ids from the previous applyFilters run. Diffed against
+  // the current filterResult so each toggle touches only changed elements.
+  const prevVisibleRef = useRef(null);
+
   // --- Initialize Cytoscape ---
   useEffect(() => {
     if (!containerRef.current || !data) return;
@@ -93,6 +101,36 @@ export default function GraphCanvas() {
 
       if (destroyed) return;
 
+      // Build id -> element indices once. Used by applyFilters for O(1) lookup
+      // per changed id instead of re-scanning cy.nodes()/cy.edges() per apply.
+      const nodeIndex = new Map();
+      const edgeIndex = new Map();
+      const edgeSource = new Map();
+      cy.nodes().forEach((n) => nodeIndex.set(n.id(), n));
+      cy.edges().forEach((e) => {
+        const id = e.id();
+        edgeIndex.set(id, e);
+        edgeSource.set(id, e.data('source'));
+      });
+      indexesRef.current = { nodeIndex, edgeIndex, edgeSource };
+
+      // Everything starts without the `.hidden` class after cy.add(); seed
+      // prev-visible with all ids so the first diff correctly hides orphans
+      // and anything outside the initial filter state.
+      const initialHookIds = new Set();
+      const initialFileClassIds = new Set();
+      cy.nodes().forEach((n) => {
+        const t = n.data('type');
+        const id = n.id();
+        if (t === 'hook') initialHookIds.add(id);
+        else if (t === 'file' || t === 'class') initialFileClassIds.add(id);
+      });
+      prevVisibleRef.current = {
+        hookIds: initialHookIds,
+        edgeIds: new Set(edgeIndex.keys()),
+        fileClassIds: initialFileClassIds,
+      };
+
       const layoutOpts = buildLayoutOptions(isLargeGraph);
       layoutOpts.stop = () => {
         if (!destroyed) {
@@ -149,6 +187,8 @@ export default function GraphCanvas() {
       destroyed = true;
       cy.destroy();
       cyRef.current = null;
+      indexesRef.current = null;
+      prevVisibleRef.current = null;
       setIsComputing(false);
     };
   }, [data, sourceLabels, repoPalettes, isLargeGraph, groupBy]);
@@ -156,9 +196,11 @@ export default function GraphCanvas() {
   // --- Apply filter results (only after graph is ready) ---
   useEffect(() => {
     const cy = cyRef.current;
-    if (!cy || !filterResult || !graphReady) return;
+    const indexes = indexesRef.current;
+    const prev = prevVisibleRef.current;
+    if (!cy || !filterResult || !graphReady || !indexes || !prev) return;
 
-    applyFilters(cy, filterResult);
+    applyFilters(cy, filterResult, indexes, prev);
   }, [filterResult, graphReady]);
 
   // --- Apply search highlighting ---
@@ -288,45 +330,57 @@ export default function GraphCanvas() {
 
 // --- Helpers (module-level, not exported) ---
 
-function applyFilters(cy, filterResult) {
+// Diff-based filter application. Instead of scanning every node/edge on each
+// toggle, we:
+//   1. Look up the current visible ids (hooks, edges, file/class parents).
+//   2. Compare against the previous-visible snapshot.
+//   3. Apply `.hidden` only to the symmetric difference via O(1) id lookups.
+// For a small filter diff (e.g. toggling one checkbox) this touches tens of
+// elements instead of the full 10k+-element graph.
+function applyFilters(cy, filterResult, indexes, prev) {
+  const { nodeIndex, edgeIndex, edgeSource } = indexes;
+
+  // Map visible edge indices (from the pure pipeline) to Cytoscape edge ids.
+  // Edge ids are assigned by buildEdgeData() as `edge-${i}` where i is the
+  // position in the original data.edges array — stable across groupBy modes.
+  const currEdgeIds = new Set();
+  filterResult.visibleEdgeIndices.forEach((i) => currEdgeIds.add('edge-' + i));
+
+  // Parent nodes (files in file mode, files-or-classes in class mode) are
+  // derived from the visible edges' source ids. This replaces the old
+  // `connectedEdges().some(...)` scan which re-traversed the full edge list
+  // for every parent node.
+  const currFileClassIds = new Set();
+  currEdgeIds.forEach((eid) => {
+    const src = edgeSource.get(eid);
+    if (src) currFileClassIds.add(src);
+  });
+
+  const currHookIds = filterResult.visibleHookIds;
+
   cy.batch(() => {
-    cy.elements().removeClass('hidden');
+    diffApply(prev.hookIds, currHookIds, nodeIndex);
+    diffApply(prev.edgeIds, currEdgeIds, edgeIndex);
+    diffApply(prev.fileClassIds, currFileClassIds, nodeIndex);
+  });
 
-    // Hide non-visible hooks and their edges
-    cy.nodes('[type="hook"]').forEach((node) => {
-      if (!filterResult.visibleHookIds.has(node.data('id'))) {
-        node.addClass('hidden');
-        node.connectedEdges().addClass('hidden');
-      }
-    });
+  prev.hookIds = currHookIds;
+  prev.edgeIds = currEdgeIds;
+  prev.fileClassIds = currFileClassIds;
+}
 
-    // Hide edges not in the visible set.
-    // visibleEdges uses raw file-based source IDs, but in class mode Cytoscape
-    // edge sources are class IDs (class::repo::Name). Use target+line as
-    // fallback key so class-mode edges aren't incorrectly hidden.
-    const visibleEdgeKeys = new Set(
-      filterResult.visibleEdges.map((ve) => ve.source + '|' + ve.target + '|' + ve.line)
-    );
-    const visibleTargetLineKeys = new Set(
-      filterResult.visibleEdges.map((ve) => ve.target + '|' + ve.line)
-    );
-    cy.edges().forEach((edge) => {
-      if (edge.hasClass('hidden')) return;
-      const ed = edge.data();
-      if (!visibleEdgeKeys.has(ed.source + '|' + ed.target + '|' + ed.line)) {
-        if (!visibleTargetLineKeys.has(ed.target + '|' + ed.line)) {
-          edge.addClass('hidden');
-        }
-      }
-    });
-
-    // Hide file/class nodes that have no visible connected edges
-    cy.nodes('[type="file"], [type="class"]').forEach((node) => {
-      const hasVisibleEdge = node.connectedEdges().some((e) => !e.hasClass('hidden'));
-      if (!hasVisibleEdge) {
-        node.addClass('hidden');
-      }
-    });
+function diffApply(prevSet, currSet, index) {
+  prevSet.forEach((id) => {
+    if (!currSet.has(id)) {
+      const el = index.get(id);
+      if (el) el.addClass('hidden');
+    }
+  });
+  currSet.forEach((id) => {
+    if (!prevSet.has(id)) {
+      const el = index.get(id);
+      if (el) el.removeClass('hidden');
+    }
   });
 }
 

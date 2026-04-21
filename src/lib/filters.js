@@ -66,6 +66,28 @@ function filterEdgesByRepo(edges, fileNodes, visibleHookIds, state) {
   });
 }
 
+// Same predicate as filterEdgesByRepo but yields the indices of visible edges
+// in the original array. Used by consumers that need to look up Cytoscape
+// elements by id (e.g. 'edge-${i}') without reconstructing composite keys.
+function filterEdgeIndicesByRepo(edges, fileNodes, visibleHookIds, state) {
+  var fileSourceMap = {};
+  for (var i = 0; i < fileNodes.length; i++) {
+    fileSourceMap[fileNodes[i].id] = fileNodes[i].source;
+  }
+  var indices = new Set();
+  for (var j = 0; j < edges.length; j++) {
+    var e = edges[j];
+    if (!visibleHookIds.has(e.target)) continue;
+    var source = fileSourceMap[e.source];
+    if (source) {
+      var map = e.type === 'fires' ? state.fireRepos : state.listenRepos;
+      if (!map[source]) continue;
+    }
+    indices.add(j);
+  }
+  return indices;
+}
+
 function deriveFileVisibility(visibleEdges) {
   var result = new Set();
   for (var i = 0; i < visibleEdges.length; i++) {
@@ -85,16 +107,16 @@ function applyFilterPipeline(hooks, edges, fileNodes, state) {
     filterByHighTraffic(hooks, state),
   ];
   var visibleHookIds = intersectSets(sets);
-  var visibleEdges = filterEdgesByRepo(edges, fileNodes, visibleHookIds, state);
+  var visibleEdgeIndices = filterEdgeIndicesByRepo(edges, fileNodes, visibleHookIds, state);
 
   // Two-sided by default; raw orphans surface only when opted in.
   var hooksWithFire = new Set();
   var hooksWithListen = new Set();
-  for (var i = 0; i < visibleEdges.length; i++) {
-    var e = visibleEdges[i];
+  visibleEdgeIndices.forEach(function(i) {
+    var e = edges[i];
     if (e.type === 'fires') hooksWithFire.add(e.target);
     else if (e.type === 'listens') hooksWithListen.add(e.target);
-  }
+  });
   visibleHookIds = new Set([...visibleHookIds].filter(function(id) {
     var hook = hooksById[id];
     var hasFire = hooksWithFire.has(id);
@@ -104,13 +126,30 @@ function applyFilterPipeline(hooks, edges, fileNodes, state) {
     if (hasListen && hook.fire_count === 0 && state.includeListenOnly) return true;
     return false;
   }));
-  visibleEdges = visibleEdges.filter(function(e) { return visibleHookIds.has(e.target); });
 
-  var visibleFileIds = deriveFileVisibility(visibleEdges);
-  return { visibleHookIds: visibleHookIds, visibleEdges: visibleEdges, visibleFileIds: visibleFileIds };
+  // Drop edges whose target was pruned by the orphan rule above, and
+  // materialise the parallel arrays consumers need.
+  var visibleEdges = [];
+  var finalEdgeIndices = new Set();
+  var visibleFileIds = new Set();
+  visibleEdgeIndices.forEach(function(i) {
+    var e = edges[i];
+    if (!visibleHookIds.has(e.target)) return;
+    visibleEdges.push(e);
+    finalEdgeIndices.add(i);
+    visibleFileIds.add(e.source);
+  });
+
+  return {
+    visibleHookIds: visibleHookIds,
+    visibleEdges: visibleEdges,
+    visibleEdgeIndices: finalEdgeIndices,
+    visibleFileIds: visibleFileIds,
+  };
 }
 
 export {
   filterByHookType, filterByDynamic, filterByOverlapping, filterByHighTraffic,
-  intersectSets, filterEdgesByRepo, deriveFileVisibility, applyFilterPipeline,
+  intersectSets, filterEdgesByRepo, filterEdgeIndicesByRepo,
+  deriveFileVisibility, applyFilterPipeline,
 };
