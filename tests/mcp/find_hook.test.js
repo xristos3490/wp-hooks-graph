@@ -25,7 +25,7 @@ describe('find_hook', () => {
   test('cross-codebase returns all matches with codebase field', () => {
     const result = tool.handler({ name: 'init' }, makeCtx());
     expect(Array.isArray(result)).toBe(true);
-    expect(result.map((r) => r.codebase).sort()).toEqual(['alpha', 'beta']);
+    expect(result.map((r) => r.codebase).sort()).toEqual(['alpha', 'beta', 'gamma']);
   });
 
   test('cross-codebase returns empty array when nothing matches', () => {

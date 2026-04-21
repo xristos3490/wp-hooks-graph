@@ -1,0 +1,119 @@
+{
+  "metadata": {
+    "scanned_dirs": ["/fake/gamma"],
+    "source_labels": ["gamma"],
+    "total_files": 2,
+    "total_hooks": 4,
+    "dynamic_hooks": 0,
+    "scan_date": "2026-04-21T00:00:00+00:00"
+  },
+  "nodes": [
+    {
+      "id": "hook::init",
+      "type": "hook",
+      "hook_type": "action",
+      "name": "init",
+      "fire_count": 0,
+      "listen_count": 2,
+      "dynamic": false,
+      "sources": ["gamma"]
+    },
+    {
+      "id": "hook::init_extra",
+      "type": "hook",
+      "hook_type": "action",
+      "name": "init_extra",
+      "fire_count": 0,
+      "listen_count": 1,
+      "dynamic": false,
+      "sources": ["gamma"]
+    },
+    {
+      "id": "hook::the_content",
+      "type": "hook",
+      "hook_type": "action",
+      "name": "the_content",
+      "fire_count": 0,
+      "listen_count": 1,
+      "dynamic": false,
+      "sources": ["gamma"]
+    },
+    {
+      "id": "hook::gamma_only",
+      "type": "hook",
+      "hook_type": "filter",
+      "name": "gamma_only",
+      "fire_count": 1,
+      "listen_count": 0,
+      "dynamic": false,
+      "sources": ["gamma"]
+    },
+    {
+      "id": "file::gamma::core.php",
+      "type": "file",
+      "path": "core.php",
+      "source": "gamma",
+      "hook_count": 1
+    },
+    {
+      "id": "file::gamma::plugin.php",
+      "type": "file",
+      "path": "plugin.php",
+      "source": "gamma",
+      "hook_count": 4
+    }
+  ],
+  "edges": [
+    {
+      "source": "file::gamma::plugin.php",
+      "target": "hook::init",
+      "type": "listens",
+      "line": 10,
+      "callback": "gamma_init_setup",
+      "callback_method": "gamma_init_setup",
+      "callback_type": "function",
+      "priority": 15,
+      "scope_function": "gamma_boot"
+    },
+    {
+      "source": "file::gamma::plugin.php",
+      "target": "hook::init",
+      "type": "listens",
+      "line": 11,
+      "callback": "gamma_init_late",
+      "callback_method": "gamma_init_late",
+      "callback_type": "function",
+      "priority": 50,
+      "scope_function": "gamma_boot"
+    },
+    {
+      "source": "file::gamma::plugin.php",
+      "target": "hook::init_extra",
+      "type": "listens",
+      "line": 20,
+      "callback": "gamma_init_extra",
+      "callback_method": "gamma_init_extra",
+      "callback_type": "function",
+      "priority": 10,
+      "scope_function": "gamma_boot"
+    },
+    {
+      "source": "file::gamma::plugin.php",
+      "target": "hook::the_content",
+      "type": "listens",
+      "line": 30,
+      "callback": "gamma_content_action",
+      "callback_method": "gamma_content_action",
+      "callback_type": "function",
+      "priority": 10,
+      "scope_function": "gamma_boot"
+    },
+    {
+      "source": "file::gamma::core.php",
+      "target": "hook::gamma_only",
+      "type": "fires",
+      "line": 5,
+      "scope_function": "gamma_render"
+    }
+  ]
+}

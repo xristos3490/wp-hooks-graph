@@ -130,6 +130,8 @@ Or run directly for testing: `npm run mcp -- --storage storage`. Storage also fa
 | `hooks_in_file(file_path, codebase, limit?, offset?)` | All hook activity in a specific file |
 | `search_callbacks(substring, codebase?, limit?, offset?)` | Case-insensitive substring search over listener callbacks, optionally cross-codebase |
 | `hotspots(codebase, metric?, limit?)` | Top hooks by `total`, `fires`, or `listens` |
+| `shared_hooks(codebases?, substring?, min_sources?, sort?, limit?, offset?)` | Hooks that appear in ≥2 codebases, with per-codebase counts and `hook_type_divergence` flag |
+| `compare_hook(hook? \| substring?, codebases?, limit?, offset?)` | Pivot one or more hooks across codebases; listeners sorted by priority ASC then codebase then file:line |
 
 Re-parse a codebase (`hooksgraph parse ...`) and the next MCP call picks up the new data automatically — mtime-based invalidation, no daemon, no restart.
 
@@ -137,6 +139,8 @@ Re-parse a codebase (`hooksgraph parse ...`) and the next MCP call picks up the 
 
 - *"Which callbacks in `woocommerce-bookings` listen on `woocommerce_before_single_product`?"*
 - *"Across every codebase, anything with `gateway_stripe_webhook` in the callback name?"*
+- *"Which `woocommerce_cart_item_*` hooks do my extensions all touch?"* → one `shared_hooks(substring: "cart_item")` call
+- *"Show me every listener on `woocommerce_add_to_cart_validation` across my Woo extensions, in priority order."* → one `compare_hook(hook: "woocommerce_add_to_cart_validation")` call
 
 ---
 

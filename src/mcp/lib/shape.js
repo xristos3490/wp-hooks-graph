@@ -61,6 +61,14 @@ export function fileEdgeResult(edge, index) {
   return base;
 }
 
+export function codebasedListenerResult(edge, codebaseId, index) {
+  return { codebase: codebaseId, ...listenerResult(edge, index) };
+}
+
+export function codebasedFirerResult(edge, codebaseId, index) {
+  return { codebase: codebaseId, ...firerResult(edge, index) };
+}
+
 export function callbackSearchResult(edge, codebaseId, index) {
   return {
     codebase: codebaseId,

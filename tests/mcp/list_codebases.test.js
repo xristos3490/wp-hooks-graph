@@ -5,7 +5,7 @@ import { makeCtx } from './helpers.js';
 describe('list_codebases', () => {
   test('returns entries sorted by id with metadata', () => {
     const result = tool.handler({}, makeCtx());
-    expect(result.map((r) => r.id)).toEqual(['alpha', 'beta']);
+    expect(result.map((r) => r.id)).toEqual(['alpha', 'beta', 'gamma']);
 
     const alpha = result.find((r) => r.id === 'alpha');
     expect(alpha.source_labels).toEqual(['alpha']);

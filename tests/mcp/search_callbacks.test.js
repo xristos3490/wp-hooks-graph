@@ -22,7 +22,7 @@ describe('search_callbacks', () => {
     const labels = result.results.map((r) => r.codebase);
     const sorted = [...labels].sort();
     expect(labels).toEqual(sorted);
-    expect(new Set(labels)).toEqual(new Set(['alpha', 'beta']));
+    expect(new Set(labels)).toEqual(new Set(['alpha', 'beta', 'gamma']));
   });
 
   test('matches callback_method when different from callback', () => {

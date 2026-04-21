@@ -10,6 +10,8 @@ import * as firersOf from './tools/firers_of.js';
 import * as hooksInFile from './tools/hooks_in_file.js';
 import * as searchCallbacks from './tools/search_callbacks.js';
 import * as hotspots from './tools/hotspots.js';
+import * as sharedHooks from './tools/shared_hooks.js';
+import * as compareHook from './tools/compare_hook.js';
 
 const TOOLS = [
   listCodebases,
@@ -19,6 +21,8 @@ const TOOLS = [
   hooksInFile,
   searchCallbacks,
   hotspots,
+  sharedHooks,
+  compareHook,
 ];
 
 function toolErrorResult(err) {

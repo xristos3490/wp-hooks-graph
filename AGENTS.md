@@ -37,8 +37,8 @@ src/lib/          Framework-agnostic helpers: `filters.js` (pure filter pipeline
                   `cytoscape-setup.js`, `color-palette.js`, `constants.js`.
 src/mcp/          MCP server that exposes the parsed graph JSONs as tools. `server.js` (McpServer + stdio transport),
                   `registry.js` (lists codebases from a storage dir), `index.js` (mtime-cached graph index),
-                  `tools/` (list_codebases, find_hook, listeners_of, firers_of, hooks_in_file, search_callbacks, hotspots),
-                  `lib/` (paginate, shape helpers).
+                  `tools/` (list_codebases, find_hook, listeners_of, firers_of, hooks_in_file, search_callbacks, hotspots,
+                  shared_hooks, compare_hook), `lib/` (paginate, shape helpers).
 tests/            PHP test suite (zero-dep runner + parser/graph tests).
 tests/mcp/        Vitest suite for the MCP server (tools, registry, pagination, fixtures under `tests/mcp/fixtures/`).
 index.html        Vite entry HTML.
