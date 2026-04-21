@@ -6,6 +6,8 @@ Parses every `do_action`, `add_action`, `apply_filters`, and `add_filter` call u
 
 ![Hooks Graph viewer exploring the Gutenberg codebase](images/gutenberg-hooksgraph-demo.jpg)
 
+![Hooks Graph viewer focused on the admin_init hook in Gutenberg](images/gutenberg-hooksgraph-admin-init-demo.jpg)
+
 ## Requirements
 
 - **PHP** 7.4+ &nbsp;·&nbsp; **Node** 18+
