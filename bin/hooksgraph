@@ -3,7 +3,7 @@
 #
 # Subcommands:
 #   hooksgraph <dir>...                    parse + serve + open (shortcut)
-#   hooksgraph parse <dir>... [flags]      parse only (wraps hooks_graph.php)
+#   hooksgraph parse <dir>... [flags]      parse only (wraps hooksgraph.php)
 #   hooksgraph serve [path/to/hooks.json]  serve only (wraps bin/serve)
 #   hooksgraph --help | -h                 top-level help
 set -euo pipefail
@@ -41,7 +41,7 @@ case "$1" in
     parse)
         shift
         export HOOKSGRAPH_INVOKED_AS="hooksgraph parse"
-        exec php "$HG/hooks_graph.php" "$@"
+        exec php "$HG/hooksgraph.php" "$@"
         ;;
     serve)
         shift
@@ -52,6 +52,6 @@ esac
 # Fall-through: legacy shortcut — parse + serve + open.
 # --print-path makes the parser emit ONLY the output path on stdout;
 # its pretty UI output goes to stderr.
-out=$(php "$HG/hooks_graph.php" --print-path "$@")
+out=$(php "$HG/hooksgraph.php" --print-path "$@")
 
 exec "$HG/bin/serve" "$out"

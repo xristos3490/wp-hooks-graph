@@ -7,9 +7,10 @@ Parses WordPress PHP codebases for hook relationships (do_action/add_action/appl
 | Command | Description |
 |---------|-------------|
 | `npm install` | Install Node dependencies for the Vite/React viewer |
-| `npm run setup` | Install the `hooksgraph` shell alias (wraps `bin/setup_profile.sh`) |
+| `composer install` | Install PHP dependencies (PHPUnit for tests) |
+| `npm run setup` | Install the `hooksgraph` shell alias (wraps `bin/setup-profile.sh`) |
 | `hooksgraph <dir>...` (or `bin/hooksgraph`) | Parse + serve + open browser shortcut. Dispatcher falls through to this when the first arg isn't a known subcommand |
-| `hooksgraph parse <dir> [dir2...] [--overlap-only] [--exclude a,b] [-o path]` | Parse only; output defaults to `storage/<dirnames>.json`. Dispatcher exports `HOOKSGRAPH_INVOKED_AS` and execs `php hooks_graph.php` |
+| `hooksgraph parse <dir> [dir2...] [--overlap-only] [--exclude a,b] [-o path]` | Parse only; output defaults to `storage/<dirnames>.json`. Dispatcher exports `HOOKSGRAPH_INVOKED_AS` and execs `php hooksgraph.php` |
 | `hooksgraph parse --help` | Parser help with Usage / Examples / Viewing-results sections rebranded via `HOOKSGRAPH_INVOKED_AS` |
 | `hooksgraph serve [path/to/hooks.json]` | Serve the built viewer with a JSON. No arg = most recent file in `storage/`. Wraps `bin/serve` |
 | `hooksgraph serve --help` | Serve help (bash) |
@@ -18,7 +19,7 @@ Parses WordPress PHP codebases for hook relationships (do_action/add_action/appl
 | `npm run build` | Build the React viewer into `dist/` |
 | `npm run preview` | Preview the built viewer |
 | `npm test` | Run PHP + JS test suites |
-| `npm run test:php` | PHP parser + graph tests (custom runner under `tests/`) |
+| `npm run test:php` (or `vendor/bin/phpunit`) | PHPUnit 11 suite under `tests/phpunit/` |
 | `npm run test:js` | Vitest suite for JS (currently `src/lib/filters.test.js`) |
 | `npm run test:watch` | Vitest in watch mode |
 | `npm run mcp -- [--storage <dir>]` | Run the stdio MCP server (wraps `bin/hooks-mcp.js`). Storage resolves CLI arg → `HOOKSGRAPH_STORAGE` env → `./storage` |
@@ -26,37 +27,47 @@ Parses WordPress PHP codebases for hook relationships (do_action/add_action/appl
 ## Architecture
 
 ```
-hooks_graph.php   PHP CLI entry point. Uses token_get_all() to tokenize PHP; walks tokens to extract hook calls.
-                  Handles file discovery, .gitignore respect, progress UI, graph construction, overlap filtering, JSON output.
-server.php        Router for `php -S`. Serves the parsed JSON at /hooks.json; delegates everything else to dist/.
-bin/hooksgraph    Bash wrapper: runs the parser, then delegates to `bin/serve`. Primary user-facing entry point.
-bin/serve         Bash helper: finds a free port, launches `php -S` with server.php, opens the browser. Accepts an optional JSON path; defaults to latest file in `storage/`.
-bin/setup_profile.sh Installs the `hooksgraph` alias in `~/.zshrc`.
-src/              React viewer (Vite + @wordpress/components + Cytoscape). Entry: src/main.jsx → src/App.jsx.
-src/lib/          Framework-agnostic helpers: `filters.js` (pure filter pipeline) + `filters.test.js` (Vitest),
-                  `cytoscape-setup.js`, `color-palette.js`, `constants.js`.
-src/mcp/          MCP server that exposes the parsed graph JSONs as tools. `server.js` (McpServer + stdio transport),
-                  `registry.js` (lists codebases from a storage dir), `index.js` (mtime-cached graph index),
-                  `tools/` (list_codebases, find_hook, listeners_of, firers_of, hooks_in_file, search_callbacks, hotspots,
-                  shared_hooks, compare_hook), `lib/` (paginate, shape helpers).
-tests/            PHP test suite (zero-dep runner + parser/graph tests).
-tests/mcp/        Vitest suite for the MCP server (tools, registry, pagination, fixtures under `tests/mcp/fixtures/`).
-index.html        Vite entry HTML.
-dist/             Vite build output (git-ignored).
-storage/          Git-ignored output directory for generated JSON files (.keep tracked).
+hooksgraph.php          Thin CLI entry. Loads composer autoload and hands off to HooksGraph\Cli\Runner.
+server.php              Router for `php -S`. Serves the parsed JSON at /hooks.json; delegates everything else to dist/.
+composer.json           PHP dependencies + PSR-4 autoload (HooksGraph\ → src/HooksGraph/).
+phpunit.xml             PHPUnit 11 config; test suite rooted at tests/phpunit/.
+bin/hooksgraph          Bash wrapper: runs the parser, then delegates to `bin/serve`. Primary user-facing entry point.
+bin/serve               Bash helper: finds a free port, launches `php -S` with server.php, opens the browser. Accepts an optional JSON path; defaults to latest file in `storage/`.
+bin/setup-profile.sh    Installs the `hooksgraph` alias in `~/.zshrc`.
+src/HooksGraph/         PHP classes (namespace HooksGraph\):
+  Parser/                 FileParser, Tokens, HookNameExtractor, CallbackExtractor, DocCommentExtractor, ScopeTracker.
+  Graph/                  Builder, OverlapFilter.
+  Discovery/              PhpFileFinder, ExcludeMatcher.
+  Cli/                    Runner (orchestrator), Arguments, Help, Console (TTY styling + progress).
+src/                    React viewer (Vite + @wordpress/components + Cytoscape). Entry: src/main.jsx → src/App.jsx.
+src/lib/                Framework-agnostic helpers: `filters.js` (pure filter pipeline) + `filters.test.js` (Vitest),
+                        `cytoscape-setup.js`, `color-palette.js`, `constants.js`.
+src/mcp/                MCP server that exposes the parsed graph JSONs as tools. `server.js` (McpServer + stdio transport),
+                        `registry.js` (lists codebases from a storage dir), `index.js` (mtime-cached graph index),
+                        `tools/` (list_codebases, find_hook, listeners_of, firers_of, hooks_in_file, search_callbacks, hotspots,
+                        shared_hooks, compare_hook), `lib/` (paginate, shape helpers).
+tests/phpunit/          PHPUnit tests mirroring src/HooksGraph/ (Parser/, Graph/, Discovery/, Cli/, Support/).
+tests/mcp/              Vitest suite for the MCP server (tools, registry, pagination, fixtures under `tests/mcp/fixtures/`).
+index.html              Vite entry HTML.
+dist/                   Vite build output (git-ignored).
+storage/                Git-ignored output directory for generated JSON files (.keep tracked).
+vendor/                 Composer-managed PHP dependencies (git-ignored).
 ```
 
 ### Data flow
 
 ```
-PHP files → hooks_graph.php (tokenize → extract → build graph → optional overlap filter) → JSON
+PHP files → HooksGraph\Cli\Runner (discover → FileParser tokenize/extract → Builder → optional OverlapFilter) → JSON
          → server.php serves JSON at /hooks.json
          → React viewer renders via Cytoscape
 ```
 
 ## Key Files
 
-- `hooks_graph.php` — Single-file parser + graph builder. No external PHP dependencies; uses the built-in tokenizer.
+- `hooksgraph.php` — Thin CLI shim; requires `vendor/autoload.php` and invokes `HooksGraph\Cli\Runner::run()`.
+- `src/HooksGraph/Parser/FileParser.php` — Entry point for parsing a single file. Walks `token_get_all()` output, delegates hook-name/callback/doc-comment extraction to sibling classes, tracks scope via `ScopeTracker`.
+- `src/HooksGraph/Graph/Builder.php` / `OverlapFilter.php` — Build the node/edge graph from parsed hook calls; optionally filter to cross-source hooks.
+- `src/HooksGraph/Cli/Runner.php` — CLI orchestration: argument parsing, file discovery, per-file parse loop, summary rendering, output write.
 - `server.php` — Minimal router; any path other than `/hooks.json` falls through to the static file server rooted at `dist/`.
 - `bin/hooksgraph` — Primary user-facing entry point. Dispatches on the first arg: `parse` (sets `HOOKSGRAPH_INVOKED_AS` and execs PHP), `serve` (execs `bin/serve`), `-h`/`--help`/no-args (prints top-level help), anything else (legacy shortcut: `--print-path` captures the JSON path on stdout — pretty UI goes to stderr — then hands off to `bin/serve`).
 - `bin/serve` — Serving half of `hooksgraph`. Also invoked directly by `npm run serve`. Accepts an optional JSON path; when omitted, picks the most recently modified file in `storage/`.
@@ -65,19 +76,17 @@ PHP files → hooks_graph.php (tokenize → extract → build graph → optional
 
 ## Code Style
 
-- PHP: constants via `define()`, private helpers prefixed with `_` are not used — functions are file-scope and named plainly
-- Constants: `UPPER_SNAKE` (e.g., `HOOK_FUNCTIONS`, `ACTION_FUNCTIONS`)
-- Data structures: associative arrays; no classes in the parser
+- PHP: namespaced classes under `HooksGraph\`; `declare(strict_types=1)` at top of every file; final classes; camelCase methods.
+- Parsed hook records are associative arrays with snake_case keys — matches the JSON output shape.
 - Node IDs: `type::identifier` format (e.g., `hook::init`, `file::wp::wp-includes/plugin.php`)
 - JS: ES modules, React function components, hooks in `src/hooks/`
 
 ## Testing
 
-- `npm test` runs the PHP suite (`tests/run.php`) and the JS suite (Vitest — picks up `src/**/*.test.js` and `tests/**/*.test.js`).
-- `tests/run.php` is a zero-dependency runner: each `tests/test_*.php` file calls `test('name', fn)` to register cases. `assert_eq`, `assert_null`, `assert_true`, `assert_false`, `assert_count`, and `assert_contains` are available.
-- `tests/test_parser.php` exercises `parse_php_file()` via a `parse_source($code, $label)` helper that writes the source to a temp file and parses it. Covers literal/concat/interpolated hook names, all callback shapes (string, array, `$this`, `self::class`, closure, arrow fn, variable), scope tracking, priority, doc comments, and rejection of method/nullsafe calls.
-- `tests/test_graph.php` exercises `build_graph()` and `filter_graph_by_overlap()` directly with in-memory call dicts (no temp files). A `mk_call($overrides)` helper provides sane defaults. Fake paths like `/fake/wp-core/...` are fine because `realpath()` fallbacks in the graph code tolerate missing dirs.
-- `hooks_graph.php` guards its `main()` call with `defined('HOOKS_GRAPH_TESTING')` so `require`-ing the file from tests does not execute the CLI.
+- `npm test` runs both suites (`npm run test:php` → PHPUnit, `npm run test:js` → Vitest).
+- `tests/phpunit/` mirrors `src/HooksGraph/`: one test class per source class. `tests/phpunit/Support/ParsesSource.php` is a trait that writes a snippet to a temp file and invokes `FileParser::parse()`.
+- PHPUnit 11 config lives in `phpunit.xml`; bootstrap uses Composer's autoloader, so `composer install` must have been run at least once.
+- `hooksgraph.php` guards its Runner invocation with `defined('HOOKS_GRAPH_TESTING')` so tests that require it do not execute the CLI.
 - `tests/mcp/` covers each MCP tool plus the registry and pagination helper. `tests/mcp/helpers.js` exposes `makeCtx(storageDir)` backed by `tests/mcp/fixtures/` JSON files so tools can be called in-process without spinning up a transport.
 
 ## Gotchas

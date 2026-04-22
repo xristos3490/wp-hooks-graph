@@ -158,12 +158,12 @@ This is a **static parser**, not a runtime tracer. A few things to keep in mind:
 ## Project Structure
 
 ```
-hooks_graph.php       PHP CLI parser + graph builder
+hooksgraph.php        PHP CLI parser + graph builder
 server.php            Router for `php -S`
 bin/hooksgraph        Parse + serve + open-browser wrapper
 bin/serve             Serve a JSON with the built viewer (used by hooksgraph)
 bin/hooks-mcp.js      MCP stdio server over the storage/ JSONs
-bin/setup_profile.sh  Installs the `hooksgraph` shell alias
+bin/setup-profile.sh  Installs the `hooksgraph` shell alias
 src/                  React viewer (Vite + Cytoscape); filter pipeline + its Vitest suite live here
 src/mcp/              MCP server implementation (registry, per-codebase indexes, tool handlers)
 storage/              Generated JSON output (git-ignored)

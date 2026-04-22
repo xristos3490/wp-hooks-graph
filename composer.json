@@ -1,0 +1,29 @@
+{
+    "name": "hooks-graph/hooks-graph",
+    "description": "Parse WordPress PHP codebases for hook relationships and visualize them as an interactive graph.",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": ">=8.2"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "HooksGraph\\": "src/HooksGraph/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "HooksGraph\\Tests\\": "tests/phpunit/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "test:coverage": "phpunit --coverage-text"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}

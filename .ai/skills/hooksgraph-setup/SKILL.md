@@ -27,7 +27,7 @@ Don't execute anything destructive (shell-RC edits, MCP registration) without a 
 
 Run these up front. If any fail, stop and surface the problem instead of continuing.
 
-- **Repo root.** Confirm `hooks_graph.php` and `package.json` exist in the current working directory (or a parent — walk up if needed and `cd` there). If not found, tell the user to run the skill from inside a `wp-hooks-graph` checkout.
+- **Repo root.** Confirm `hooksgraph.php` and `package.json` exist in the current working directory (or a parent — walk up if needed and `cd` there). If not found, tell the user to run the skill from inside a `wp-hooks-graph` checkout.
 - **PHP ≥ 7.4.** `php -r 'echo PHP_VERSION;'` — compare against 7.4.0.
 - **Node ≥ 18.** `node -v` — strip the leading `v`, compare major against 18.
 - **Claude CLI.** `command -v claude` — if missing, you can still do steps 1 and 2 but must skip MCP registration; surface that clearly so the user knows what they're losing.
@@ -68,10 +68,10 @@ Just run `npm install` from the repo root. It's noisy; don't paste the full outp
 
 ### 4b. Shell alias
 
-The provided `bin/setup_profile.sh` does the right detection (zsh / bash / fish) and writes a marker-fenced block so it's idempotent. But it prompts interactively, which doesn't play well with non-TTY execution. Pipe `y` in to answer its prompt:
+The provided `bin/setup-profile.sh` does the right detection (zsh / bash / fish) and writes a marker-fenced block so it's idempotent. But it prompts interactively, which doesn't play well with non-TTY execution. Pipe `y` in to answer its prompt:
 
 ```sh
-printf 'y\n' | bash bin/setup_profile.sh
+printf 'y\n' | bash bin/setup-profile.sh
 ```
 
 Don't try to edit the RC file yourself — reuse the script so the marker format stays consistent and future reruns detect it correctly.
@@ -124,6 +124,6 @@ Keep this final message under ~10 lines. They just watched you run three command
 
 - **The alias is inactive in the current shell.** You cannot `source` on the user's behalf — Bash runs in its own subshell and any `source` you run doesn't persist. Always hand the command back to the user.
 - **`claude mcp add` with relative paths silently appears to work.** It only fails when the server is invoked from a different cwd. Always resolve to absolute paths before calling it.
-- **`npm run setup` wraps `bin/setup_profile.sh` with `< /dev/tty`**, which breaks under non-TTY execution. Call the script directly with piped input instead.
+- **`npm run setup` wraps `bin/setup-profile.sh` with `< /dev/tty`**, which breaks under non-TTY execution. Call the script directly with piped input instead.
 - **MCP registration is user-scoped** (`--scope user`). If the user later runs this skill from a different checkout of the repo, the registered path will still point at the original checkout. Flag this if you notice the `claude mcp get` output points somewhere other than the current repo — ask whether to re-register.
 - **Don't call `npm run build`.** `hooksgraph <dir>` builds the viewer automatically on first run, and the viewer is only needed for the browser UI — not for the MCP server or the CLI. Skipping it keeps onboarding fast.

@@ -8,16 +8,16 @@
     "hooks-mcp": "bin/hooks-mcp.js"
   },
   "scripts": {
-    "setup": "bash bin/setup_profile.sh < /dev/tty",
-    "parse": "php hooks_graph.php",
-    "parse:help": "php hooks_graph.php --help",
+    "setup": "bash bin/setup-profile.sh < /dev/tty",
+    "parse": "php hooksgraph.php",
+    "parse:help": "php hooksgraph.php --help",
     "serve": "bin/serve",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "mcp": "node bin/hooks-mcp.js",
     "test": "npm run test:php && npm run test:js",
-    "test:php": "php tests/run.php",
+    "test:php": "vendor/bin/phpunit",
     "test:js": "vitest run",
     "test:watch": "vitest"
   },

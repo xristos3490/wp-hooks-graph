@@ -6,6 +6,10 @@ storage/*
 node_modules/
 dist/
 
+# PHP
+vendor/
+.phpunit.cache/
+
 # Tooling
 .superpowers/
 .playwright-mcp/
