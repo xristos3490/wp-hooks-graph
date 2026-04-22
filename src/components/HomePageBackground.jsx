@@ -46,15 +46,68 @@ function Constellation({ nodes, edges, style, nodeElRefs, edgeElRefs }) {
   );
 }
 
-// Idle-screen background: a soft neutral mesh plus a polar scatter of
-// constellation drifters. Each node in each constellation reacts independently
-// to the pointer via useConstellationPhysics.
+// Ambient stardust: deterministic scatter of tiny points. Each star twinkles
+// on its own tempo so the field never pulses in sync.
+function Stardust({ stars }) {
+  return (
+    <div className="hp-stardust" aria-hidden="true">
+      {stars.map((s, i) => (
+        <span
+          key={i}
+          className="hp-star"
+          style={{
+            left: `${s.x}%`,
+            top: `${s.y}%`,
+            width: `${s.r * 2}px`,
+            height: `${s.r * 2}px`,
+            '--star-base': s.opacity,
+            animationDelay: `${s.delay}s`,
+            animationDuration: `${s.dur}s`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// Faint elliptical orbital guides. Static — their role is celestial scale,
+// not motion. Rendered as HTML with border-radius so they hug the viewport
+// aspect correctly (preserveAspectRatio="none" would skew the stroke).
+function Orbits({ orbits }) {
+  return (
+    <div className="hp-orbits" aria-hidden="true">
+      {orbits.map((o, i) => (
+        <span
+          key={i}
+          className="hp-orbit"
+          style={{
+            left: `${o.cx}%`,
+            top: `${o.cy}%`,
+            width: `${o.rx * 2}vw`,
+            height: `${o.ry * 2}vh`,
+            marginLeft: `-${o.rx}vw`,
+            marginTop: `-${o.ry}vh`,
+            opacity: o.opacity,
+            transform: `rotate(${o.rot}deg)`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// Idle-screen background: a deliberate composition — soft mesh, faint orbital
+// arcs, a deterministic stardust field, and a curated set of constellation
+// drifters arranged to frame the centered hero. Each drifter's nodes still
+// react independently to the pointer via useConstellationPhysics.
 export default function HomePageBackground() {
-  const { drifters } = useHomepageScene();
+  const { drifters, stars, orbits } = useHomepageScene();
   const { rootRef, bodyRefs, nodeRefs, edgeRefs } = useConstellationPhysics(drifters);
   return (
     <>
       <div className="hp-mesh" aria-hidden="true" />
+      <Orbits orbits={orbits} />
+      <Stardust stars={stars} />
       <div className="hp-field" aria-hidden="true" ref={rootRef}>
         {drifters.map((d, i) => {
           const {

@@ -284,3 +284,86 @@ export function buildScene({ seed = 1, drifterCount = 6 } = {}) {
   const rng = makeRng(seed);
   return { drifters: buildDrifterList(rng, drifterCount) };
 }
+
+// ---------------------------------------------------------------------------
+// Curated scene — a hand-composed piece of art rather than a random scatter.
+//
+// The homepage hero sits centered; the composition deliberately frames that
+// dead space. Drifters are placed with asymmetric balance (heavier upper-left
+// and lower-right) and varying depth bands so the eye reads the scene as a
+// painted night sky of signal clusters rather than a uniform grid. Two
+// ambient layers are added:
+//   - stardust:  deterministic scatter of tiny twinkling points, atmosphere
+//   - orbits:    faint elliptical guides suggesting celestial scale
+// Archetype internals (node jitter, edge chord counts) still use a seeded RNG
+// so the interior of each cluster has life without being different each load.
+// ---------------------------------------------------------------------------
+
+// x/y are viewport percent. Negative or >100 bleeds off-screen intentionally.
+// size is rem; opacity is the drifter's base opacity (on top of edge/node opacity).
+const CURATED_DRIFTERS = [
+  { archetype: 'mesh',    band: 'back',  x: 16, y: 22, size: 40, opacity: 0.09, spin: 520, dir:  1 },
+  { archetype: 'lattice', band: 'back',  x: 82, y: 14, size: 34, opacity: 0.08, spin: 560, dir: -1 },
+  { archetype: 'hub',     band: 'mid',   x: -3, y: 58, size: 28, opacity: 0.16, spin: 380, dir: -1 },
+  { archetype: 'tree',    band: 'mid',   x: 88, y: 74, size: 30, opacity: 0.18, spin: 340, dir:  1 },
+  { archetype: 'ring',    band: 'front', x: 22, y: 88, size: 20, opacity: 0.28, spin: 300, dir:  1 },
+  { archetype: 'hub',     band: 'front', x: 98, y: 42, size: 18, opacity: 0.30, spin: 260, dir: -1 },
+  { archetype: 'chain',   band: 'mid',   x: 58, y: 104, size: 32, opacity: 0.20, spin: 320, dir:  1 },
+];
+
+const CURATED_SEED = 2026;
+const STARDUST_COUNT = 92;
+
+// Deterministic sky of tiny points. Twinkle tempos vary per-star so the field
+// never pulses in sync.
+function buildStardust(rng) {
+  const stars = new Array(STARDUST_COUNT);
+  for (let i = 0; i < STARDUST_COUNT; i++) {
+    stars[i] = {
+      x: Number((rng() * 100).toFixed(2)),
+      y: Number((rng() * 100).toFixed(2)),
+      r: Number((0.35 + rng() * 0.95).toFixed(2)),
+      opacity: Number((0.08 + rng() * 0.3).toFixed(2)),
+      delay: Number((rng() * 8).toFixed(2)),
+      dur: Number((3.5 + rng() * 4.5).toFixed(2)),
+    };
+  }
+  return stars;
+}
+
+// Faint orbital rings. Static, no animation — their role is to add celestial
+// scale, not motion. Positioned off-center so they never cut through the hero
+// title. Sized in vw/vh so they stay proportional to the viewport.
+const CURATED_ORBITS = [
+  { cx: 16, cy: 26, rx: 24, ry: 15, rot: -18, opacity: 0.10 },
+  { cx: 84, cy: 72, rx: 28, ry: 18, rot:  22, opacity: 0.09 },
+  { cx: 78, cy: 18, rx: 14, ry:  9, rot:  10, opacity: 0.12 },
+];
+
+export function buildCuratedScene() {
+  const rng = makeRng(CURATED_SEED);
+  const drifters = CURATED_DRIFTERS.map((p, i) => {
+    const { nodes, edges } = buildArchetype(p.archetype, rng);
+    return {
+      id: `d${i}`,
+      archetype: p.archetype,
+      band: p.band,
+      nodes,
+      edges,
+      anchorX: p.x,
+      anchorY: p.y,
+      style: {
+        left: `${p.x.toFixed(1)}%`,
+        top: `${p.y.toFixed(1)}%`,
+        width: `${p.size.toFixed(1)}rem`,
+        marginLeft: `-${(p.size / 2).toFixed(2)}rem`,
+        marginTop: `-${(p.size / 2).toFixed(2)}rem`,
+        opacity: p.opacity,
+        '--c-spin': `${p.spin}s`,
+        '--c-spin-dir': p.dir === -1 ? '-1' : '1',
+      },
+    };
+  });
+  const stars = buildStardust(rng);
+  return { drifters, stars, orbits: CURATED_ORBITS };
+}
