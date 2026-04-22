@@ -3,10 +3,11 @@ import useHomepageScene from '../hooks/useHomepageScene.js';
 import useConstellationPhysics from '../hooks/useConstellationPhysics.js';
 import './HomePageBackground.css';
 
-// A single constellation rendered as SVG — the pre-computed edge length keeps
-// the "signal flowing" dash animation consistent across edges of different
-// lengths. Purely presentational.
-function Constellation({ nodes, edges, style }) {
+// A single constellation rendered as SVG. Pre-computed edge dash length keeps
+// the "signal flowing" animation consistent across lines of different lengths.
+// Node refs let the physics hook mutate per-node cx/cy; edge refs let it keep
+// the connecting lines attached to moved endpoints.
+function Constellation({ nodes, edges, style, nodeElRefs, edgeElRefs }) {
   const edgeData = useMemo(() => edges.map(([a, b]) => {
     const [x1, y1] = nodes[a];
     const [x2, y2] = nodes[b];
@@ -22,6 +23,7 @@ function Constellation({ nodes, edges, style }) {
             {edgeData.map(({ x1, y1, x2, y2, len }, i) => (
               <line
                 key={i}
+                ref={edgeElRefs[i]}
                 x1={x1} y1={y1} x2={x2} y2={y2}
                 strokeDasharray={`6 ${Math.max(len - 6, 4)}`}
                 style={{ animationDelay: `${(i * 0.7) % 5}s` }}
@@ -32,6 +34,7 @@ function Constellation({ nodes, edges, style }) {
             {nodes.map(([cx, cy], i) => (
               <circle
                 key={i}
+                ref={nodeElRefs[i]}
                 cx={cx} cy={cy} r="3.5"
                 style={{ animationDelay: `${(i * 0.4) % 3}s` }}
               />
@@ -44,17 +47,16 @@ function Constellation({ nodes, edges, style }) {
 }
 
 // Idle-screen background: a soft neutral mesh plus a polar scatter of
-// constellation drifters. Fully self-contained — no props, no external CSS.
+// constellation drifters. Each node in each constellation reacts independently
+// to the pointer via useConstellationPhysics.
 export default function HomePageBackground() {
   const { drifters } = useHomepageScene();
-  const { rootRef, bodyRefs } = useConstellationPhysics(drifters);
+  const { rootRef, bodyRefs, nodeRefs, edgeRefs } = useConstellationPhysics(drifters);
   return (
     <>
       <div className="hp-mesh" aria-hidden="true" />
       <div className="hp-field" aria-hidden="true" ref={rootRef}>
         {drifters.map((d, i) => {
-          // Layout/positioning lives on the outer body; the inner sprite carries
-          // opacity + per-sprite CSS variables but no positional offsets.
           const {
             left, top, width, marginLeft, marginTop, ...innerStyle
           } = d.style;
@@ -66,7 +68,13 @@ export default function HomePageBackground() {
               className="hp-constellation-body"
               style={bodyStyle}
             >
-              <Constellation nodes={d.nodes} edges={d.edges} style={innerStyle} />
+              <Constellation
+                nodes={d.nodes}
+                edges={d.edges}
+                style={innerStyle}
+                nodeElRefs={nodeRefs[i]}
+                edgeElRefs={edgeRefs[i]}
+              />
             </div>
           );
         })}

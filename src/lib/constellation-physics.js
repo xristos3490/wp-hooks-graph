@@ -1,40 +1,36 @@
 // Framework-free physics for the homepage constellation field.
-// Each body is a critically-damped spring anchored at its layout position,
-// driven by (a) a pointer-repulsion force and (b) a slow ambient sine.
+// Each constellation owns one "body" of N nodes; each node is a critically
+// damped spring anchored at its SVG position and driven by pointer repulsion.
 //
-// No DOM, no React, no allocations in the step — state is mutated in place.
+// State is flat Float32Array per body so the hot loop is cache-friendly and
+// allocation-free. The step reports a `dirty` flag so the caller can skip
+// DOM writes and even halt the RAF loop once every body has settled.
 
 export const DEFAULT_PARAMS = Object.freeze({
-  INNER_R: 96,
-  OUTER_R: 420,
-  MAX_PUSH: 140,
-  STIFFNESS: 2 * Math.PI * 1.1,
-  NOISE_AMP: 8,
-  NOISE_FREQ_X: 0.08,
-  NOISE_FREQ_Y: 0.11,
+  INNER_R: 64,
+  OUTER_R: 240,
+  MAX_PUSH: 28,
+  STIFFNESS: 2 * Math.PI * 1.3,
 });
 
 const MIN_DT = 0;
 const MAX_DT = 1 / 30;
 
-// Golden-angle derived phases so neighbouring bodies' noise is incommensurate.
-const PHASE_X_STEP = 2.399963229728653;
-const PHASE_Y_STEP = 3.883222077450933;
-const PHASE_Y_OFFSET = Math.PI / 3;
+// A node is "at rest" when position and velocity fall below these thresholds.
+// Values are in screen pixels; well below the DOM write epsilon so the
+// dirty/clean flip lines up with "nothing to render this frame".
+const REST_POS_EPS = 0.05;
+const REST_VEL_EPS = 0.05;
 
-export function createPhysicsState(bodies) {
-  const state = new Array(bodies.length);
-  for (let i = 0; i < bodies.length; i++) {
-    state[i] = {
-      x: 0,
-      y: 0,
-      vx: 0,
-      vy: 0,
-      phaseX: i * PHASE_X_STEP,
-      phaseY: i * PHASE_Y_STEP + PHASE_Y_OFFSET,
-    };
-  }
-  return state;
+export function createBodyState(nodeCount) {
+  return {
+    count: nodeCount,
+    x: new Float32Array(nodeCount),
+    y: new Float32Array(nodeCount),
+    vx: new Float32Array(nodeCount),
+    vy: new Float32Array(nodeCount),
+    dirty: false,
+  };
 }
 
 function smoothstep(edge0, edge1, x) {
@@ -48,57 +44,62 @@ function falloff(dist, inner, outer) {
   return 1 - smoothstep(inner, outer, dist);
 }
 
-export function stepPhysics(state, ctx) {
-  const { bodies, pointer, tSec, params = DEFAULT_PARAMS } = ctx;
+// Step one body's node physics. `anchorsScreen` is a flat Float32Array of
+// [x0,y0, x1,y1, ...] anchor positions in screen pixels (already rotated for
+// the body's current spin, if any). `pointer` is {x,y} in the same space, or
+// null to relax toward the anchor. Returns the updated `state.dirty` flag.
+export function stepBody(state, ctx) {
+  const { anchorsScreen, pointer, params = DEFAULT_PARAMS } = ctx;
   const dt = Math.min(Math.max(ctx.dtSec, MIN_DT), MAX_DT);
-  if (dt === 0) return;
+  if (dt === 0) return state.dirty;
 
-  const {
-    INNER_R,
-    OUTER_R,
-    MAX_PUSH,
-    STIFFNESS,
-    NOISE_AMP,
-    NOISE_FREQ_X,
-    NOISE_FREQ_Y,
-  } = params;
-
+  const { INNER_R, OUTER_R, MAX_PUSH, STIFFNESS } = params;
   const omega = STIFFNESS;
   const omegaSq = omega * omega;
   const twoOmega = 2 * omega;
+  const hasPointer = pointer !== null && pointer !== undefined;
+  const px = hasPointer ? pointer.x : 0;
+  const py = hasPointer ? pointer.y : 0;
+  const outerSq = OUTER_R * OUTER_R;
 
-  for (let i = 0; i < state.length; i++) {
-    const body = state[i];
-    const anchor = bodies[i].anchor;
+  let stillDirty = false;
 
+  for (let i = 0; i < state.count; i++) {
     let rx = 0;
     let ry = 0;
-    if (pointer !== null && pointer !== undefined) {
-      const dx = anchor.x - pointer.x;
-      const dy = anchor.y - pointer.y;
-      const dist = Math.hypot(dx, dy);
-      if (dist < OUTER_R) {
+    if (hasPointer) {
+      const ax = anchorsScreen[i * 2];
+      const ay = anchorsScreen[i * 2 + 1];
+      const dx = ax - px;
+      const dy = ay - py;
+      const distSq = dx * dx + dy * dy;
+      if (distSq < outerSq) {
+        const dist = Math.sqrt(distSq);
         const s = falloff(dist, INNER_R, OUTER_R);
         const inv = 1 / Math.max(dist, 1);
-        const nx = dx * inv;
-        const ny = dy * inv;
-        rx = nx * MAX_PUSH * s;
-        ry = ny * MAX_PUSH * s;
+        rx = dx * inv * MAX_PUSH * s;
+        ry = dy * inv * MAX_PUSH * s;
       }
     }
 
-    const nox = NOISE_AMP * Math.sin(tSec * NOISE_FREQ_X + body.phaseX);
-    const noy = NOISE_AMP * Math.sin(tSec * NOISE_FREQ_Y + body.phaseY);
+    const ax = omegaSq * (rx - state.x[i]) - twoOmega * state.vx[i];
+    const ay = omegaSq * (ry - state.y[i]) - twoOmega * state.vy[i];
 
-    const tx = rx + nox;
-    const ty = ry + noy;
+    state.vx[i] += ax * dt;
+    state.vy[i] += ay * dt;
+    state.x[i] += state.vx[i] * dt;
+    state.y[i] += state.vy[i] * dt;
 
-    const ax = omegaSq * (tx - body.x) - twoOmega * body.vx;
-    const ay = omegaSq * (ty - body.y) - twoOmega * body.vy;
-
-    body.vx += ax * dt;
-    body.vy += ay * dt;
-    body.x += body.vx * dt;
-    body.y += body.vy * dt;
+    if (
+      Math.abs(state.x[i]) > REST_POS_EPS ||
+      Math.abs(state.y[i]) > REST_POS_EPS ||
+      Math.abs(state.vx[i]) > REST_VEL_EPS ||
+      Math.abs(state.vy[i]) > REST_VEL_EPS
+    ) {
+      stillDirty = true;
+    }
   }
+
+  state.dirty = stillDirty;
+  return stillDirty;
 }
