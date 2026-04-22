@@ -4,7 +4,7 @@ import useGraphData from './hooks/useGraphData';
 import useFilterState from './hooks/useFilterState';
 import { generateRepoPalette } from './lib/color-palette';
 import { LARGE_GRAPH_THRESHOLD } from './lib/constants';
-import LoadingScreen from './components/LoadingScreen';
+import HomePage from './components/HomePage';
 import Sidebar from './components/Sidebar';
 import GraphCanvas from './components/GraphCanvas';
 import SearchOverlay from './components/SearchOverlay';
@@ -108,9 +108,9 @@ export default function App() {
     ]
   );
 
-  // Show loading screen if no data yet
+  // Show home page until a graph is loaded
   if (!data) {
-    return <LoadingScreen onFileLoad={loadFile} isLoading={isLoading} />;
+    return <HomePage onFileLoad={loadFile} isLoading={isLoading} />;
   }
 
   return (
