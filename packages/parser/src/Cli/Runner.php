@@ -16,11 +16,21 @@ use Throwable;
  */
 final class Runner
 {
-    private string $projectRoot;
+    private string $storageDir;
 
-    public function __construct(?string $projectRoot = null)
+    public function __construct(?string $storageDir = null)
     {
-        $this->projectRoot = $projectRoot ?? dirname(__DIR__, 3);
+        $this->storageDir = $storageDir ?? self::defaultStorageDir();
+    }
+
+    private static function defaultStorageDir(): string
+    {
+        $env = getenv('HOOKSGRAPH_STORAGE');
+        if (is_string($env) && $env !== '') {
+            return $env;
+        }
+        $cwd = getcwd();
+        return ($cwd !== false ? $cwd : '.') . '/storage';
     }
 
     /**
@@ -65,7 +75,7 @@ final class Runner
         if ($output === null) {
             $names    = array_map(static fn ($d) => basename(rtrim($d, DIRECTORY_SEPARATOR)), $dirs);
             $filename = implode('-', $names) . '.json';
-            $output   = $this->projectRoot . "/storage/{$filename}";
+            $output   = rtrim($this->storageDir, DIRECTORY_SEPARATOR) . "/{$filename}";
         }
 
         foreach ($dirs as $d) {
@@ -136,6 +146,7 @@ final class Runner
         $outputDir = dirname($output);
         if (!is_dir($outputDir)) {
             mkdir($outputDir, 0755, true);
+            fwrite(STDERR, "Created output directory: {$outputDir}\n");
         }
         file_put_contents($output, json_encode($graph, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 

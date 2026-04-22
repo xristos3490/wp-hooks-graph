@@ -21,7 +21,9 @@ Arguments:
 
 Options:
   -o, --output PATH     Output JSON file path
-                        (default: <project>/storage/<dir-names>.json).
+                        (default: ./storage/<dir-names>.json, relative to the
+                        current working directory; override with the
+                        HOOKSGRAPH_STORAGE env var).
   --overlap-only        Only output hooks present in 2+ scanned directories.
                         Useful for finding shared integration points between
                         a core codebase and plugins.

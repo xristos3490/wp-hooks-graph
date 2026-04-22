@@ -111,7 +111,8 @@ async function runServe(args) {
         'hooksgraph serve — serve the built viewer against a parsed hooks JSON',
         '',
         'Usage:',
-        '  hooksgraph serve                 Use the most recent JSON in storage/',
+        '  hooksgraph serve                 Use the most recent JSON in ./storage/',
+        '                                   (or $HOOKSGRAPH_STORAGE if set)',
         '  hooksgraph serve PATH            Use a specific JSON file',
         '',
       ].join('\n'),
@@ -121,16 +122,16 @@ async function runServe(args) {
 
   let hooksJson = args[0];
   if (!hooksJson) {
-    const storage = path.resolve(process.cwd(), 'storage');
+    const storage = path.resolve(process.env.HOOKSGRAPH_STORAGE || path.join(process.cwd(), 'storage'));
     hooksJson = mostRecentJson(storage);
     if (!hooksJson) {
       process.stderr.write(
-        'Error: no JSON path given and no files found in storage/.\n' +
+        `Error: no JSON path given and no files found in ${storage}.\n` +
           "Run 'hooksgraph parse <dir>' first, or pass a path: hooksgraph serve path/to/hooks.json\n",
       );
       process.exit(1);
     }
-    process.stderr.write(`Using ${hooksJson} (most recent in storage/).\n`);
+    process.stderr.write(`Using ${hooksJson} (most recent in ${storage}).\n`);
   }
   if (!existsSync(hooksJson)) {
     process.stderr.write(`Error: ${hooksJson} not found.\n`);

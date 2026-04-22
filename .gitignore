@@ -1,6 +1,7 @@
 # Generated data
 storage/*
 !storage/.keep
+packages/*/storage/
 
 # Node
 node_modules/
