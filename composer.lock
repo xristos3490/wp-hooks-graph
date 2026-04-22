@@ -7,7 +7,7 @@
     "content-hash": "7ea2a7ffa383a6bab12b806d4e4b3097",
     "packages": [
         {
-            "name": "xristos3490/hooks-parser",
+            "name": "hooksgraph/hooks-parser",
             "version": "1.0.0",
             "dist": {
                 "type": "path",

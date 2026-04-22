@@ -168,9 +168,9 @@ packages/
     src/                Parser, Graph, Discovery, Cli classes
     tests/              PHPUnit
   viewer/             Vite + React app (Cytoscape); bundled into the CLI tarball
-  cli/                @xristos3490/hooksgraph (npm) — Node shim wrapping the PHP parser + viewer
+  cli/                @hooksgraph/hooksgraph (npm) — Node shim wrapping the PHP parser + viewer
     bin/hooksgraph.js
-  mcp/                @xristos3490/hooksgraph-mcp (npm) — stdio MCP server
+  mcp/                @hooksgraph/hooksgraph-mcp (npm) — stdio MCP server
     bin/hooksgraph-mcp.js
     src/                server.js + tools (registry, per-codebase indexes, tool handlers)
     tests/              Vitest

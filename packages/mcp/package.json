@@ -1,5 +1,5 @@
 {
-  "name": "@xristos3490/hooksgraph-mcp",
+  "name": "@hooksgraph/hooksgraph-mcp",
   "version": "1.0.0",
   "description": "MCP stdio server exposing wp-hooks-graph storage JSONs as tools.",
   "type": "module",

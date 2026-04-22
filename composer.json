@@ -1,5 +1,5 @@
 {
-    "name": "xristos3490/wp-hooks-graph",
+    "name": "hooksgraph/wp-hooks-graph",
     "description": "Dev umbrella for the wp-hooks-graph monorepo. Individual packages live under packages/.",
     "type": "project",
     "license": "MIT",
@@ -8,7 +8,7 @@
     ],
     "require": {
         "php": ">=8.2",
-        "xristos3490/hooks-parser": "*"
+        "hooksgraph/hooks-parser": "*"
     },
     "require-dev": {
         "phpunit/phpunit": "^11.5"

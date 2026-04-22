@@ -1,5 +1,5 @@
 {
-    "name": "xristos3490/hooks-parser",
+    "name": "hooksgraph/hooks-parser",
     "description": "Parse WordPress PHP codebases for hook relationships (do_action/add_action/apply_filters/add_filter).",
     "type": "library",
     "license": "MIT",
