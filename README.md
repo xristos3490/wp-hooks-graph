@@ -16,7 +16,7 @@ Parses every `do_action`, `add_action`, `apply_filters`, and `add_filter` call u
 
 ```sh
 pnpm install
-pnpm setup                       # one-time: installs the `hooksgraph` shell alias
+pnpm setup:alias                 # one-time: installs the `hooksgraph` shell alias
                                  # (tells you which RC file to `source` afterwards)
 hooksgraph /path/to/wordpress    # parse + serve + open
 ```
@@ -49,8 +49,9 @@ Run `hooksgraph --help` for the top-level command list, or `hooksgraph parse --h
 | Command | Description |
 |---|---|
 | `pnpm install` | Install Node dependencies across the workspace |
-| `pnpm setup` | Install the `hooksgraph` shell alias (zsh / bash / fish — the script picks the right RC file) |
-| `pnpm build` | Build the React viewer into `packages/viewer/dist/` (automatic on first run; re-run after source changes) |
+| `pnpm setup:alias` | Install the `hooksgraph` shell alias (zsh / bash / fish — the script picks the right RC file) |
+| `pnpm build` | One-shot: `composer install` + CLI assembly (viewer build + parser composer no-dev + copy into `packages/cli/`) |
+| `pnpm build:viewer` | Viewer-only rebuild into `packages/viewer/dist/` |
 
 ### Run
 

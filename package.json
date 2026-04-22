@@ -5,9 +5,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "setup": "bash bin/setup-profile.sh < /dev/tty",
+    "setup:alias": "bash bin/setup-profile.sh < /dev/tty",
     "dev": "pnpm -F viewer dev",
-    "build": "pnpm -F viewer build",
+    "build": "composer install && pnpm build:cli",
+    "build:viewer": "pnpm -F viewer build",
     "build:cli": "node scripts/build-cli.js",
     "build:plugin": "bash scripts/build-plugin.sh",
     "mcp": "node packages/mcp/bin/hooksgraph-mcp.js",

@@ -125,6 +125,6 @@ Keep this final message under ~10 lines. They just watched you run three command
 
 - **The alias is inactive in the current shell.** You cannot `source` on the user's behalf — Bash runs in its own subshell and any `source` you run doesn't persist. Always hand the command back to the user.
 - **`claude mcp add` with relative paths silently appears to work.** It only fails when the server is invoked from a different cwd. Always resolve to absolute paths before calling it.
-- **`pnpm setup` wraps `bin/setup-profile.sh` with `< /dev/tty`**, which breaks under non-TTY execution. Call the script directly with piped input instead.
+- **`pnpm setup:alias` wraps `bin/setup-profile.sh` with `< /dev/tty`**, which breaks under non-TTY execution. Call the script directly with piped input instead.
 - **MCP registration is user-scoped** (`--scope user`). If the user later runs this skill from a different checkout of the repo, the registered path will still point at the original checkout. Flag this if you notice the `claude mcp get` output points somewhere other than the current repo — ask whether to re-register.
 - **Don't call `pnpm build`.** `hooksgraph <dir>` builds the viewer automatically on first run, and the viewer is only needed for the browser UI — not for the MCP server or the CLI. Skipping it keeps onboarding fast.
