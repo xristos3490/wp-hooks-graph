@@ -1,0 +1,57 @@
+/* Idle / file-drop home screen shell. Background layers come from the
+   dedicated HomePageBackground component; this file only owns the page
+   shell, the hero card, the hint chip, and the drag-active outline. */
+
+.home-page {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  overflow: hidden;
+  background-color: var(--wpds-color-bg-surface-neutral-strong);
+  color: var(--wpds-color-fg-content-neutral);
+  cursor: default;
+}
+
+.hp-hero {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--wpds-dimension-padding-3xl);
+  animation: hp-hero-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes hp-hero-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Logo sits inside EmptyState.Icon — keep it presentation-only. */
+.hp-hero .hg-logo__mark { width: 3rem; height: 3rem; }
+
+/* Hint pill below the EmptyState — neutral chip on the neutral surface. */
+.hp-hint code {
+  font-family: var(--wpds-typography-font-family-mono);
+  font-size: var(--wpds-typography-font-size-sm);
+  padding: var(--wpds-dimension-padding-xs) var(--wpds-dimension-padding-sm);
+  border-radius: var(--wpds-dimension-base);
+  background-color: rgba(0, 0, 0, 0.06);
+  color: rgba(0, 0, 0, 0.78);
+}
+
+/* Drag-active state: a neutral dashed outline pulled inset reads the whole
+   viewport as the drop target. The base surface color is unchanged on drag. */
+.home-page--dragging::after {
+  content: '';
+  position: absolute;
+  inset: var(--wpds-dimension-padding-md);
+  pointer-events: none;
+  border: 2px dashed rgba(0, 0, 0, 0.6);
+  border-radius: var(--wpds-dimension-padding-md);
+  z-index: 2;
+}
+
+.home-page--loading { cursor: progress; }
