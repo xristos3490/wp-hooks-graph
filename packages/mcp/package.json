@@ -1,0 +1,18 @@
+{
+  "name": "@xristos3490/hooksgraph-mcp",
+  "version": "1.0.0",
+  "description": "MCP stdio server exposing wp-hooks-graph storage JSONs as tools.",
+  "type": "module",
+  "bin": {
+    "hooksgraph-mcp": "bin/hooksgraph-mcp.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0"
+  }
+}

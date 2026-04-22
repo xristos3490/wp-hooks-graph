@@ -27,12 +27,13 @@ Don't execute anything destructive (shell-RC edits, MCP registration) without a 
 
 Run these up front. If any fail, stop and surface the problem instead of continuing.
 
-- **Repo root.** Confirm `hooksgraph.php` and `package.json` exist in the current working directory (or a parent — walk up if needed and `cd` there). If not found, tell the user to run the skill from inside a `wp-hooks-graph` checkout.
-- **PHP ≥ 7.4.** `php -r 'echo PHP_VERSION;'` — compare against 7.4.0.
+- **Repo root.** Confirm `pnpm-workspace.yaml` and `packages/parser/hooksgraph.php` exist in the current working directory (or a parent — walk up if needed and `cd` there). If not found, tell the user to run the skill from inside a `wp-hooks-graph` checkout.
+- **PHP ≥ 8.2.** `php -r 'echo PHP_VERSION;'` — compare against 8.2.0.
 - **Node ≥ 18.** `node -v` — strip the leading `v`, compare major against 18.
+- **pnpm present.** `command -v pnpm` — install hint if missing: `npm install -g pnpm` or `brew install pnpm`.
 - **Claude CLI.** `command -v claude` — if missing, you can still do steps 1 and 2 but must skip MCP registration; surface that clearly so the user knows what they're losing.
 
-Report the preflight results as a compact list, not as four separate blocks of prose.
+Report the preflight results as a compact list, not as five separate blocks of prose.
 
 ## Phase 2 — State audit
 
@@ -40,7 +41,7 @@ Check what's already done so reruns don't redo finished work:
 
 | Step | How to check | Already done if… |
 |------|--------------|------------------|
-| Node deps | `test -d node_modules && test -f node_modules/.package-lock.json` | both exist |
+| Node deps | `test -f pnpm-lock.yaml && test -d node_modules` | both exist |
 | Shell alias | `grep -lF "# --- WordPress Hooks Graph ---" "$HOME/.zshrc" "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.config/fish/config.fish" 2>/dev/null` | marker found in any RC file |
 | MCP registered | `claude mcp get hooks-graph 2>/dev/null` | exit 0 |
 | MCP connected | `claude mcp list 2>/dev/null` shows `hooks-graph: ✓ Connected` | line matches |
@@ -52,7 +53,7 @@ The last two are distinct: a server can be registered but failing to start (wron
 Send one short message listing only the outstanding steps, e.g.:
 
 > Here's what I'll run:
-> 1. `npm install` (installs Node deps)
+> 1. `pnpm install` (installs Node deps across the workspace)
 > 2. Append the `hooksgraph` alias block to `~/.zshrc`
 > 3. Register `hooks-graph` MCP server with Claude Code at user scope
 >
@@ -62,9 +63,9 @@ If everything is already done, skip Phase 3 and Phase 4 entirely — go straight
 
 ## Phase 4 — Execute
 
-### 4a. `npm install`
+### 4a. `pnpm install`
 
-Just run `npm install` from the repo root. It's noisy; don't paste the full output back — summarize as "installed N packages" and surface warnings only if they look actionable.
+Just run `pnpm install` from the repo root. This is a pnpm workspace — a single install hydrates every package under `packages/`. It's noisy; don't paste the full output back — summarize as "installed N packages" and surface warnings only if they look actionable.
 
 ### 4b. Shell alias
 
@@ -87,7 +88,7 @@ Build the command with absolute paths — Claude Code stores the command as give
 ```sh
 REPO="$(pwd)"
 claude mcp add hooks-graph --scope user -- \
-  node "$REPO/bin/hooks-mcp.js" \
+  node "$REPO/packages/mcp/bin/hooksgraph-mcp.js" \
   --storage "$REPO/storage"
 ```
 
@@ -124,6 +125,6 @@ Keep this final message under ~10 lines. They just watched you run three command
 
 - **The alias is inactive in the current shell.** You cannot `source` on the user's behalf — Bash runs in its own subshell and any `source` you run doesn't persist. Always hand the command back to the user.
 - **`claude mcp add` with relative paths silently appears to work.** It only fails when the server is invoked from a different cwd. Always resolve to absolute paths before calling it.
-- **`npm run setup` wraps `bin/setup-profile.sh` with `< /dev/tty`**, which breaks under non-TTY execution. Call the script directly with piped input instead.
+- **`pnpm setup` wraps `bin/setup-profile.sh` with `< /dev/tty`**, which breaks under non-TTY execution. Call the script directly with piped input instead.
 - **MCP registration is user-scoped** (`--scope user`). If the user later runs this skill from a different checkout of the repo, the registered path will still point at the original checkout. Flag this if you notice the `claude mcp get` output points somewhere other than the current repo — ask whether to re-register.
-- **Don't call `npm run build`.** `hooksgraph <dir>` builds the viewer automatically on first run, and the viewer is only needed for the browser UI — not for the MCP server or the CLI. Skipping it keeps onboarding fast.
+- **Don't call `pnpm build`.** `hooksgraph <dir>` builds the viewer automatically on first run, and the viewer is only needed for the browser UI — not for the MCP server or the CLI. Skipping it keeps onboarding fast.

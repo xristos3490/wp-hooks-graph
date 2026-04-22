@@ -1,0 +1,16 @@
+{
+  "name": "@xristos3490/hooksgraph",
+  "version": "1.0.0",
+  "description": "WordPress Hooks Graph — parse WordPress PHP codebases and visualize hook relationships.",
+  "type": "module",
+  "bin": {
+    "hooksgraph": "bin/hooksgraph.js"
+  },
+  "files": [
+    "bin",
+    "php",
+    "dist",
+    "README.md",
+    "LICENSE"
+  ]
+}

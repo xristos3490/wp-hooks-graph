@@ -1,22 +1,21 @@
 {
-    "name": "hooks-graph/hooks-graph",
-    "description": "Parse WordPress PHP codebases for hook relationships and visualize them as an interactive graph.",
+    "name": "xristos3490/wp-hooks-graph",
+    "description": "Dev umbrella for the wp-hooks-graph monorepo. Individual packages live under packages/.",
     "type": "project",
     "license": "MIT",
+    "repositories": [
+        { "type": "path", "url": "packages/parser" }
+    ],
     "require": {
-        "php": ">=8.2"
+        "php": ">=8.2",
+        "xristos3490/hooks-parser": "*"
     },
     "require-dev": {
         "phpunit/phpunit": "^11.5"
     },
-    "autoload": {
-        "psr-4": {
-            "HooksGraph\\": "src/HooksGraph/"
-        }
-    },
     "autoload-dev": {
         "psr-4": {
-            "HooksGraph\\Tests\\": "tests/phpunit/"
+            "HooksGraph\\Tests\\": "packages/parser/tests/"
         }
     },
     "scripts": {
@@ -24,6 +23,9 @@
         "test:coverage": "phpunit --coverage-text"
     },
     "config": {
-        "sort-packages": true
+        "sort-packages": true,
+        "allow-plugins": {
+            "composer/package-versions-deprecated": true
+        }
     }
 }

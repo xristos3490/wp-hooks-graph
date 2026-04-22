@@ -1,57 +1,9 @@
 #!/usr/bin/env bash
-# Parse WordPress PHP dirs for hook relationships and serve the viewer.
-#
-# Subcommands:
-#   hooksgraph <dir>...                    parse + serve + open (shortcut)
-#   hooksgraph parse <dir>... [flags]      parse only (wraps hooksgraph.php)
-#   hooksgraph serve [path/to/hooks.json]  serve only (wraps bin/serve)
-#   hooksgraph --help | -h                 top-level help
+# Dev-mode dispatcher for the monorepo. Delegates to the Node shim in
+# packages/cli/, which in turn runs the PHP parser in packages/parser/
+# and serves the Vite build at packages/viewer/dist/.
 set -euo pipefail
 
 HG="$(cd "$(dirname "$0")/.." && pwd)"
 
-print_top_help() {
-    cat <<'USAGE'
-hooksgraph — parse WordPress PHP codebases and visualize hook relationships
-
-Usage:
-  hooksgraph <dir>...              Parse and open the viewer (default shortcut)
-  hooksgraph parse <dir>...        Parse only; write JSON to storage/
-  hooksgraph serve [path]          Serve the viewer; defaults to most recent JSON
-  hooksgraph <subcommand> --help   Show help for a subcommand
-
-Examples:
-  hooksgraph ~/Code/wordpress
-  hooksgraph parse ~/Code/wordpress ~/Code/my-plugin --overlap-only
-  hooksgraph serve storage/wp-core.json
-USAGE
-}
-
-# Top-level: no args or help flag.
-if [ "$#" -eq 0 ]; then
-    print_top_help
-    exit 0
-fi
-
-case "$1" in
-    -h|--help|help)
-        print_top_help
-        exit 0
-        ;;
-    parse)
-        shift
-        export HOOKSGRAPH_INVOKED_AS="hooksgraph parse"
-        exec php "$HG/hooksgraph.php" "$@"
-        ;;
-    serve)
-        shift
-        exec "$HG/bin/serve" "$@"
-        ;;
-esac
-
-# Fall-through: legacy shortcut — parse + serve + open.
-# --print-path makes the parser emit ONLY the output path on stdout;
-# its pretty UI output goes to stderr.
-out=$(php "$HG/hooksgraph.php" --print-path "$@")
-
-exec "$HG/bin/serve" "$out"
+exec node "$HG/packages/cli/bin/hooksgraph.js" "$@"

@@ -4,8 +4,34 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "7f2f2dcb8716909c37de48b0c7792e49",
-    "packages": [],
+    "content-hash": "7ea2a7ffa383a6bab12b806d4e4b3097",
+    "packages": [
+        {
+            "name": "xristos3490/hooks-parser",
+            "version": "1.0.0",
+            "dist": {
+                "type": "path",
+                "url": "packages/parser",
+                "reference": "910dba895342780bf62ad947765710cc661c40ec"
+            },
+            "require": {
+                "php": ">=8.2"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "HooksGraph\\": "src/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "Parse WordPress PHP codebases for hook relationships (do_action/add_action/apply_filters/add_filter).",
+            "transport-options": {
+                "relative": true
+            }
+        }
+    ],
     "packages-dev": [
         {
             "name": "myclabs/deep-copy",

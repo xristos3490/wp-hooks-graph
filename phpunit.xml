@@ -8,13 +8,13 @@
          failOnWarning="true"
          failOnRisky="true">
     <testsuites>
-        <testsuite name="HooksGraph">
-            <directory>tests/phpunit</directory>
+        <testsuite name="parser">
+            <directory>packages/parser/tests</directory>
         </testsuite>
     </testsuites>
     <source>
         <include>
-            <directory>src/HooksGraph</directory>
+            <directory>packages/parser/src</directory>
         </include>
     </source>
 </phpunit>

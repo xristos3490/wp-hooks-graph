@@ -38,19 +38,21 @@ if [ ! -f "$HOOKS_JSON" ]; then
     exit 1
 fi
 
+VIEWER_DIST="$HG/packages/viewer/dist"
+
 # Auto-build the viewer on first run (or if dist/ was cleaned).
-if [ ! -d "$HG/dist" ]; then
-    if ! command -v npm >/dev/null 2>&1; then
-        echo "Error: $HG/dist not found and 'npm' isn't on PATH." >&2
-        echo "Install Node.js, then run 'npm install && npm run build'." >&2
+if [ ! -d "$VIEWER_DIST" ]; then
+    if ! command -v pnpm >/dev/null 2>&1; then
+        echo "Error: $VIEWER_DIST not found and 'pnpm' isn't on PATH." >&2
+        echo "Install Node.js + pnpm, then run 'pnpm install && pnpm -F viewer build'." >&2
         exit 1
     fi
     if [ ! -d "$HG/node_modules" ]; then
         echo "Installing Node dependencies..." >&2
-        (cd "$HG" && npm install --silent)
+        (cd "$HG" && pnpm install --silent)
     fi
     echo "Building viewer (first run)..." >&2
-    (cd "$HG" && npm run build --silent)
+    (cd "$HG" && pnpm -F viewer build --silent)
 fi
 
 # Pick a browser opener: macOS `open`, Linux `xdg-open`, WSL `wslview`,
@@ -68,7 +70,7 @@ while lsof -iTCP:$port -sTCP:LISTEN >/dev/null 2>&1; do
     port=$((port + 1))
 done
 
-HOOKS_JSON="$HOOKS_JSON" php -S "127.0.0.1:$port" -t "$HG/dist" "$HG/server.php" &
+HOOKS_JSON="$HOOKS_JSON" php -S "127.0.0.1:$port" -t "$VIEWER_DIST" "$HG/packages/parser/server.php" &
 srv=$!
 trap 'kill $srv 2>/dev/null' EXIT INT TERM
 

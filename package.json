@@ -4,39 +4,19 @@
   "description": "Parse WordPress PHP codebases for hook relationships and visualize them as an interactive graph.",
   "private": true,
   "type": "module",
-  "bin": {
-    "hooks-mcp": "bin/hooks-mcp.js"
-  },
   "scripts": {
     "setup": "bash bin/setup-profile.sh < /dev/tty",
-    "parse": "php hooksgraph.php",
-    "parse:help": "php hooksgraph.php --help",
-    "serve": "bin/serve",
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "mcp": "node bin/hooks-mcp.js",
-    "test": "npm run test:php && npm run test:js",
+    "dev": "pnpm -F viewer dev",
+    "build": "pnpm -F viewer build",
+    "build:cli": "node scripts/build-cli.js",
+    "build:plugin": "bash scripts/build-plugin.sh",
+    "mcp": "node packages/mcp/bin/hooksgraph-mcp.js",
+    "test": "pnpm test:php && pnpm test:js",
     "test:php": "vendor/bin/phpunit",
     "test:js": "vitest run",
     "test:watch": "vitest"
   },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
-    "@wordpress/components": "^32.6.0",
-    "@wordpress/dataviews": "^14.1.0",
-    "@wordpress/icons": "^12.2.0",
-    "@wordpress/theme": "^0.11.0",
-    "@wordpress/ui": "^0.11.0",
-    "cytoscape": "^3.33.2",
-    "cytoscape-fcose": "^2.2.0",
-    "cytoscape-layout-utilities": "^1.1.1",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
-  },
   "devDependencies": {
-    "@vitejs/plugin-react": "^6.0.1",
-    "vite": "^8.0.8",
     "vitest": "^3.2.4"
   }
 }
