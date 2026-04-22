@@ -12,7 +12,7 @@ SHELL_NAME=$(basename "${SHELL:-}")
 case "$SHELL_NAME" in
   zsh)
     RC_FILE="$HOME/.zshrc"
-    ALIAS_LINE="alias hooksgraph='$HG_DIR/hooksgraph'"
+    ALIAS_LINE="alias hooksgraph='$HG_DIR/../packages/cli/bin/hooksgraph.js'"
     ;;
   bash)
     if [ -f "$HOME/.bash_profile" ]; then
@@ -20,19 +20,19 @@ case "$SHELL_NAME" in
     else
       RC_FILE="$HOME/.bashrc"
     fi
-    ALIAS_LINE="alias hooksgraph='$HG_DIR/hooksgraph'"
+    ALIAS_LINE="alias hooksgraph='$HG_DIR/../packages/cli/bin/hooksgraph.js'"
     ;;
   fish)
     RC_FILE="$HOME/.config/fish/config.fish"
     mkdir -p "$(dirname "$RC_FILE")"
-    ALIAS_LINE="alias hooksgraph '$HG_DIR/hooksgraph'"
+    ALIAS_LINE="alias hooksgraph '$HG_DIR/../packages/cli/bin/hooksgraph.js'"
     ;;
   *)
     echo "Couldn't detect a supported shell (\$SHELL=${SHELL:-<unset>})."
     echo "Supported: zsh, bash, fish."
     echo ""
     echo "Add this to your shell startup file manually:"
-    echo "  alias hooksgraph='$HG_DIR/hooksgraph'"
+    echo "  alias hooksgraph='$HG_DIR/../packages/cli/bin/hooksgraph.js'"
     exit 1
     ;;
 esac

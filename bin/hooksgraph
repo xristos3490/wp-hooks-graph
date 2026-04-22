@@ -1,9 +1,0 @@
-#!/usr/bin/env bash
-# Dev-mode dispatcher for the monorepo. Delegates to the Node shim in
-# packages/cli/, which in turn runs the PHP parser in packages/parser/
-# and serves the Vite build at packages/viewer/dist/.
-set -euo pipefail
-
-HG="$(cd "$(dirname "$0")/.." && pwd)"
-
-exec node "$HG/packages/cli/bin/hooksgraph.js" "$@"

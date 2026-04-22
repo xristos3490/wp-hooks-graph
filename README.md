@@ -23,7 +23,7 @@ hooksgraph /path/to/wordpress    # parse + serve + open
 
 `hooksgraph <dir>` parses the given directory (or directories), builds the viewer on first run, starts a local PHP server on port 8080 (falls back to the next free port), and opens the viewer in your default browser.
 
-Setup supports zsh, bash, and fish — it picks the right RC file based on `$SHELL` and prints the exact `source` command to re-run. *Don't want a global alias? Call `bin/hooksgraph /path/to/wordpress` directly — no setup step needed.*
+Setup supports zsh, bash, and fish — it picks the right RC file based on `$SHELL` and prints the exact `source` command to re-run. *Don't want a global alias? Call `packages/cli/bin/hooksgraph.js /path/to/wordpress` directly — no setup step needed.*
 
 ### AI-assisted setup (Claude Code)
 
@@ -56,7 +56,7 @@ Run `hooksgraph --help` for the top-level command list, or `hooksgraph parse --h
 
 | Command | Description |
 |---|---|
-| `hooksgraph <dirs...>` *(or `bin/hooksgraph`)* | Parse + serve + open browser in one step |
+| `hooksgraph <dirs...>` *(or `packages/cli/bin/hooksgraph.js`)* | Parse + serve + open browser in one step |
 | `hooksgraph parse <dirs...>` | Parse PHP files; output path printed at the end |
 | `hooksgraph parse --help` | Show full parser help (all flags + examples) |
 | `hooksgraph serve [json]` | Serve the built viewer with a JSON (defaults to latest in `storage/`) |
@@ -176,9 +176,8 @@ packages/
   plugin/             WP.org plugin shell (scaffolded; real pipeline in a follow-up spec)
 
 bin/
-  hooksgraph          Dev dispatcher → delegates to packages/cli/bin/hooksgraph.js
   serve               Finds a free port, launches `php -S` against packages/viewer/dist/
-  setup-profile.sh    Installs the `hooksgraph` shell alias (zsh / bash / fish)
+  setup-profile.sh    Installs the `hooksgraph` shell alias (aliases to the Node shim)
 
 scripts/
   build-cli.js        Assembles packages/cli/ for publish (viewer build + parser composer no-dev)
