@@ -722,6 +722,25 @@ function filter_graph_by_overlap($graph) {
 
 // ── File discovery ──────────────────────────────────────────
 
+/**
+ * Check whether a relative path matches any of the exclude patterns.
+ *
+ * Patterns are matched as path-segment sequences against the (normalized)
+ * relative path — so "tests" matches `foo/tests/bar.php` but not
+ * `tests-helper.php`, and "packages/e2e-tests" matches the nested folder
+ * but not `packages/e2e-tests-utils/foo.php`.
+ */
+function path_matches_excludes($rel, $exclude_dirs) {
+    if (empty($exclude_dirs)) return false;
+    $norm = '/' . trim(str_replace('\\', '/', $rel), '/') . '/';
+    foreach ($exclude_dirs as $pat) {
+        $p = trim(str_replace('\\', '/', $pat), '/');
+        if ($p === '') continue;
+        if (strpos($norm, '/' . $p . '/') !== false) return true;
+    }
+    return false;
+}
+
 function find_php_files($directory, $exclude_dirs = []) {
     $directory = rtrim($directory, DIRECTORY_SEPARATOR);
     if (!is_dir($directory)) {
@@ -730,9 +749,7 @@ function find_php_files($directory, $exclude_dirs = []) {
     }
 
     $excluded = function ($rel) use ($exclude_dirs) {
-        if (empty($exclude_dirs)) return false;
-        $parts = explode(DIRECTORY_SEPARATOR, $rel);
-        return !empty(array_intersect($parts, $exclude_dirs));
+        return path_matches_excludes($rel, $exclude_dirs);
     };
 
     // Try git ls-files (respects .gitignore)
@@ -827,9 +844,14 @@ Options:
   --overlap-only        Only output hooks present in 2+ scanned directories.
                         Useful for finding shared integration points between
                         a core codebase and plugins.
-  --exclude a,b,c       Comma-separated list of folder names to exclude
-                        (in addition to .gitignore). Matched against each
-                        path component, e.g. --exclude vendor,tests.
+  --exclude a,b,c       Comma-separated list of path patterns to exclude
+                        (in addition to .gitignore). Each pattern is matched
+                        as a path-segment sequence against the relative path,
+                        so a plain folder name like `tests` matches any
+                        `tests/` directory, and a nested pattern like
+                        `packages/e2e-tests` matches only that specific path.
+                        Partial folder names (e.g. `tests-helper.php`) are
+                        NOT matched by `tests`.
   --print-path          Print only the absolute path to the written JSON on
                         stdout; route the pretty UI output to stderr. Used
                         by the `hooksgraph` launcher to capture the path.

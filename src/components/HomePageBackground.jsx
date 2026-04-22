@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import useHomepageScene from '../hooks/useHomepageScene.js';
+import useConstellationPhysics from '../hooks/useConstellationPhysics.js';
 import './HomePageBackground.css';
 
 // A single constellation rendered as SVG — the pre-computed edge length keeps
@@ -46,13 +47,29 @@ function Constellation({ nodes, edges, style }) {
 // constellation drifters. Fully self-contained — no props, no external CSS.
 export default function HomePageBackground() {
   const { drifters } = useHomepageScene();
+  const { rootRef, bodyRefs } = useConstellationPhysics(drifters);
   return (
     <>
       <div className="hp-mesh" aria-hidden="true" />
-      <div className="hp-field" aria-hidden="true">
-        {drifters.map((d) => (
-          <Constellation key={d.id} nodes={d.nodes} edges={d.edges} style={d.style} />
-        ))}
+      <div className="hp-field" aria-hidden="true" ref={rootRef}>
+        {drifters.map((d, i) => {
+          // Layout/positioning lives on the outer body; the inner sprite carries
+          // opacity + per-sprite CSS variables but no positional offsets.
+          const {
+            left, top, width, marginLeft, marginTop, ...innerStyle
+          } = d.style;
+          const bodyStyle = { left, top, width, marginLeft, marginTop };
+          return (
+            <div
+              key={d.id}
+              ref={bodyRefs[i]}
+              className="hp-constellation-body"
+              style={bodyStyle}
+            >
+              <Constellation nodes={d.nodes} edges={d.edges} style={innerStyle} />
+            </div>
+          );
+        })}
       </div>
     </>
   );

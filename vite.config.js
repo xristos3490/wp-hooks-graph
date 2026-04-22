@@ -26,8 +26,9 @@ function hooksJsonPlugin() {
     configureServer(server) {
       server.middlewares.use('/hooks.json', (req, res) => {
         if (!jsonPath || !existsSync(jsonPath)) {
-          res.statusCode = 404;
-          res.end('');
+          // 204 (not 404) — the homepage probes this endpoint and "no JSON bound" is a normal state.
+          res.statusCode = 204;
+          res.end();
           return;
         }
         res.setHeader('Content-Type', 'application/json');

@@ -36,15 +36,14 @@ export default function useGraphData() {
     let cancelled = false;
     fetch('/hooks.json')
       .then((r) => {
-        if (!r.ok) throw new Error('No data');
-        return r.text();
+        // 204 = server has no JSON bound; stay on the homepage silently.
+        if (r.status === 204 || !r.ok) return null;
+        return r.text().then((text) => parseJson(text));
       })
-      .then((text) => parseJson(text))
       .then((parsed) => {
-        if (!cancelled) {
-          setData(parsed);
-          setIsLoading(false);
-        }
+        if (cancelled) return;
+        if (parsed) setData(parsed);
+        setIsLoading(false);
       })
       .catch(() => {
         if (!cancelled) setIsLoading(false);

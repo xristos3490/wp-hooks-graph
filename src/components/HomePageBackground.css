@@ -33,16 +33,17 @@
   to   { opacity: 1; }
 }
 
-.hp-constellation {
+/* Physics-driven wrapper. Anchor-positioned; physics writes translate3d here. */
+.hp-constellation-body {
   position: absolute;
   aspect-ratio: 1;
-  animation: hp-constellation-drift var(--c-drift, 40s) ease-in-out infinite alternate;
-  will-change: transform, opacity;
+  will-change: transform;
 }
 
-@keyframes hp-constellation-drift {
-  0%   { transform: translate3d(calc(var(--c-drift-x, 20px) * -0.5), calc(var(--c-drift-y, 15px) * -0.5), 0); }
-  100% { transform: translate3d(var(--c-drift-x, 20px), var(--c-drift-y, 15px), 0); }
+.hp-constellation {
+  width: 100%;
+  height: 100%;
+  will-change: opacity;
 }
 
 .hp-constellation svg {
@@ -98,8 +99,10 @@
 @media (prefers-reduced-motion: reduce) {
   .hp-mesh,
   .hp-field,
+  .hp-constellation-body,
   .hp-constellation,
   .hp-constellation__spin,
   .hp-constellation__edges line,
   .hp-constellation__nodes circle { animation: none; }
+  .hp-constellation-body { transform: none !important; }
 }

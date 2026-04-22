@@ -247,6 +247,8 @@ function rollDrifterStyle(rng) {
 
   return {
     band: band.name,
+    anchorX: Number(centerX.toFixed(1)),
+    anchorY: Number(centerY.toFixed(1)),
     style: {
       left: `${centerX.toFixed(1)}%`,
       top: `${centerY.toFixed(1)}%`,
@@ -256,10 +258,7 @@ function rollDrifterStyle(rng) {
       marginTop: `-${(sizeRem / 2).toFixed(2)}rem`,
       opacity: Number(opacity.toFixed(2)),
       '--c-spin': `${Math.round(randFloat(rng, 260, 560) * band.durMult)}s`,
-      '--c-drift': `${Math.round(randFloat(rng, 26, 62))}s`,
       '--c-spin-dir': rng() > 0.5 ? '1' : '-1',
-      '--c-drift-x': `${Math.round(randFloat(rng, -30, 30))}px`,
-      '--c-drift-y': `${Math.round(randFloat(rng, -26, 26))}px`,
     },
   };
 }
@@ -275,8 +274,8 @@ function buildDrifterList(rng, count) {
     const archetype = pick(rng, candidates);
     used[ARCHETYPE_NAMES.indexOf(archetype)]++;
     const { nodes, edges } = buildArchetype(archetype, rng);
-    const { style, band } = rollDrifterStyle(rng);
-    result.push({ id: `d${i}`, archetype, band, nodes, edges, style });
+    const { style, band, anchorX, anchorY } = rollDrifterStyle(rng);
+    result.push({ id: `d${i}`, archetype, band, nodes, edges, style, anchorX, anchorY });
   }
   return result;
 }

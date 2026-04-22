@@ -56,12 +56,24 @@ describe('constellations', () => {
     for (const d of drifters) {
       expect(d.style).toMatchObject({
         '--c-spin': expect.stringMatching(/s$/),
-        '--c-drift': expect.stringMatching(/s$/),
         '--c-spin-dir': expect.stringMatching(/^-?1$/),
       });
       expect(d.style.width).toMatch(/rem$/);
       expect(d.style.left).toMatch(/%$/);
       expect(d.style.top).toMatch(/%$/);
+      expect(d.style).not.toHaveProperty('--c-drift');
+      expect(d.style).not.toHaveProperty('--c-drift-x');
+      expect(d.style).not.toHaveProperty('--c-drift-y');
+    }
+  });
+
+  test('drifters expose numeric anchorX/anchorY percent coordinates', () => {
+    const { drifters } = buildScene({ seed: 23 });
+    for (const d of drifters) {
+      expect(typeof d.anchorX).toBe('number');
+      expect(typeof d.anchorY).toBe('number');
+      expect(d.style.left).toBe(`${d.anchorX.toFixed(1)}%`);
+      expect(d.style.top).toBe(`${d.anchorY.toFixed(1)}%`);
     }
   });
 });

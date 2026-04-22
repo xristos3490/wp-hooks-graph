@@ -7,7 +7,8 @@ $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
 if ($path === '/hooks.json') {
     if (!$json || !is_file($json)) {
-        http_response_code(404);
+        // 204 (not 404) — the homepage probes this endpoint and "no JSON bound" is a normal state.
+        http_response_code(204);
         return true;
     }
     header('Content-Type: application/json');
