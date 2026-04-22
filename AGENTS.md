@@ -8,7 +8,7 @@ Parses WordPress PHP codebases for hook relationships (do_action/add_action/appl
 |---------|-------------|
 | `pnpm install` | Install Node deps for every workspace package |
 | `composer install` | Install PHP dev deps at root (PHPUnit) and symlink the parser via the path repo |
-| `pnpm setup:alias` | Install the `hooksgraph` shell alias (wraps `bin/setup-profile.sh`) |
+| `pnpm setup:alias` | Install the `hooksgraph` shell alias (wraps `scripts/setup-profile.sh`) |
 | `hooksgraph <dir>...` (or `packages/cli/bin/hooksgraph.js`) | Parse + serve + open browser shortcut. The `hooksgraph` alias points directly at the Node shim (shebang-executable) |
 | `hooksgraph parse <dir> [dir2...] [--overlap-only] [--exclude a,b] [-o path]` | Parse only. The Node shim spawns `php packages/parser/hooksgraph.php ...` with `HOOKSGRAPH_INVOKED_AS="hooksgraph parse"` |
 | `hooksgraph parse --help` | Parser help with Usage / Examples / Viewing-results sections rebranded via `HOOKSGRAPH_INVOKED_AS` |
@@ -58,10 +58,6 @@ packages/
 
 scripts/
   build-cli.js        Builds the viewer, validates and installs parser composer deps, copies into packages/cli/.
-
-bin/
-  serve               Bash helper: finds a free port, launches `php -S` with packages/parser/server.php,
-                      serving packages/viewer/dist/, opens the browser.
   setup-profile.sh    Installs the `hooksgraph` alias in zsh / bash / fish RC files —
                       points directly at packages/cli/bin/hooksgraph.js (shebang-executable).
 
@@ -90,8 +86,7 @@ PHP files → HooksGraph\Cli\Runner (discover → FileParser tokenize/extract �
 - `packages/parser/src/Graph/Builder.php` / `OverlapFilter.php` — Build the node/edge graph from parsed hook calls; optionally filter to cross-source hooks.
 - `packages/parser/src/Cli/Runner.php` — CLI orchestration: argument parsing, file discovery, per-file parse loop, summary rendering, output write.
 - `packages/parser/server.php` — Minimal router; any path other than `/hooks.json` falls through to the static file server rooted at the viewer dist dir.
-- `packages/cli/bin/hooksgraph.js` — Node shim. Primary entry point — the shell alias installed by `bin/setup-profile.sh` points directly at this file (shebang-executable). Dev-aware path resolution: falls back to `../parser/hooksgraph.php` and `../viewer/dist/` when tarball-local `php/` and `dist/` are absent. Spawns `php` with `stdio: 'inherit'`.
-- `bin/serve` — Serving half of the dev workflow. Also invoked by anyone who wants to re-serve a JSON. Auto-runs `pnpm install && pnpm -F viewer build` on first run if `packages/viewer/dist/` is missing.
+- `packages/cli/bin/hooksgraph.js` — Node shim. Primary entry point — the shell alias installed by `scripts/setup-profile.sh` points directly at this file (shebang-executable). Dev-aware path resolution: falls back to `../parser/hooksgraph.php` and `../viewer/dist/` when tarball-local `php/` and `dist/` are absent. Spawns `php` with `stdio: 'inherit'`.
 - `packages/viewer/src/App.jsx` — Top-level React component; orchestrates sidebar, graph canvas, and detail panel.
 - `packages/mcp/bin/hooksgraph-mcp.js` — Node entry point for the MCP server. Parses `--storage` / `-h`, resolves the storage dir, and hands off to `runStdioServer()` in `packages/mcp/src/server.js`.
 - `scripts/build-cli.js` — Builds the CLI tarball contents: viewer build → `packages/cli/dist/`, parser (src + composer no-dev vendor + shims) → `packages/cli/php/`.

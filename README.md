@@ -176,12 +176,9 @@ packages/
     tests/              Vitest
   plugin/             WP.org plugin shell (scaffolded; real pipeline in a follow-up spec)
 
-bin/
-  serve               Finds a free port, launches `php -S` against packages/viewer/dist/
-  setup-profile.sh    Installs the `hooksgraph` shell alias (aliases to the Node shim)
-
 scripts/
   build-cli.js        Assembles packages/cli/ for publish (viewer build + parser composer no-dev)
+  setup-profile.sh    Installs the `hooksgraph` shell alias (aliases to the Node shim)
 
 storage/              Generated JSON output (git-ignored; .keep tracked)
 ```

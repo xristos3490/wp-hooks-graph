@@ -69,10 +69,10 @@ Just run `pnpm install` from the repo root. This is a pnpm workspace — a singl
 
 ### 4b. Shell alias
 
-The provided `bin/setup-profile.sh` does the right detection (zsh / bash / fish) and writes a marker-fenced block so it's idempotent. But it prompts interactively, which doesn't play well with non-TTY execution. Pipe `y` in to answer its prompt:
+The provided `scripts/setup-profile.sh` does the right detection (zsh / bash / fish) and writes a marker-fenced block so it's idempotent. But it prompts interactively, which doesn't play well with non-TTY execution. Pipe `y` in to answer its prompt:
 
 ```sh
-printf 'y\n' | bash bin/setup-profile.sh
+printf 'y\n' | bash scripts/setup-profile.sh
 ```
 
 Don't try to edit the RC file yourself — reuse the script so the marker format stays consistent and future reruns detect it correctly.
@@ -125,6 +125,6 @@ Keep this final message under ~10 lines. They just watched you run three command
 
 - **The alias is inactive in the current shell.** You cannot `source` on the user's behalf — Bash runs in its own subshell and any `source` you run doesn't persist. Always hand the command back to the user.
 - **`claude mcp add` with relative paths silently appears to work.** It only fails when the server is invoked from a different cwd. Always resolve to absolute paths before calling it.
-- **`pnpm setup:alias` wraps `bin/setup-profile.sh` with `< /dev/tty`**, which breaks under non-TTY execution. Call the script directly with piped input instead.
+- **`pnpm setup:alias` wraps `scripts/setup-profile.sh` with `< /dev/tty`**, which breaks under non-TTY execution. Call the script directly with piped input instead.
 - **MCP registration is user-scoped** (`--scope user`). If the user later runs this skill from a different checkout of the repo, the registered path will still point at the original checkout. Flag this if you notice the `claude mcp get` output points somewhere other than the current repo — ask whether to re-register.
 - **Don't call `pnpm build`.** `hooksgraph <dir>` builds the viewer automatically on first run, and the viewer is only needed for the browser UI — not for the MCP server or the CLI. Skipping it keeps onboarding fast.
