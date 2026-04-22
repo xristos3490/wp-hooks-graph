@@ -15,8 +15,14 @@ test('exclude: single folder name matches top-level dir', function () {
     assert_true(path_matches_excludes('tests/bar.php', ['tests']));
 });
 
-test('exclude: partial folder name does NOT match', function () {
-    assert_false(path_matches_excludes('tests-helper.php', ['tests']));
+test('exclude: simple pattern matches filename substring', function () {
+    assert_true(path_matches_excludes('tests-helper.php', ['tests']));
+    assert_true(path_matches_excludes('xyz-test.php', ['test']));
+    assert_true(path_matches_excludes('src/foo-test.php', ['test']));
+});
+
+test('exclude: simple pattern does NOT match mid-path folder substring', function () {
+    // basename has no substring hit and no segment exactly equals the pattern
     assert_false(path_matches_excludes('my-tests/bar.php', ['tests']));
     assert_false(path_matches_excludes('tests-suite/bar.php', ['tests']));
 });
@@ -49,4 +55,12 @@ test('exclude: empty-string pattern is a no-op', function () {
 test('exclude: backslash-separated rel paths are normalized', function () {
     assert_true(path_matches_excludes('foo\\tests\\bar.php', ['tests']));
     assert_true(path_matches_excludes('a\\packages\\e2e-tests\\x.php', ['packages/e2e-tests']));
+});
+
+test('exclude: patterns with dashes and dots match literally', function () {
+    assert_true(path_matches_excludes('src/foo-test.php',  ['-test']));
+    assert_true(path_matches_excludes('src/foo.test.php', ['.test']));
+    // Anchored-ish: `-test` should NOT match plain `test.php` (no leading dash).
+    assert_false(path_matches_excludes('src/test.php',    ['-test']));
+    assert_false(path_matches_excludes('src/test.php',    ['.test']));
 });

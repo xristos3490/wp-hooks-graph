@@ -1,8 +1,8 @@
 import { describe, test, expect } from 'vitest';
 import {
   makeRng,
-  buildScene,
   buildArchetype,
+  buildCuratedScene,
   ARCHETYPE_NAMES,
 } from './constellations.js';
 
@@ -22,58 +22,18 @@ describe('constellations', () => {
     );
   });
 
-  test('buildScene is deterministic for a given seed', () => {
-    const a = buildScene({ seed: 42 });
-    const b = buildScene({ seed: 42 });
-    expect(a).toEqual(b);
+  test('buildCuratedScene is deterministic across calls', () => {
+    expect(buildCuratedScene()).toEqual(buildCuratedScene());
   });
 
-  test('different seeds yield different scenes', () => {
-    const a = buildScene({ seed: 1 });
-    const b = buildScene({ seed: 2 });
-    expect(a).not.toEqual(b);
-  });
-
-  test('buildScene returns 6 drifters by default', () => {
-    const scene = buildScene({ seed: 7 });
-    expect(scene.drifters).toHaveLength(6);
-  });
-
-  test('buildScene respects drifterCount option', () => {
-    const scene = buildScene({ seed: 7, drifterCount: 4 });
-    expect(scene.drifters).toHaveLength(4);
-  });
-
-  test('every drifter uses a known archetype', () => {
-    const scene = buildScene({ seed: 11 });
+  test('curated scene exposes drifters, stars, and orbits', () => {
+    const scene = buildCuratedScene();
+    expect(Array.isArray(scene.drifters)).toBe(true);
+    expect(Array.isArray(scene.stars)).toBe(true);
+    expect(Array.isArray(scene.orbits)).toBe(true);
+    expect(scene.drifters.length).toBeGreaterThan(0);
     for (const d of scene.drifters) {
       expect(ARCHETYPE_NAMES).toContain(d.archetype);
-    }
-  });
-
-  test('drifters carry pre-baked CSS-variable style objects', () => {
-    const { drifters } = buildScene({ seed: 17 });
-    for (const d of drifters) {
-      expect(d.style).toMatchObject({
-        '--c-spin': expect.stringMatching(/s$/),
-        '--c-spin-dir': expect.stringMatching(/^-?1$/),
-      });
-      expect(d.style.width).toMatch(/rem$/);
-      expect(d.style.left).toMatch(/%$/);
-      expect(d.style.top).toMatch(/%$/);
-      expect(d.style).not.toHaveProperty('--c-drift');
-      expect(d.style).not.toHaveProperty('--c-drift-x');
-      expect(d.style).not.toHaveProperty('--c-drift-y');
-    }
-  });
-
-  test('drifters expose numeric anchorX/anchorY percent coordinates', () => {
-    const { drifters } = buildScene({ seed: 23 });
-    for (const d of drifters) {
-      expect(typeof d.anchorX).toBe('number');
-      expect(typeof d.anchorY).toBe('number');
-      expect(d.style.left).toBe(`${d.anchorX.toFixed(1)}%`);
-      expect(d.style.top).toBe(`${d.anchorY.toFixed(1)}%`);
     }
   });
 });

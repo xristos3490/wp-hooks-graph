@@ -1,8 +1,7 @@
 // Generator for the idle homepage background: six archetype shape families plus
-// a scene composer that scatters drifters across the viewport using a polar
-// distribution so the layout never reads as four-sided or grid-aligned.
+// a curated scene composer that places drifters, stardust, and orbital guides.
 //
-// All coordinates live in a 200×200 viewBox so the SVG render stays pure.
+// All archetype coordinates live in a 200×200 viewBox so the SVG render stays pure.
 
 const VIEWBOX = 200;
 const CENTER = VIEWBOX / 2;
@@ -221,78 +220,12 @@ export function buildArchetype(name, rng) {
 }
 
 // ---------------------------------------------------------------------------
-// Scene composition — polar scatter: a random angle + radius around the
-// viewport centre so layout never reads as a four-sided arrangement. The radius
-// range lets some sprites sit mostly on-screen and others bleed off an edge.
-// Depth bands tune opacity/scale/duration so the scene has near/far parallax.
-// ---------------------------------------------------------------------------
-
-const DEPTH_BANDS = [
-  { name: 'back',  opacity: [0.06, 0.14], scale: 0.75, durMult: 1.3 },
-  { name: 'mid',   opacity: [0.14, 0.24], scale: 1.00, durMult: 1.0 },
-  { name: 'front', opacity: [0.24, 0.36], scale: 1.20, durMult: 0.8 },
-];
-
-function rollDrifterStyle(rng) {
-  const band = pick(rng, DEPTH_BANDS);
-
-  // Polar scatter in viewport units. radius 1.0 ≈ edge; >1.0 bleeds off-screen.
-  const angle = rng() * Math.PI * 2;
-  const radius = randFloat(rng, 0.55, 1.2);
-  const centerX = 50 + Math.cos(angle) * 50 * radius;
-  const centerY = 50 + Math.sin(angle) * 50 * radius;
-
-  const sizeRem = randFloat(rng, 14, 46) * band.scale;
-  const opacity = randFloat(rng, band.opacity[0], band.opacity[1]);
-
-  return {
-    band: band.name,
-    anchorX: Number(centerX.toFixed(1)),
-    anchorY: Number(centerY.toFixed(1)),
-    style: {
-      left: `${centerX.toFixed(1)}%`,
-      top: `${centerY.toFixed(1)}%`,
-      width: `${sizeRem.toFixed(1)}rem`,
-      // Anchor the polar point at the sprite's centre.
-      marginLeft: `-${(sizeRem / 2).toFixed(2)}rem`,
-      marginTop: `-${(sizeRem / 2).toFixed(2)}rem`,
-      opacity: Number(opacity.toFixed(2)),
-      '--c-spin': `${Math.round(randFloat(rng, 260, 560) * band.durMult)}s`,
-      '--c-spin-dir': rng() > 0.5 ? '1' : '-1',
-    },
-  };
-}
-
-function buildDrifterList(rng, count) {
-  const used = ARCHETYPE_NAMES.map(() => 0);
-  const result = [];
-  for (let i = 0; i < count; i++) {
-    // Prefer archetypes least used so far — keeps a balanced palette of shapes
-    // without forcing perfect rotation.
-    const minUsed = Math.min(...used);
-    const candidates = ARCHETYPE_NAMES.filter((_, idx) => used[idx] === minUsed);
-    const archetype = pick(rng, candidates);
-    used[ARCHETYPE_NAMES.indexOf(archetype)]++;
-    const { nodes, edges } = buildArchetype(archetype, rng);
-    const { style, band, anchorX, anchorY } = rollDrifterStyle(rng);
-    result.push({ id: `d${i}`, archetype, band, nodes, edges, style, anchorX, anchorY });
-  }
-  return result;
-}
-
-export function buildScene({ seed = 1, drifterCount = 6 } = {}) {
-  const rng = makeRng(seed);
-  return { drifters: buildDrifterList(rng, drifterCount) };
-}
-
-// ---------------------------------------------------------------------------
 // Curated scene — a hand-composed piece of art rather than a random scatter.
 //
 // The homepage hero sits centered; the composition deliberately frames that
-// dead space. Drifters are placed with asymmetric balance (heavier upper-left
-// and lower-right) and varying depth bands so the eye reads the scene as a
-// painted night sky of signal clusters rather than a uniform grid. Two
-// ambient layers are added:
+// dead space. Drifters are placed with asymmetric balance and varying depth
+// bands so the eye reads a painted night sky of signal clusters. Two ambient
+// layers are added:
 //   - stardust:  deterministic scatter of tiny twinkling points, atmosphere
 //   - orbits:    faint elliptical guides suggesting celestial scale
 // Archetype internals (node jitter, edge chord counts) still use a seeded RNG
@@ -344,23 +277,29 @@ export function buildCuratedScene() {
   const rng = makeRng(CURATED_SEED);
   const drifters = CURATED_DRIFTERS.map((p, i) => {
     const { nodes, edges } = buildArchetype(p.archetype, rng);
+    const spinDir = p.dir === -1 ? -1 : 1;
+    const half = (p.size / 2).toFixed(2);
     return {
       id: `d${i}`,
       archetype: p.archetype,
       band: p.band,
       nodes,
       edges,
-      anchorX: p.x,
-      anchorY: p.y,
-      style: {
+      spinDurSec: p.spin,
+      spinDir,
+      // bodyStyle positions the absolute wrapper that physics measures.
+      bodyStyle: {
         left: `${p.x.toFixed(1)}%`,
         top: `${p.y.toFixed(1)}%`,
         width: `${p.size.toFixed(1)}rem`,
-        marginLeft: `-${(p.size / 2).toFixed(2)}rem`,
-        marginTop: `-${(p.size / 2).toFixed(2)}rem`,
+        marginLeft: `-${half}rem`,
+        marginTop: `-${half}rem`,
+      },
+      // constellationStyle drives the SVG's visual tuning (opacity + spin speed).
+      // Spin direction is emitted as a data attribute, not a style var.
+      constellationStyle: {
         opacity: p.opacity,
         '--c-spin': `${p.spin}s`,
-        '--c-spin-dir': p.dir === -1 ? '-1' : '1',
       },
     };
   });

@@ -13,13 +13,6 @@ const VIEWBOX_CENTER = VIEWBOX_SIZE / 2;
 
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
-function matchReducedMotion() {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-    return false;
-  }
-  return window.matchMedia(REDUCED_MOTION_QUERY).matches;
-}
-
 // Per-drifter per-node reactivity. Each node is a critically-damped spring
 // anchored at its SVG position; pointer repulsion is computed in screen space
 // and inverse-rotated into the constellation's local frame so CSS spin doesn't
@@ -32,18 +25,15 @@ export default function useConstellationPhysics(drifters, params = DEFAULT_PARAM
 
   const bodyRefs = useMemo(
     () => drifters.map(() => ({ current: null })),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [drifters.length]
+    [drifters]
   );
   const nodeRefs = useMemo(
     () => drifters.map((d) => d.nodes.map(() => ({ current: null }))),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [drifters.length]
+    [drifters]
   );
   const edgeRefs = useMemo(
     () => drifters.map((d) => d.edges.map(() => ({ current: null }))),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [drifters.length]
+    [drifters]
   );
 
   useEffect(() => {
@@ -57,10 +47,11 @@ export default function useConstellationPhysics(drifters, params = DEFAULT_PARAM
     const localOffsets = new Array(N);      // flat [olx,oly,...] last-written local offsets
     const lastWrittenCx = new Array(N);
     const lastWrittenCy = new Array(N);
-    const spinDur = new Float32Array(N);
-    const spinDir = new Float32Array(N);
+    const spinOmega = new Float32Array(N);  // rad/sec, signed for direction
     const bodyRects = new Array(N).fill(null);
-    const bodyReach = new Float32Array(N);  // screen-px radius from body center past which no node can feel force
+    const bodyReachSq = new Float32Array(N);  // squared screen-px radius — pointer beyond this can't affect any node
+    const bodyScale = new Float32Array(N);  // rect.width / VIEWBOX_SIZE
+    const bodyInvScale = new Float32Array(N);
 
     for (let b = 0; b < N; b++) {
       const d = drifters[b];
@@ -78,10 +69,9 @@ export default function useConstellationPhysics(drifters, params = DEFAULT_PARAM
       lastWrittenCx[b] = new Float32Array(n).fill(Number.NaN);
       lastWrittenCy[b] = new Float32Array(n).fill(Number.NaN);
 
-      const spinRaw = d.style && d.style['--c-spin'];
-      const spinSec = spinRaw ? parseFloat(spinRaw) : 360;
-      spinDur[b] = Number.isFinite(spinSec) && spinSec > 0 ? spinSec : 360;
-      spinDir[b] = d.style && d.style['--c-spin-dir'] === '-1' ? -1 : 1;
+      const durSec = Number.isFinite(d.spinDurSec) && d.spinDurSec > 0 ? d.spinDurSec : 360;
+      const dir = d.spinDir === -1 ? -1 : 1;
+      spinOmega[b] = (2 * Math.PI * dir) / durSec;
     }
 
     const pointer = { x: 0, y: 0, active: false };
@@ -91,28 +81,31 @@ export default function useConstellationPhysics(drifters, params = DEFAULT_PARAM
     let idleFrames = 0;
     let running = false;
     let intersecting = true;
-    let reducedMotion = matchReducedMotion();
+    let reducedMotion = false;
     let lastNow = 0;
     let animStart = 0;
 
-    // Compute per-body bounding reach in screen px: half the largest distance
-    // between the body center and any node anchor, plus OUTER_R. Used for the
-    // fast "pointer can't affect any node" early-exit.
+    // Cache per-body bounding rect, scale factor, and the "pointer can't
+    // possibly affect any node of this body" reach (max anchor distance from
+    // center, scaled to screen, plus OUTER_R). Recomputed lazily on resize.
     const recomputeBodyRect = (b) => {
       const el = bodyRefs[b].current;
       if (!el) return;
       const rect = el.getBoundingClientRect();
       bodyRects[b] = rect;
       const scale = rect.width / VIEWBOX_SIZE;
+      bodyScale[b] = scale;
+      bodyInvScale[b] = scale > 0 ? 1 / scale : 0;
       const al = anchorsLocal[b];
-      let maxD = 0;
+      let maxDsq = 0;
       for (let i = 0; i < states[b].count; i++) {
         const dx = al[i * 2] - VIEWBOX_CENTER;
         const dy = al[i * 2 + 1] - VIEWBOX_CENTER;
-        const d = Math.hypot(dx, dy);
-        if (d > maxD) maxD = d;
+        const dsq = dx * dx + dy * dy;
+        if (dsq > maxDsq) maxDsq = dsq;
       }
-      bodyReach[b] = maxD * scale + params.OUTER_R;
+      const reach = Math.sqrt(maxDsq) * scale + params.OUTER_R;
+      bodyReachSq[b] = reach * reach;
     };
 
     const invalidateRects = () => {
@@ -121,7 +114,7 @@ export default function useConstellationPhysics(drifters, params = DEFAULT_PARAM
 
     const requestFrame = () => {
       if (!running || rafQueued || reducedMotion || !intersecting) return;
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      if (document.visibilityState === 'hidden') return;
       rafQueued = true;
       rafId = requestAnimationFrame(frame);
     };
@@ -175,6 +168,7 @@ export default function useConstellationPhysics(drifters, params = DEFAULT_PARAM
 
       const pointerFresh =
         pointer.active && now - lastPointerMoveAt <= POINTER_IDLE_MS;
+      const elapsedSec = (now - animStart) * 0.001;
 
       let anyWork = false;
 
@@ -187,13 +181,12 @@ export default function useConstellationPhysics(drifters, params = DEFAULT_PARAM
         const cxScreen = rect.left + rect.width / 2;
         const cyScreen = rect.top + rect.height / 2;
 
-        // Quick AABB-ish reject: pointer too far for any node of this body
-        // to feel force. Skip entirely if also at rest.
+        // Squared-distance AABB reject: skip bodies where no node can feel force.
         let pointerForThisBody = null;
         if (pointerFresh) {
           const dxp = cxScreen - pointer.x;
           const dyp = cyScreen - pointer.y;
-          if (Math.hypot(dxp, dyp) <= bodyReach[b]) {
+          if (dxp * dxp + dyp * dyp <= bodyReachSq[b]) {
             pointerForThisBody = pointer;
           }
         }
@@ -201,12 +194,12 @@ export default function useConstellationPhysics(drifters, params = DEFAULT_PARAM
 
         anyWork = true;
 
-        // Current spin angle for this body (screen-relative to its CSS start).
-        const elapsed = (now - animStart) / 1000;
-        const spinPhase = (elapsed / spinDur[b]) * (2 * Math.PI) * spinDir[b];
+        // Current spin angle (screen-relative to the CSS animation start).
+        const spinPhase = elapsedSec * spinOmega[b];
         const cosT = Math.cos(spinPhase);
         const sinT = Math.sin(spinPhase);
-        const scale = rect.width / VIEWBOX_SIZE;
+        const scale = bodyScale[b];
+        const invScale = bodyInvScale[b];
 
         // Rotate + scale anchors into screen space for this frame.
         const al = anchorsLocal[b];
@@ -228,7 +221,6 @@ export default function useConstellationPhysics(drifters, params = DEFAULT_PARAM
         // Write node + connected edge attributes. Local offset = R^T * screen
         // offset / scale so the translate is undone by the spin group's rotation.
         const lo = localOffsets[b];
-        const invScale = 1 / scale;
         let anyNodeChanged = false;
         const lwx = lastWrittenCx[b];
         const lwy = lastWrittenCy[b];
@@ -289,7 +281,7 @@ export default function useConstellationPhysics(drifters, params = DEFAULT_PARAM
 
     const start = () => {
       if (running || reducedMotion || !intersecting) return;
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      if (document.visibilityState === 'hidden') return;
       running = true;
       animStart = performance.now();
       lastNow = 0;
@@ -335,10 +327,8 @@ export default function useConstellationPhysics(drifters, params = DEFAULT_PARAM
       else stop();
     };
 
-    const mediaQuery =
-      typeof window !== 'undefined' && typeof window.matchMedia === 'function'
-        ? window.matchMedia(REDUCED_MOTION_QUERY)
-        : null;
+    const mediaQuery = window.matchMedia(REDUCED_MOTION_QUERY);
+    reducedMotion = mediaQuery.matches;
     const onReducedMotionChange = (e) => {
       reducedMotion = e.matches;
       if (reducedMotion) {
@@ -350,7 +340,7 @@ export default function useConstellationPhysics(drifters, params = DEFAULT_PARAM
     };
 
     let observer = null;
-    if (typeof IntersectionObserver !== 'undefined' && rootRef.current) {
+    if (rootRef.current) {
       observer = new IntersectionObserver(
         (entries) => {
           for (const entry of entries) intersecting = entry.isIntersecting;
@@ -366,10 +356,7 @@ export default function useConstellationPhysics(drifters, params = DEFAULT_PARAM
     document.documentElement.addEventListener('pointerleave', onPointerLeave);
     window.addEventListener('resize', onResize, { passive: true });
     document.addEventListener('visibilitychange', onVisibilityChange);
-    if (mediaQuery) {
-      if (mediaQuery.addEventListener) mediaQuery.addEventListener('change', onReducedMotionChange);
-      else if (mediaQuery.addListener) mediaQuery.addListener(onReducedMotionChange);
-    }
+    mediaQuery.addEventListener('change', onReducedMotionChange);
 
     if (reducedMotion) {
       resetToAnchors();
@@ -384,10 +371,7 @@ export default function useConstellationPhysics(drifters, params = DEFAULT_PARAM
       document.documentElement.removeEventListener('pointerleave', onPointerLeave);
       window.removeEventListener('resize', onResize);
       document.removeEventListener('visibilitychange', onVisibilityChange);
-      if (mediaQuery) {
-        if (mediaQuery.removeEventListener) mediaQuery.removeEventListener('change', onReducedMotionChange);
-        else if (mediaQuery.removeListener) mediaQuery.removeListener(onReducedMotionChange);
-      }
+      mediaQuery.removeEventListener('change', onReducedMotionChange);
       if (observer) observer.disconnect();
     };
   }, [drifters, bodyRefs, nodeRefs, edgeRefs, params]);

@@ -3,11 +3,10 @@ import useHomepageScene from '../hooks/useHomepageScene.js';
 import useConstellationPhysics from '../hooks/useConstellationPhysics.js';
 import './HomePageBackground.css';
 
-// A single constellation rendered as SVG. Pre-computed edge dash length keeps
-// the "signal flowing" animation consistent across lines of different lengths.
-// Node refs let the physics hook mutate per-node cx/cy; edge refs let it keep
-// the connecting lines attached to moved endpoints.
-function Constellation({ nodes, edges, style, nodeElRefs, edgeElRefs }) {
+// Pre-computed edge dash length keeps the "signal flowing" animation consistent
+// across lines of different lengths. Node/edge refs let the physics hook mutate
+// cx/cy (and connected line endpoints) bypassing React.
+function Constellation({ nodes, edges, style, spinDir, nodeElRefs, edgeElRefs }) {
   const edgeData = useMemo(() => edges.map(([a, b]) => {
     const [x1, y1] = nodes[a];
     const [x2, y2] = nodes[b];
@@ -16,7 +15,7 @@ function Constellation({ nodes, edges, style, nodeElRefs, edgeElRefs }) {
   }), [nodes, edges]);
 
   return (
-    <div className="hp-constellation" style={style}>
+    <div className="hp-constellation" data-spin-dir={spinDir} style={style}>
       <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
         <g className="hp-constellation__spin">
           <g className="hp-constellation__edges">
@@ -96,41 +95,32 @@ function Orbits({ orbits }) {
   );
 }
 
-// Idle-screen background: a deliberate composition — soft mesh, faint orbital
-// arcs, a deterministic stardust field, and a curated set of constellation
-// drifters arranged to frame the centered hero. Each drifter's nodes still
-// react independently to the pointer via useConstellationPhysics.
 export default function HomePageBackground() {
   const { drifters, stars, orbits } = useHomepageScene();
   const { rootRef, bodyRefs, nodeRefs, edgeRefs } = useConstellationPhysics(drifters);
   return (
     <>
-      <div className="hp-mesh" aria-hidden="true" />
       <Orbits orbits={orbits} />
       <Stardust stars={stars} />
       <div className="hp-field" aria-hidden="true" ref={rootRef}>
-        {drifters.map((d, i) => {
-          const {
-            left, top, width, marginLeft, marginTop, ...innerStyle
-          } = d.style;
-          const bodyStyle = { left, top, width, marginLeft, marginTop };
-          return (
-            <div
-              key={d.id}
-              ref={bodyRefs[i]}
-              className="hp-constellation-body"
-              style={bodyStyle}
-            >
-              <Constellation
-                nodes={d.nodes}
-                edges={d.edges}
-                style={innerStyle}
-                nodeElRefs={nodeRefs[i]}
-                edgeElRefs={edgeRefs[i]}
-              />
-            </div>
-          );
-        })}
+        {drifters.map((d, i) => (
+          <div
+            key={d.id}
+            ref={bodyRefs[i]}
+            className="hp-constellation-body"
+            data-band={d.band}
+            style={d.bodyStyle}
+          >
+            <Constellation
+              nodes={d.nodes}
+              edges={d.edges}
+              style={d.constellationStyle}
+              spinDir={d.spinDir}
+              nodeElRefs={nodeRefs[i]}
+              edgeElRefs={edgeRefs[i]}
+            />
+          </div>
+        ))}
       </div>
     </>
   );

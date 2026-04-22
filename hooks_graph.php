@@ -725,18 +725,24 @@ function filter_graph_by_overlap($graph) {
 /**
  * Check whether a relative path matches any of the exclude patterns.
  *
- * Patterns are matched as path-segment sequences against the (normalized)
- * relative path — so "tests" matches `foo/tests/bar.php` but not
- * `tests-helper.php`, and "packages/e2e-tests" matches the nested folder
- * but not `packages/e2e-tests-utils/foo.php`.
+ * A simple pattern (no `/`) matches if it is an exact path segment OR a
+ * substring of the filename — so "tests" matches `foo/tests/bar.php` *and*
+ * `tests-helper.php`, and "test" matches `xyz-test.php`.
+ *
+ * A path pattern (contains `/`, e.g. "packages/e2e-tests") only matches as an
+ * exact sub-path, so it excludes `packages/e2e-tests/foo.php` but not
+ * `packages/e2e-tests-utils/foo.php`.
  */
 function path_matches_excludes($rel, $exclude_dirs) {
     if (empty($exclude_dirs)) return false;
-    $norm = '/' . trim(str_replace('\\', '/', $rel), '/') . '/';
+    $rel_fwd = trim(str_replace('\\', '/', $rel), '/');
+    $norm = '/' . $rel_fwd . '/';
+    $basename = basename($rel_fwd);
     foreach ($exclude_dirs as $pat) {
         $p = trim(str_replace('\\', '/', $pat), '/');
         if ($p === '') continue;
         if (strpos($norm, '/' . $p . '/') !== false) return true;
+        if (strpos($p, '/') === false && $basename !== '' && strpos($basename, $p) !== false) return true;
     }
     return false;
 }
@@ -805,15 +811,29 @@ function parse_cli_args($argv) {
     ];
     $n = count($argv);
     for ($i = 1; $i < $n; $i++) {
-        switch ($argv[$i]) {
+        $tok = $argv[$i];
+        // Normalize --flag=value into separate flag + value for long options.
+        $inline = null;
+        if (strlen($tok) > 2 && substr($tok, 0, 2) === '--' && ($eq = strpos($tok, '=')) !== false) {
+            $inline = substr($tok, $eq + 1);
+            $tok = substr($tok, 0, $eq);
+        }
+        $take_value = function () use (&$i, $argv, $n, $inline) {
+            if ($inline !== null) return $inline;
+            if ($i + 1 < $n) return $argv[++$i];
+            return null;
+        };
+        switch ($tok) {
             case '-o': case '--output':
-                if ($i + 1 < $n) $args['output'] = $argv[++$i];
+                $v = $take_value();
+                if ($v !== null) $args['output'] = $v;
                 break;
             case '--overlap-only':
                 $args['overlap_only'] = true;
                 break;
             case '--exclude':
-                if ($i + 1 < $n) $args['exclude'] = $argv[++$i];
+                $v = $take_value();
+                if ($v !== null) $args['exclude'] = $v;
                 break;
             case '--print-path':
                 $args['print_path'] = true;
@@ -822,7 +842,7 @@ function parse_cli_args($argv) {
                 $args['help'] = true;
                 break;
             default:
-                if ($argv[$i][0] !== '-') $args['dirs'][] = $argv[$i];
+                if ($tok[0] !== '-') $args['dirs'][] = $tok;
                 break;
         }
     }
@@ -844,14 +864,13 @@ Options:
   --overlap-only        Only output hooks present in 2+ scanned directories.
                         Useful for finding shared integration points between
                         a core codebase and plugins.
-  --exclude a,b,c       Comma-separated list of path patterns to exclude
-                        (in addition to .gitignore). Each pattern is matched
-                        as a path-segment sequence against the relative path,
-                        so a plain folder name like `tests` matches any
-                        `tests/` directory, and a nested pattern like
-                        `packages/e2e-tests` matches only that specific path.
-                        Partial folder names (e.g. `tests-helper.php`) are
-                        NOT matched by `tests`.
+  --exclude a,b,c       Comma-separated list of patterns to exclude (in
+                        addition to .gitignore). A simple pattern (no `/`)
+                        matches if it is an exact path segment OR a substring
+                        of the filename — so `tests` excludes any `tests/`
+                        directory AND files like `tests-helper.php`, and
+                        `test` excludes `xyz-test.php`. A nested pattern like
+                        `packages/e2e-tests` only matches that exact sub-path.
   --print-path          Print only the absolute path to the written JSON on
                         stdout; route the pretty UI output to stderr. Used
                         by the `hooksgraph` launcher to capture the path.
