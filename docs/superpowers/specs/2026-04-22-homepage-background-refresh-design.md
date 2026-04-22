@@ -45,10 +45,10 @@ Each builder is deterministic given a seed. Edge counts are bounded so no single
 
 ## Scene composition
 
-A scene is composed once per mount from a seeded PRNG:
+A scene is composed once per mount from a seeded PRNG. Counts are fixed (not "~") so the total matches the 11-instance cap exactly:
 
-- **Drifters** — ~8 instances, mixed archetypes, sizes `18rem–52rem`, opacity `0.25–0.7`. Positioned around the viewport edges so the hero stays legible.
-- **Travelers** — ~3 instances, smaller (`14rem–22rem`), opacity `0.35–0.55`, crossing the viewport continuously.
+- **Drifters** — 8 instances, mixed archetypes, sizes `18rem–52rem`, opacity `0.25–0.7`. Positioned around the viewport edges so the hero stays legible.
+- **Travelers** — 3 instances, smaller (`14rem–22rem`), opacity `0.35–0.55`, crossing the viewport continuously.
 
 `buildScene({ seed })` returns `{ drifters, travelers }` with all positional + motion CSS variables pre-baked so `<Constellation>` stays presentation-only.
 
