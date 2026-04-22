@@ -1,0 +1,14 @@
+.gh-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #000;
+  opacity: 0.75;
+  transition: opacity 0.15s ease;
+  border-radius: 9999px;
+}
+
+.gh-link:hover,
+.gh-link:focus-visible { opacity: 1; }
+
+.gh-link svg { display: block; }

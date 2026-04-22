@@ -4,6 +4,7 @@ import { Button, Stack, Text } from '@wordpress/ui';
 import { useGraphContext } from '../context/GraphContext';
 import Logo from './Logo';
 import McpInstructionsDialog from './McpInstructionsDialog';
+import GitHubLink from './GitHubLink';
 
 function renderMetric({ item, field }) {
   return (
@@ -229,6 +230,27 @@ export default function Sidebar() {
 
       // Summary fields — display-only, used by card headers
       {
+        id: 'metrics_summary',
+        type: 'text',
+        label: '',
+        readOnly: true,
+        getValue: ({ item }) => `${item.metric_files} files`,
+      },
+      {
+        id: 'focus_summary',
+        type: 'text',
+        label: '',
+        readOnly: true,
+        getValue: ({ item }) => {
+          const parts = [];
+          if (item.dynamic) parts.push('Dynamic');
+          if (!meta.overlap_filter && sourceLabels.length > 1 && item.overlapping) {
+            parts.push('Overlapping');
+          }
+          return parts.length ? parts.join(' · ') : 'All';
+        },
+      },
+      {
         id: 'hook_types_summary',
         type: 'text',
         label: '',
@@ -301,7 +323,7 @@ export default function Sidebar() {
       {
         id: 'metrics',
         label: 'Summary',
-        layout: { type: 'card', isOpened: false },
+        layout: { type: 'card', isOpened: false, summary: 'metrics_summary' },
         children: [
           summaryRow('metric_files'),
           summaryRow('metric_scan'),
@@ -313,7 +335,7 @@ export default function Sidebar() {
       },
       {
         id: 'hook-types',
-        label: 'Hook Types',
+        label: 'Hook types',
         description: 'Actions, filters, or both',
         layout: { type: 'card', summary: 'hook_types_summary' },
         children: ['actions', 'filters'],
@@ -322,7 +344,7 @@ export default function Sidebar() {
         id: 'focus',
         label: 'Focus',
         description: 'Narrow what\u2019s visible',
-        layout: { type: 'card', isOpened: false },
+        layout: { type: 'card', isOpened: false, summary: 'focus_summary' },
         children: (meta.overlap_filter || sourceLabels.length <= 1)
           ? ['dynamic']
           : ['dynamic', 'overlapping'],
@@ -390,6 +412,9 @@ export default function Sidebar() {
         style={{ display: 'none' }}
       />
       <McpInstructionsDialog disabled={isBusy} />
+      <div className="sidebar__github">
+        <GitHubLink />
+      </div>
     </aside>
   );
 }

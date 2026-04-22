@@ -106,6 +106,7 @@ body {
 }
 .sidebar__load-btn { width: 100%; margin-top: var(--wpds-dimension-padding-lg); }
 .sidebar__mcp-btn { width: 100%; margin-top: var(--wpds-dimension-gap-sm); }
+.sidebar__github { display: flex; justify-content: center; margin-top: var(--wpds-dimension-padding-lg); }
 /* DataForm row-layout renders the header and the children row as siblings in a plain div (no Stack gap). Give the header breathing room. */
 .sidebar .dataforms-layouts-row__header { margin-bottom: var(--wpds-dimension-gap-sm); }
 /* Metrics card: panel rows are read-only key/value pairs — right-align the values for column-style scanning. */

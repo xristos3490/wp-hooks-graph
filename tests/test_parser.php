@@ -102,10 +102,83 @@ test('parser: concat of two literals is not dynamic', function () {
     assert_false($r[0]['dynamic']);
 });
 
-test('parser: double-quoted interpolation is dynamic', function () {
+test('parser: double-quoted curly interpolation produces wildcard', function () {
     $r = parse_source('<?php do_action("save_post_{$type}");');
+    assert_eq('save_post_*', $r[0]['hook_name']);
     assert_true($r[0]['dynamic']);
+});
+
+test('parser: double-quoted simple interpolation produces wildcard', function () {
+    $r = parse_source('<?php do_action("update_option_theme_mods_$theme");');
+    assert_eq('update_option_theme_mods_*', $r[0]['hook_name']);
+    assert_true($r[0]['dynamic']);
+});
+
+test('parser: curly interpolation with object property produces wildcard', function () {
+    $r = parse_source('<?php do_action("prefix_{$obj->prop}_suffix");');
+    assert_eq('prefix_*_suffix', $r[0]['hook_name']);
+    assert_true($r[0]['dynamic']);
+});
+
+test('parser: dollar-curly interpolation produces wildcard', function () {
+    $r = parse_source('<?php do_action("${var}_name");');
+    assert_eq('*_name', $r[0]['hook_name']);
+    assert_true($r[0]['dynamic']);
+});
+
+test('parser: adjacent interpolations collapse to single wildcard', function () {
+    $r = parse_source('<?php do_action("prefix_{$a}{$b}_suffix");');
+    assert_eq('prefix_*_suffix', $r[0]['hook_name']);
+    assert_true($r[0]['dynamic']);
+});
+
+test('parser: interpolation with no literal anchor is fully dynamic', function () {
+    $r = parse_source('<?php do_action("$a$b");');
     assert_null($r[0]['hook_name']);
+    assert_true($r[0]['dynamic']);
+});
+
+test('parser: heredoc with interpolation produces wildcard', function () {
+    $code = "<?php do_action(<<<EOT\nprefix_\$var\nEOT\n);";
+    $r = parse_source($code);
+    assert_eq('prefix_*', $r[0]['hook_name']);
+    assert_true($r[0]['dynamic']);
+});
+
+test('parser: nowdoc is literal (no interpolation)', function () {
+    $code = "<?php do_action(<<<'EOT'\nliteral_hook\nEOT\n);";
+    $r = parse_source($code);
+    assert_eq('literal_hook', $r[0]['hook_name']);
+    assert_false($r[0]['dynamic']);
+});
+
+test('parser: concat mixing interpolated and literal strings', function () {
+    $r = parse_source('<?php do_action("a_$x" . "_middle_" . $b);');
+    assert_eq('a_*_middle_*', $r[0]['hook_name']);
+    assert_true($r[0]['dynamic']);
+});
+
+test('parser: concat with consecutive dynamic parts coalesces wildcards', function () {
+    $r = parse_source('<?php do_action("prefix_" . $x . $y . "_suffix");');
+    assert_eq('prefix_*_suffix', $r[0]['hook_name']);
+    assert_true($r[0]['dynamic']);
+});
+
+test('parser: function call hook name is fully dynamic', function () {
+    $r = parse_source('<?php do_action(get_hook_name());');
+    assert_null($r[0]['hook_name']);
+    assert_true($r[0]['dynamic']);
+});
+
+test('parser: leading curly interpolation does not swallow following args', function () {
+    // Regression: the `}` inside "{$var}..." is a plain string char; split_args
+    // must stay string-aware or it would push depth negative and glue all four
+    // arguments into the first one.
+    $r = parse_source('<?php add_filter( "{$template_type}_template", "gutenberg_get_template", 0, 3 );');
+    assert_eq('*_template', $r[0]['hook_name']);
+    assert_true($r[0]['dynamic']);
+    assert_eq('gutenberg_get_template', $r[0]['callback']);
+    assert_eq(0, $r[0]['priority']);
 });
 
 // ── Priority ────────────────────────────────────────────────

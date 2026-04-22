@@ -128,19 +128,38 @@ function tokens_between_parens(&$all, &$pos) {
 
 /**
  * Split a flat token list by top-level commas (respecting (), [], {} nesting).
+ *
+ * Tracks double-quoted and heredoc/nowdoc string context so braces and commas
+ * that appear inside string literals don't affect nesting depth — e.g. the
+ * closing '}' of "{$var}" is a plain string char and would otherwise push
+ * depth negative and swallow the following argument separator.
  */
 function split_args($tokens) {
     $args    = [];
     $current = [];
     $depth   = 0;
+    $in_dq   = false;
+    $in_here = false;
     foreach ($tokens as $t) {
-        $char = is_string($t) ? $t : null;
-        if ($char === '(' || $char === '[' || $char === '{') $depth++;
-        if ($char === ')' || $char === ']' || $char === '}') $depth--;
-        if ($char === ',' && $depth === 0) {
-            $args[]  = $current;
-            $current = [];
+        if (is_array($t)) {
+            if ($t[0] === T_START_HEREDOC) $in_here = true;
+            elseif ($t[0] === T_END_HEREDOC) $in_here = false;
+            $current[] = $t;
             continue;
+        }
+        if ($t === '"' && !$in_here) {
+            $in_dq = !$in_dq;
+            $current[] = $t;
+            continue;
+        }
+        if (!$in_dq && !$in_here) {
+            if ($t === '(' || $t === '[' || $t === '{') $depth++;
+            elseif ($t === ')' || $t === ']' || $t === '}') $depth--;
+            if ($t === ',' && $depth === 0) {
+                $args[]  = $current;
+                $current = [];
+                continue;
+            }
         }
         $current[] = $t;
     }
@@ -151,44 +170,172 @@ function split_args($tokens) {
 // ── Hook-name extraction ────────────────────────────────────
 
 /**
+ * Split a token list on top-level '.' concatenation operators.
+ *
+ * Tracks double-quoted and heredoc string context so '.' inside
+ * "..." or <<<EOT ... EOT is treated as literal content, not concat.
+ */
+function split_concat_parts($tokens) {
+    $parts    = [];
+    $current  = [];
+    $depth    = 0;
+    $in_dq    = false; // inside "..."
+    $in_here  = false; // inside heredoc/nowdoc
+    foreach ($tokens as $t) {
+        if (is_array($t)) {
+            if ($t[0] === T_START_HEREDOC) $in_here = true;
+            elseif ($t[0] === T_END_HEREDOC) $in_here = false;
+            $current[] = $t;
+            continue;
+        }
+        if ($t === '"' && !$in_here) {
+            $in_dq = !$in_dq;
+            $current[] = $t;
+            continue;
+        }
+        if (!$in_dq && !$in_here) {
+            if ($depth === 0 && $t === '.') {
+                if (!empty($current)) $parts[] = $current;
+                $current = [];
+                continue;
+            }
+            if ($t === '(' || $t === '[') $depth++;
+            elseif ($t === ')' || $t === ']') $depth--;
+        }
+        $current[] = $t;
+    }
+    if (!empty($current)) $parts[] = $current;
+    return $parts;
+}
+
+/**
+ * Walk the tokens of a "..." string or heredoc/nowdoc and return
+ * [name_parts, has_dynamic] where each dynamic interpolation is a '*'.
+ */
+function extract_interpolated_parts($tokens) {
+    $parts       = [];
+    $has_dynamic = false;
+    $depth       = 0; // inside {...} or ${...} interpolation
+    $add_star = function () use (&$parts, &$has_dynamic) {
+        $parts[]     = '*';
+        $has_dynamic = true;
+    };
+    foreach ($tokens as $t) {
+        if (is_array($t)) {
+            $type = $t[0];
+            if ($type === T_START_HEREDOC || $type === T_END_HEREDOC) continue;
+            if ($type === T_ENCAPSED_AND_WHITESPACE) {
+                if ($depth === 0) $parts[] = $t[1];
+                continue;
+            }
+            if ($type === T_CURLY_OPEN || $type === T_DOLLAR_OPEN_CURLY_BRACES) {
+                if ($depth === 0) $add_star();
+                $depth++;
+                continue;
+            }
+            // T_VARIABLE, T_STRING, T_NUM_STRING, T_OBJECT_OPERATOR, etc.
+            if ($depth === 0) $add_star();
+            continue;
+        }
+        if ($t === '"') continue;
+        if ($t === '{') {
+            if ($depth === 0) $add_star();
+            $depth++;
+            continue;
+        }
+        if ($t === '}') {
+            if ($depth > 0) $depth--;
+            continue;
+        }
+        if ($depth === 0) $add_star();
+    }
+    return [$parts, $has_dynamic];
+}
+
+/**
+ * Coalesce adjacent '*' markers and concatenate the parts into a name.
+ */
+function collapse_wildcards($parts) {
+    $out       = [];
+    $last_star = false;
+    foreach ($parts as $p) {
+        if ($p === '*') {
+            if (!$last_star) { $out[] = '*'; $last_star = true; }
+        } elseif ($p !== '') {
+            $out[]     = $p;
+            $last_star = false;
+        }
+    }
+    return implode('', $out);
+}
+
+/**
  * Extract the hook name from the first-argument token list.
  *
- * Returns [name|null, dynamic, raw_expression|null].
+ * Returns [name|null, dynamic, raw_expression|null]. Dynamic names with
+ * a literal prefix/suffix are returned as a wildcard pattern (e.g.
+ * "update_option_theme_mods_*"); fully dynamic names return null.
  */
 function extract_hook_name($arg_tokens) {
     $tokens = strip_ws($arg_tokens);
     if (empty($tokens)) return [null, true, null];
 
-    // Single string literal
+    // Single string literal (single- or double-quoted, no interpolation).
     if (count($tokens) === 1 && is_array($tokens[0]) && $tokens[0][0] === T_CONSTANT_ENCAPSED_STRING) {
         return [strip_quotes($tokens[0][1]), false, null];
     }
 
-    // Concatenation (contains '.')
-    $has_dot = false;
-    foreach ($tokens as $t) {
-        if (is_string($t) && $t === '.') { $has_dot = true; break; }
-    }
-    if ($has_dot) {
-        $parts       = [];
-        $raw_parts   = [];
-        $has_dynamic = false;
-        foreach ($tokens as $t) {
-            if (is_string($t) && $t === '.') continue;
-            if (is_array($t) && $t[0] === T_CONSTANT_ENCAPSED_STRING) {
-                $parts[]     = strip_quotes($t[1]);
-                $raw_parts[] = $t[1];
-            } else {
-                $parts[]     = '*';
-                $has_dynamic = true;
-                $raw_parts[] = is_array($t) ? $t[1] : $t;
+    $raw      = reconstruct_tokens($tokens);
+    $segments = split_concat_parts($tokens);
+
+    $name_parts  = [];
+    $has_dynamic = false;
+    $is_concat   = count($segments) > 1;
+
+    foreach ($segments as $seg) {
+        $seg = strip_ws($seg);
+        if (empty($seg)) continue;
+
+        // Literal string segment.
+        if (count($seg) === 1 && is_array($seg[0]) && $seg[0][0] === T_CONSTANT_ENCAPSED_STRING) {
+            $name_parts[] = strip_quotes($seg[0][1]);
+            continue;
+        }
+
+        // Heredoc / nowdoc segment.
+        if (is_array($seg[0]) && $seg[0][0] === T_START_HEREDOC) {
+            $last = end($seg);
+            if (is_array($last) && $last[0] === T_END_HEREDOC) {
+                list($sub, $sub_dyn) = extract_interpolated_parts($seg);
+                foreach ($sub as $p) $name_parts[] = $p;
+                $has_dynamic = $has_dynamic || $sub_dyn;
+                continue;
             }
         }
-        return [implode('', $parts), $has_dynamic, implode(' . ', $raw_parts)];
+
+        // Double-quoted interpolated segment.
+        if (is_string($seg[0]) && $seg[0] === '"'
+            && is_string(end($seg)) && end($seg) === '"') {
+            list($sub, $sub_dyn) = extract_interpolated_parts($seg);
+            foreach ($sub as $p) $name_parts[] = $p;
+            $has_dynamic = $has_dynamic || $sub_dyn;
+            continue;
+        }
+
+        // Variable, function call, constant, or other opaque expression.
+        $name_parts[] = '*';
+        $has_dynamic  = true;
     }
 
-    // Variable or other expression → dynamic
-    return [null, true, reconstruct_tokens($tokens)];
+    // Hook names never span lines; trim stray whitespace (common in heredocs).
+    $name = trim(collapse_wildcards($name_parts));
+
+    // No usable literal anchor → treat as fully dynamic.
+    if ($name === '' || !preg_match('/[^*]/', $name)) {
+        return [null, true, $raw];
+    }
+
+    return [$name, $has_dynamic, $has_dynamic ? $raw : null];
 }
 
 // ── Callback extraction ─────────────────────────────────────

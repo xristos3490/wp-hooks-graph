@@ -2,6 +2,7 @@ import { useRef, useState, useCallback } from 'react';
 import { Button, EmptyState, Stack, Text, Badge } from '@wordpress/ui';
 import Logo from './Logo';
 import HomePageBackground from './HomePageBackground';
+import GitHubLink from './GitHubLink';
 import './HomePage.css';
 
 export default function HomePage({ onFileLoad, isLoading }) {
@@ -88,6 +89,8 @@ export default function HomePage({ onFileLoad, isLoading }) {
               Generate one with <code>hooksgraph parse &lt;dir&gt;</code>
             </Text>
           </Stack>
+
+          <GitHubLink />
         </Stack>
       </main>
 
