@@ -45,30 +45,6 @@ function Constellation({ nodes, edges, style, spinDir, nodeElRefs, edgeElRefs })
   );
 }
 
-// Ambient stardust: deterministic scatter of tiny points. Each star twinkles
-// on its own tempo so the field never pulses in sync.
-function Stardust({ stars }) {
-  return (
-    <div className="hp-stardust" aria-hidden="true">
-      {stars.map((s, i) => (
-        <span
-          key={i}
-          className="hp-star"
-          style={{
-            left: `${s.x}%`,
-            top: `${s.y}%`,
-            width: `${s.r * 2}px`,
-            height: `${s.r * 2}px`,
-            '--star-base': s.opacity,
-            animationDelay: `${s.delay}s`,
-            animationDuration: `${s.dur}s`,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
 // Faint elliptical orbital guides. Static — their role is celestial scale,
 // not motion. Rendered as HTML with border-radius so they hug the viewport
 // aspect correctly (preserveAspectRatio="none" would skew the stroke).
@@ -96,12 +72,11 @@ function Orbits({ orbits }) {
 }
 
 export default function HomePageBackground() {
-  const { drifters, stars, orbits } = useHomepageScene();
+  const { drifters, orbits } = useHomepageScene();
   const { rootRef, bodyRefs, nodeRefs, edgeRefs } = useConstellationPhysics(drifters);
   return (
     <>
       <Orbits orbits={orbits} />
-      <Stardust stars={stars} />
       <div className="hp-field" aria-hidden="true" ref={rootRef}>
         {drifters.map((d, i) => (
           <div

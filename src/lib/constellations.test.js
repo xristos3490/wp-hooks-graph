@@ -26,10 +26,9 @@ describe('constellations', () => {
     expect(buildCuratedScene()).toEqual(buildCuratedScene());
   });
 
-  test('curated scene exposes drifters, stars, and orbits', () => {
+  test('curated scene exposes drifters and orbits', () => {
     const scene = buildCuratedScene();
     expect(Array.isArray(scene.drifters)).toBe(true);
-    expect(Array.isArray(scene.stars)).toBe(true);
     expect(Array.isArray(scene.orbits)).toBe(true);
     expect(scene.drifters.length).toBeGreaterThan(0);
     for (const d of scene.drifters) {

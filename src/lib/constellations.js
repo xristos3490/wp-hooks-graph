@@ -1,5 +1,5 @@
 // Generator for the idle homepage background: six archetype shape families plus
-// a curated scene composer that places drifters, stardust, and orbital guides.
+// a curated scene composer that places drifters and orbital guides.
 //
 // All archetype coordinates live in a 200×200 viewBox so the SVG render stays pure.
 
@@ -224,10 +224,8 @@ export function buildArchetype(name, rng) {
 //
 // The homepage hero sits centered; the composition deliberately frames that
 // dead space. Drifters are placed with asymmetric balance and varying depth
-// bands so the eye reads a painted night sky of signal clusters. Two ambient
-// layers are added:
-//   - stardust:  deterministic scatter of tiny twinkling points, atmosphere
-//   - orbits:    faint elliptical guides suggesting celestial scale
+// bands so the eye reads a painted night sky of signal clusters. Faint
+// elliptical orbits add celestial scale without motion.
 // Archetype internals (node jitter, edge chord counts) still use a seeded RNG
 // so the interior of each cluster has life without being different each load.
 // ---------------------------------------------------------------------------
@@ -237,32 +235,16 @@ export function buildArchetype(name, rng) {
 const CURATED_DRIFTERS = [
   { archetype: 'mesh',    band: 'back',  x: 16, y: 22, size: 40, opacity: 0.09, spin: 520, dir:  1 },
   { archetype: 'lattice', band: 'back',  x: 82, y: 14, size: 34, opacity: 0.08, spin: 560, dir: -1 },
+  { archetype: 'tree',    band: 'back',  x: 50, y:  4, size: 32, opacity: 0.07, spin: 600, dir:  1 },
   { archetype: 'hub',     band: 'mid',   x: -3, y: 58, size: 28, opacity: 0.16, spin: 380, dir: -1 },
   { archetype: 'tree',    band: 'mid',   x: 88, y: 74, size: 30, opacity: 0.18, spin: 340, dir:  1 },
+  { archetype: 'mesh',    band: 'mid',   x:  8, y: 92, size: 22, opacity: 0.17, spin: 420, dir: -1 },
   { archetype: 'ring',    band: 'front', x: 22, y: 88, size: 20, opacity: 0.28, spin: 300, dir:  1 },
   { archetype: 'hub',     band: 'front', x: 98, y: 42, size: 18, opacity: 0.30, spin: 260, dir: -1 },
   { archetype: 'chain',   band: 'mid',   x: 58, y: 104, size: 32, opacity: 0.20, spin: 320, dir:  1 },
 ];
 
 const CURATED_SEED = 2026;
-const STARDUST_COUNT = 92;
-
-// Deterministic sky of tiny points. Twinkle tempos vary per-star so the field
-// never pulses in sync.
-function buildStardust(rng) {
-  const stars = new Array(STARDUST_COUNT);
-  for (let i = 0; i < STARDUST_COUNT; i++) {
-    stars[i] = {
-      x: Number((rng() * 100).toFixed(2)),
-      y: Number((rng() * 100).toFixed(2)),
-      r: Number((0.35 + rng() * 0.95).toFixed(2)),
-      opacity: Number((0.08 + rng() * 0.3).toFixed(2)),
-      delay: Number((rng() * 8).toFixed(2)),
-      dur: Number((3.5 + rng() * 4.5).toFixed(2)),
-    };
-  }
-  return stars;
-}
 
 // Faint orbital rings. Static, no animation — their role is to add celestial
 // scale, not motion. Positioned off-center so they never cut through the hero
@@ -303,6 +285,5 @@ export function buildCuratedScene() {
       },
     };
   });
-  const stars = buildStardust(rng);
-  return { drifters, stars, orbits: CURATED_ORBITS };
+  return { drifters, orbits: CURATED_ORBITS };
 }

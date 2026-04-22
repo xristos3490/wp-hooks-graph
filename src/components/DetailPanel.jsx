@@ -530,9 +530,9 @@ function FileBody({ d, cy, onEdgeClick }) {
     return {
       id: ed.id,
       nodeId: tgt.id,
-      title: ed.callback || tgt.name,
+      title: tgt.name,
       description: [
-        ed.callback ? tgt.name : null,
+        ed.callback,
         scopeLabel(ed),
         `pri ${ed.priority || 10}`,
         `line ${ed.line}`,
@@ -625,9 +625,9 @@ function ClassBody({ d, cy, onEdgeClick }) {
     return {
       id: ed.id,
       nodeId: tgt.id,
-      title: ed.callback || tgt.name,
+      title: tgt.name,
       description: [
-        ed.callback ? tgt.name : null,
+        ed.callback,
         scopeLabel(ed),
         `pri ${ed.priority || 10}`,
         `line ${ed.line}`,
