@@ -11,8 +11,12 @@
 }
 
 @keyframes hp-field-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 /* Orbital guides are deliberately static — drifters carry the motion,
@@ -42,7 +46,7 @@
   color: #111;
 }
 
-.hp-constellation-body[data-band="front"] {
+.hp-constellation-body[data-band='front'] {
   color: var(--wpds-color-fg-interactive-brand);
 }
 
@@ -63,12 +67,14 @@
   animation: hp-constellation-spin var(--c-spin, 360s) linear infinite;
   will-change: transform;
 }
-.hp-constellation[data-spin-dir="-1"] .hp-constellation__spin {
+.hp-constellation[data-spin-dir='-1'] .hp-constellation__spin {
   animation-direction: reverse;
 }
 
 @keyframes hp-constellation-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .hp-constellation__edges line {
@@ -81,8 +87,12 @@
 }
 
 @keyframes hp-edge-flow {
-  from { stroke-dashoffset: 0; }
-  to   { stroke-dashoffset: -200; }
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -200;
+  }
 }
 
 .hp-constellation__nodes circle {
@@ -95,8 +105,15 @@
 }
 
 @keyframes hp-node-pulse {
-  0%, 100% { transform: scale(1);    opacity: 0.8; }
-  50%      { transform: scale(1.4);  opacity: 1; }
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.4);
+    opacity: 1;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -106,5 +123,7 @@
   .hp-constellation,
   .hp-constellation__spin,
   .hp-constellation__edges line,
-  .hp-constellation__nodes circle { animation: none; }
+  .hp-constellation__nodes circle {
+    animation: none;
+  }
 }

@@ -1,9 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
-import {
-  createBodyState,
-  stepBody,
-  DEFAULT_PARAMS,
-} from '../lib/constellation-physics.js';
+import { createBodyState, stepBody, DEFAULT_PARAMS } from '../lib/constellation-physics.js';
 
 const POINTER_IDLE_MS = 2500;
 const WRITE_EPSILON = 0.2;
@@ -23,10 +19,7 @@ const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 export default function useConstellationPhysics(drifters, params = DEFAULT_PARAMS) {
   const rootRef = useRef(null);
 
-  const bodyRefs = useMemo(
-    () => drifters.map(() => ({ current: null })),
-    [drifters]
-  );
+  const bodyRefs = useMemo(() => drifters.map(() => ({ current: null })), [drifters]);
   const nodeRefs = useMemo(
     () => drifters.map((d) => d.nodes.map(() => ({ current: null }))),
     [drifters]
@@ -42,15 +35,15 @@ export default function useConstellationPhysics(drifters, params = DEFAULT_PARAM
     const N = drifters.length;
 
     const states = new Array(N);
-    const anchorsLocal = new Array(N);      // flat [lx0,ly0,lx1,ly1,...] relative to viewBox (0..200)
-    const anchorsScreen = new Array(N);     // flat [sx,sy,...] in screen px, rotated
-    const localOffsets = new Array(N);      // flat [olx,oly,...] last-written local offsets
+    const anchorsLocal = new Array(N); // flat [lx0,ly0,lx1,ly1,...] relative to viewBox (0..200)
+    const anchorsScreen = new Array(N); // flat [sx,sy,...] in screen px, rotated
+    const localOffsets = new Array(N); // flat [olx,oly,...] last-written local offsets
     const lastWrittenCx = new Array(N);
     const lastWrittenCy = new Array(N);
-    const spinOmega = new Float32Array(N);  // rad/sec, signed for direction
+    const spinOmega = new Float32Array(N); // rad/sec, signed for direction
     const bodyRects = new Array(N).fill(null);
-    const bodyReachSq = new Float32Array(N);  // squared screen-px radius — pointer beyond this can't affect any node
-    const bodyScale = new Float32Array(N);  // rect.width / VIEWBOX_SIZE
+    const bodyReachSq = new Float32Array(N); // squared screen-px radius — pointer beyond this can't affect any node
+    const bodyScale = new Float32Array(N); // rect.width / VIEWBOX_SIZE
     const bodyInvScale = new Float32Array(N);
 
     for (let b = 0; b < N; b++) {
@@ -166,8 +159,7 @@ export default function useConstellationPhysics(drifters, params = DEFAULT_PARAM
       lastNow = now;
       const dt = Math.min(dtRaw, 1 / 30);
 
-      const pointerFresh =
-        pointer.active && now - lastPointerMoveAt <= POINTER_IDLE_MS;
+      const pointerFresh = pointer.active && now - lastPointerMoveAt <= POINTER_IDLE_MS;
       const elapsedSec = (now - animStart) * 0.001;
 
       let anyWork = false;

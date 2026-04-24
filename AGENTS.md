@@ -4,27 +4,27 @@ Parses WordPress PHP codebases for hook relationships (do_action/add_action/appl
 
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| `pnpm install` | Install Node deps for every workspace package |
-| `composer install` | Install PHP dev deps at root (PHPUnit) and symlink the parser via the path repo |
-| `pnpm setup:alias` | Install the `hooksgraph` shell alias (wraps `scripts/setup-profile.sh`) |
-| `hooksgraph <dir>...` (or `packages/cli/bin/hooksgraph.js`) | Parse + serve + open browser shortcut. The `hooksgraph` alias points directly at the Node shim (shebang-executable) |
-| `hooksgraph parse <dir> [dir2...] [--overlap-only] [--exclude a,b] [-o path]` | Parse only. The Node shim spawns `php packages/parser/hooksgraph.php ...` with `HOOKSGRAPH_INVOKED_AS="hooksgraph parse"` |
-| `hooksgraph parse --help` | Parser help with Usage / Examples / Viewing-results sections rebranded via `HOOKSGRAPH_INVOKED_AS` |
-| `hooksgraph serve [path/to/hooks.json]` | Serve the built viewer with a JSON. No arg = most recent file in `storage/`. Resolved by the Node shim |
-| `hooksgraph serve --help` | Serve help |
-| `hooksgraph --help` (or `hooksgraph` with no args) | Top-level help |
-| `pnpm dev` | Vite dev server for the viewer (alias: `pnpm -F viewer dev`). Accepts `--json <path>` via `HOOKSGRAPH_JSON` env to bind a specific hooks JSON |
-| `pnpm build` | Full build: `composer install` at root + `pnpm build:cli` (which handles viewer + parser composer no-dev). The one-shot "install and build everything" command |
-| `pnpm build:viewer` | Viewer-only build (alias: `pnpm -F viewer build`). Outputs `packages/viewer/dist/` |
-| `pnpm build:cli` | Assemble `packages/cli/` for npm publish — runs viewer build, `composer install --no-dev` in parser, copies into `packages/cli/{php,dist}/` |
-| `pnpm build:plugin` | Placeholder. Scaffolded only; real pipeline (strauss + wp-scripts + zip) is a follow-up spec |
-| `pnpm test` | PHPUnit + Vitest |
-| `pnpm test:php` (or `vendor/bin/phpunit`) | PHPUnit 11 suite at `packages/parser/tests/` |
-| `pnpm test:js` | Vitest (MCP suite under `packages/mcp/tests/`, viewer tests under `packages/viewer/src/**/*.test.js`) |
-| `pnpm test:watch` | Vitest in watch mode |
-| `pnpm mcp -- [--storage <dir>]` | Run the stdio MCP server (wraps `packages/mcp/bin/hooksgraph-mcp.js`). Storage resolves CLI arg → `HOOKSGRAPH_STORAGE` env → `./storage` |
+| Command                                                                       | Description                                                                                                                                                    |
+| ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm install`                                                                | Install Node deps for every workspace package                                                                                                                  |
+| `composer install`                                                            | Install PHP dev deps at root (PHPUnit) and symlink the parser via the path repo                                                                                |
+| `pnpm setup:alias`                                                            | Install the `hooksgraph` shell alias (wraps `scripts/setup-profile.sh`)                                                                                        |
+| `hooksgraph <dir>...` (or `packages/cli/bin/hooksgraph.js`)                   | Parse + serve + open browser shortcut. The `hooksgraph` alias points directly at the Node shim (shebang-executable)                                            |
+| `hooksgraph parse <dir> [dir2...] [--overlap-only] [--exclude a,b] [-o path]` | Parse only. The Node shim spawns `php packages/parser/hooksgraph.php ...` with `HOOKSGRAPH_INVOKED_AS="hooksgraph parse"`                                      |
+| `hooksgraph parse --help`                                                     | Parser help with Usage / Examples / Viewing-results sections rebranded via `HOOKSGRAPH_INVOKED_AS`                                                             |
+| `hooksgraph serve [path/to/hooks.json]`                                       | Serve the built viewer with a JSON. No arg = most recent file in `storage/`. Resolved by the Node shim                                                         |
+| `hooksgraph serve --help`                                                     | Serve help                                                                                                                                                     |
+| `hooksgraph --help` (or `hooksgraph` with no args)                            | Top-level help                                                                                                                                                 |
+| `pnpm dev`                                                                    | Vite dev server for the viewer (alias: `pnpm -F viewer dev`). Accepts `--json <path>` via `HOOKSGRAPH_JSON` env to bind a specific hooks JSON                  |
+| `pnpm build`                                                                  | Full build: `composer install` at root + `pnpm build:cli` (which handles viewer + parser composer no-dev). The one-shot "install and build everything" command |
+| `pnpm build:viewer`                                                           | Viewer-only build (alias: `pnpm -F viewer build`). Outputs `packages/viewer/dist/`                                                                             |
+| `pnpm build:cli`                                                              | Assemble `packages/cli/` for npm publish — runs viewer build, `composer install --no-dev` in parser, copies into `packages/cli/{php,dist}/`                    |
+| `pnpm build:plugin`                                                           | Placeholder. Scaffolded only; real pipeline (strauss + wp-scripts + zip) is a follow-up spec                                                                   |
+| `pnpm test`                                                                   | PHPUnit + Vitest                                                                                                                                               |
+| `pnpm test:php` (or `vendor/bin/phpunit`)                                     | PHPUnit 11 suite at `packages/parser/tests/`                                                                                                                   |
+| `pnpm test:js`                                                                | Vitest (MCP suite under `packages/mcp/tests/`, viewer tests under `packages/viewer/src/**/*.test.js`)                                                          |
+| `pnpm test:watch`                                                             | Vitest in watch mode                                                                                                                                           |
+| `pnpm mcp -- [--storage <dir>]`                                               | Run the stdio MCP server (wraps `packages/mcp/bin/hooksgraph-mcp.js`). Storage resolves CLI arg → `HOOKSGRAPH_STORAGE` env → `./storage`                       |
 
 ## Architecture
 
@@ -117,7 +117,7 @@ PHP files → HooksGraph\Cli\Runner (discover → FileParser tokenize/extract �
 - The MCP graph index caches parsed JSON by file path and invalidates on `mtime` change. Rewriting a storage JSON with the same mtime (rare, but possible with `touch -t`) will not refresh the cache.
 - MCP tools receive `{ registry, index }` via a shared ctx from `createServer()`. `UnknownCodebaseError` / `CodebaseLoadError` / `MissingStorageError` are converted to `isError` tool results; anything else bubbles up and crashes the transport.
 - Two composer scopes exist: root (dev umbrella — phpunit + parser via path repo) and `packages/parser/` (self-contained autoloader bundled into the CLI tarball). `packages/parser/hooksgraph.php` requires the package-local vendor; tests run against the root vendor. Don't conflate them.
-- pnpm workspace. Each package only resolves dependencies it declares; phantom deps fail loudly. `.npmrc` public-hoists react/webpack/@wordpress/* for wp-scripts compatibility (needed once the plugin pipeline is built).
+- pnpm workspace. Each package only resolves dependencies it declares; phantom deps fail loudly. `.npmrc` public-hoists react/webpack/@wordpress/\* for wp-scripts compatibility (needed once the plugin pipeline is built).
 
 ## Supported Hook Functions
 

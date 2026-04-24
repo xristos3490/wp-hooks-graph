@@ -45,7 +45,9 @@ run('pnpm', ['-F', 'viewer', 'build'], { cwd: ROOT });
 
 run('composer', ['validate', '--working-dir=packages/parser', '--no-check-publish'], { cwd: ROOT });
 
-run('composer', ['install', '--working-dir=packages/parser', '--no-dev', '--optimize-autoloader'], { cwd: ROOT });
+run('composer', ['install', '--working-dir=packages/parser', '--no-dev', '--optimize-autoloader'], {
+  cwd: ROOT,
+});
 
 reset(CLI_PHP);
 copyIntoPhp(path.join(PARSER, 'src'), 'src');

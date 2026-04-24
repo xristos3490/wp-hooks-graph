@@ -24,10 +24,7 @@ function matchesEdge(edge, needle) {
   return cb.toLowerCase().includes(needle) || cm.toLowerCase().includes(needle);
 }
 
-export function handler(
-  { substring, codebase, limit = 50, offset = 0 },
-  { registry, index },
-) {
+export function handler({ substring, codebase, limit = 50, offset = 0 }, { registry, index }) {
   const needle = substring.toLowerCase();
 
   const matches = [];

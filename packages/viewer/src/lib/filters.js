@@ -12,7 +12,12 @@ function filterByHookType(hooks, state) {
 }
 
 function filterByDynamic(hooks, state) {
-  if (!state.dynamic) return new Set(hooks.map(function(h) { return h.id; }));
+  if (!state.dynamic)
+    return new Set(
+      hooks.map(function (h) {
+        return h.id;
+      })
+    );
   var result = new Set();
   for (var i = 0; i < hooks.length; i++) {
     if (hooks[i].dynamic) result.add(hooks[i].id);
@@ -21,7 +26,12 @@ function filterByDynamic(hooks, state) {
 }
 
 function filterByOverlapping(hooks, state) {
-  if (!state.overlapping) return new Set(hooks.map(function(h) { return h.id; }));
+  if (!state.overlapping)
+    return new Set(
+      hooks.map(function (h) {
+        return h.id;
+      })
+    );
   var result = new Set();
   for (var i = 0; i < hooks.length; i++) {
     if (hooks[i].sources.length >= 2) result.add(hooks[i].id);
@@ -30,11 +40,16 @@ function filterByOverlapping(hooks, state) {
 }
 
 function filterByHighTraffic(hooks, state) {
-  if (!state.highTraffic.enabled) return new Set(hooks.map(function(h) { return h.id; }));
+  if (!state.highTraffic.enabled)
+    return new Set(
+      hooks.map(function (h) {
+        return h.id;
+      })
+    );
   var result = new Set();
   for (var i = 0; i < hooks.length; i++) {
     var hook = hooks[i];
-    if ((hook.fire_count + hook.listen_count) >= state.highTraffic.minConnections) {
+    if (hook.fire_count + hook.listen_count >= state.highTraffic.minConnections) {
       result.add(hook.id);
     }
   }
@@ -46,7 +61,11 @@ function intersectSets(sets) {
   var result = new Set(sets[0]);
   for (var i = 1; i < sets.length; i++) {
     var next = sets[i];
-    result = new Set([...result].filter(function(x) { return next.has(x); }));
+    result = new Set(
+      [...result].filter(function (x) {
+        return next.has(x);
+      })
+    );
   }
   return result;
 }
@@ -56,7 +75,7 @@ function filterEdgesByRepo(edges, fileNodes, visibleHookIds, state) {
   for (var i = 0; i < fileNodes.length; i++) {
     fileSourceMap[fileNodes[i].id] = fileNodes[i].source;
   }
-  return edges.filter(function(e) {
+  return edges.filter(function (e) {
     if (!visibleHookIds.has(e.target)) return false;
     var source = fileSourceMap[e.source];
     if (!source) return true;
@@ -112,27 +131,29 @@ function applyFilterPipeline(hooks, edges, fileNodes, state) {
   // Two-sided by default; raw orphans surface only when opted in.
   var hooksWithFire = new Set();
   var hooksWithListen = new Set();
-  visibleEdgeIndices.forEach(function(i) {
+  visibleEdgeIndices.forEach(function (i) {
     var e = edges[i];
     if (e.type === 'fires') hooksWithFire.add(e.target);
     else if (e.type === 'listens') hooksWithListen.add(e.target);
   });
-  visibleHookIds = new Set([...visibleHookIds].filter(function(id) {
-    var hook = hooksById[id];
-    var hasFire = hooksWithFire.has(id);
-    var hasListen = hooksWithListen.has(id);
-    if (hasFire && hasListen) return true;
-    if (hasFire && hook.listen_count === 0 && state.includeFireOnly) return true;
-    if (hasListen && hook.fire_count === 0 && state.includeListenOnly) return true;
-    return false;
-  }));
+  visibleHookIds = new Set(
+    [...visibleHookIds].filter(function (id) {
+      var hook = hooksById[id];
+      var hasFire = hooksWithFire.has(id);
+      var hasListen = hooksWithListen.has(id);
+      if (hasFire && hasListen) return true;
+      if (hasFire && hook.listen_count === 0 && state.includeFireOnly) return true;
+      if (hasListen && hook.fire_count === 0 && state.includeListenOnly) return true;
+      return false;
+    })
+  );
 
   // Drop edges whose target was pruned by the orphan rule above, and
   // materialise the parallel arrays consumers need.
   var visibleEdges = [];
   var finalEdgeIndices = new Set();
   var visibleFileIds = new Set();
-  visibleEdgeIndices.forEach(function(i) {
+  visibleEdgeIndices.forEach(function (i) {
     var e = edges[i];
     if (!visibleHookIds.has(e.target)) return;
     visibleEdges.push(e);
@@ -149,7 +170,13 @@ function applyFilterPipeline(hooks, edges, fileNodes, state) {
 }
 
 export {
-  filterByHookType, filterByDynamic, filterByOverlapping, filterByHighTraffic,
-  intersectSets, filterEdgesByRepo, filterEdgeIndicesByRepo,
-  deriveFileVisibility, applyFilterPipeline,
+  filterByHookType,
+  filterByDynamic,
+  filterByOverlapping,
+  filterByHighTraffic,
+  intersectSets,
+  filterEdgesByRepo,
+  filterEdgeIndicesByRepo,
+  deriveFileVisibility,
+  applyFilterPipeline,
 };

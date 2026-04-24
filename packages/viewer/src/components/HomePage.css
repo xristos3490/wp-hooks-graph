@@ -25,12 +25,21 @@
 }
 
 @keyframes hp-hero-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Logo sits inside EmptyState.Icon — keep it presentation-only. */
-.hp-hero .hg-logo__mark { width: 3rem; height: 3rem; }
+.hp-hero .hg-logo__mark {
+  width: 3rem;
+  height: 3rem;
+}
 
 /* Hint pill below the EmptyState — neutral chip on the neutral surface. */
 .hp-hint code {
@@ -54,4 +63,6 @@
   z-index: 2;
 }
 
-.home-page--loading { cursor: progress; }
+.home-page--loading {
+  cursor: progress;
+}

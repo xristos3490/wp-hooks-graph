@@ -10,7 +10,11 @@ export const description =
   'Pivot one or more hooks across codebases. Provide exactly one of `hook` (exact) or `substring` (case-insensitive contains). Returns matches[] with fires and listeners grouped across codebases, listeners sorted by priority ASC then codebase then file:line.';
 
 export const inputSchema = {
-  hook: z.string().min(1).optional().describe('Exact hook name. Mutually exclusive with substring.'),
+  hook: z
+    .string()
+    .min(1)
+    .optional()
+    .describe('Exact hook name. Mutually exclusive with substring.'),
   substring: z
     .string()
     .min(1)
@@ -52,9 +56,7 @@ export function handler(args, { registry, index }) {
     throw new Error("compare_hook: provide exactly one of 'hook' or 'substring'");
   }
 
-  const entries = codebases
-    ? codebases.map((id) => registry.resolve(id))
-    : registry.list();
+  const entries = codebases ? codebases.map((id) => registry.resolve(id)) : registry.list();
   const loaded = [];
   for (const entry of entries) {
     try {
