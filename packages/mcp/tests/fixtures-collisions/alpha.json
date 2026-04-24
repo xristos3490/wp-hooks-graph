@@ -1,0 +1,91 @@
+{
+  "metadata": {
+    "scanned_dirs": ["/fake/alpha"],
+    "source_labels": ["alpha"],
+    "total_files": 1,
+    "total_hooks": 3,
+    "dynamic_hooks": 0,
+    "scan_date": "2026-04-24T00:00:00+00:00"
+  },
+  "nodes": [
+    {
+      "id": "hook::init",
+      "type": "hook",
+      "hook_type": "action",
+      "name": "init",
+      "fire_count": 0,
+      "listen_count": 2,
+      "dynamic": false,
+      "sources": ["alpha"]
+    },
+    {
+      "id": "hook::the_content",
+      "type": "hook",
+      "hook_type": "filter",
+      "name": "the_content",
+      "fire_count": 0,
+      "listen_count": 1,
+      "dynamic": false,
+      "sources": ["alpha"]
+    },
+    {
+      "id": "hook::alpha_only",
+      "type": "hook",
+      "hook_type": "action",
+      "name": "alpha_only",
+      "fire_count": 0,
+      "listen_count": 1,
+      "dynamic": false,
+      "sources": ["alpha"]
+    },
+    {
+      "id": "file::alpha::plugin.php",
+      "type": "file",
+      "path": "plugin.php",
+      "source": "alpha",
+      "hook_count": 4
+    }
+  ],
+  "edges": [
+    {
+      "source": "file::alpha::plugin.php",
+      "target": "hook::init",
+      "type": "listens",
+      "line": 10,
+      "callback": "alpha_init_early",
+      "callback_method": "alpha_init_early",
+      "callback_type": "function",
+      "priority": 10
+    },
+    {
+      "source": "file::alpha::plugin.php",
+      "target": "hook::init",
+      "type": "listens",
+      "line": 20,
+      "callback": "alpha_init_late",
+      "callback_method": "alpha_init_late",
+      "callback_type": "function",
+      "priority": 20
+    },
+    {
+      "source": "file::alpha::plugin.php",
+      "target": "hook::the_content",
+      "type": "listens",
+      "line": 30,
+      "callback": "alpha_filter_content",
+      "callback_method": "alpha_filter_content",
+      "callback_type": "function",
+      "priority": 10
+    },
+    {
+      "source": "file::alpha::plugin.php",
+      "target": "hook::alpha_only",
+      "type": "listens",
+      "line": 40,
+      "callback": "alpha_only_listener",
+      "callback_method": "alpha_only_listener",
+      "callback_type": "function",
+      "priority": 10
+    }
+  ]
+}

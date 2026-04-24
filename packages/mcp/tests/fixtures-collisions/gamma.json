@@ -1,0 +1,34 @@
+{
+  "metadata": {
+    "scanned_dirs": ["/fake/gamma"],
+    "source_labels": ["gamma"],
+    "total_files": 1,
+    "total_hooks": 1,
+    "dynamic_hooks": 0,
+    "scan_date": "2026-04-24T00:00:00+00:00"
+  },
+  "nodes": [
+    {
+      "id": "hook::init",
+      "type": "hook",
+      "hook_type": "action",
+      "name": "init",
+      "fire_count": 0,
+      "listen_count": 1,
+      "dynamic": false,
+      "sources": ["gamma"]
+    }
+  ],
+  "edges": [
+    {
+      "source": "file::gamma::plugin.php",
+      "target": "hook::init",
+      "type": "listens",
+      "line": 42,
+      "callback": "gamma_init",
+      "callback_method": "gamma_init",
+      "callback_type": "function",
+      "priority": 10
+    }
+  ]
+}
