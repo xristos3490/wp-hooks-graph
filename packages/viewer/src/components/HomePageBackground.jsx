@@ -339,12 +339,10 @@ function isInsideBlocker(point, blocker) {
   );
 }
 
-let particleId = 0;
-
-function createParticle(routes) {
+function createParticle(routes, idRef) {
   if (!routes.length) return null;
 
-  const id = `particle-${particleId++}`;
+  const id = `particle-${idRef.current++}`;
 
   return {
     id,
@@ -507,9 +505,17 @@ function RouteLayer({ routes }) {
 function ParticleLayer({ routes, blocker, onAllStopped }) {
   const particlesRef = useRef([]);
   const blockerRef = useRef(blocker);
+  const routesRef = useRef(routes);
   const wasAllStoppedRef = useRef(false);
   const onAllStoppedRef = useRef(onAllStopped);
-  const [, render] = useState(0);
+  const particleIdRef = useRef(0);
+  const slotsRef = useRef(null);
+  if (slotsRef.current === null) {
+    slotsRef.current = Array.from(
+      { length: CONFIG.particles.maxActive },
+      () => ({ g: null, ellipse: null, circle: null })
+    );
+  }
 
   useEffect(() => {
     blockerRef.current = blocker;
@@ -520,14 +526,56 @@ function ParticleLayer({ routes, blocker, onAllStopped }) {
   }, [onAllStopped]);
 
   useEffect(() => {
+    routesRef.current = routes;
+  }, [routes]);
+
+  useEffect(() => {
     if (!routes.length) return undefined;
 
     particlesRef.current = Array.from(
       { length: Math.min(CONFIG.particles.initialCount, routes.length) },
-      () => createParticle(routes)
+      () => createParticle(routesRef.current, particleIdRef)
     ).filter(Boolean);
 
-    render((tick) => tick + 1);
+    const paint = () => {
+      const particles = particlesRef.current;
+      const currentRoutes = routesRef.current;
+      const slots = slotsRef.current;
+      for (let i = 0; i < slots.length; i += 1) {
+        const slot = slots[i];
+        if (!slot.g) continue;
+        const particle = particles[i];
+        if (!particle) {
+          slot.g.style.display = 'none';
+          continue;
+        }
+        const route = currentRoutes[particle.routeIndex];
+        if (!route || !route.points?.length) {
+          slot.g.style.display = 'none';
+          continue;
+        }
+        const point = samplePolyline(route.points, particle.progress);
+        const radius = particle.stopped
+          ? particle.radius + CONFIG.particles.stoppedRadiusBoost
+          : particle.radius;
+        const shadowY = point.y + CONFIG.routes.floorOffset;
+
+        slot.g.style.display = '';
+        if (slot.ellipse) {
+          slot.ellipse.setAttribute('cx', point.x);
+          slot.ellipse.setAttribute('cy', shadowY);
+          slot.ellipse.setAttribute('rx', radius * 1.2);
+          slot.ellipse.setAttribute('ry', radius * 0.6);
+        }
+        if (slot.circle) {
+          slot.circle.setAttribute('cx', point.x);
+          slot.circle.setAttribute('cy', point.y);
+          slot.circle.setAttribute('r', radius);
+        }
+      }
+    };
+
+    paint();
 
     let frameId = 0;
     let spawnAccumulator = 0;
@@ -537,11 +585,13 @@ function ParticleLayer({ routes, blocker, onAllStopped }) {
       const deltaSeconds = Math.min((now - lastTime) / 1000, 0.05);
       lastTime = now;
 
+      const currentRoutes = routesRef.current;
+
       particlesRef.current = particlesRef.current
         .map((particle) =>
           advanceParticle(
             particle,
-            routes,
+            currentRoutes,
             blockerRef.current,
             deltaSeconds
           )
@@ -555,7 +605,7 @@ function ParticleLayer({ routes, blocker, onAllStopped }) {
         particlesRef.current.length < CONFIG.particles.maxActive
       ) {
         spawnAccumulator -= 1;
-        const particle = createParticle(routes);
+        const particle = createParticle(currentRoutes, particleIdRef);
         if (particle) particlesRef.current.push(particle);
       }
 
@@ -570,9 +620,12 @@ function ParticleLayer({ routes, blocker, onAllStopped }) {
       if (allStopped !== wasAllStoppedRef.current) {
         wasAllStoppedRef.current = allStopped;
         onAllStoppedRef.current?.(allStopped);
+        // Clear the frozen swarm so the spawn loop starts producing again
+        // alongside the confetti burst.
+        if (allStopped) particlesRef.current = [];
       }
 
-      render((tick) => tick + 1);
+      paint();
       frameId = requestAnimationFrame(loop);
     };
 
@@ -583,48 +636,58 @@ function ParticleLayer({ routes, blocker, onAllStopped }) {
 
   if (!routes || !routes.length) return null;
 
+  // Fixed pool of slots — the RAF loop mutates attributes directly, so this
+  // JSX is rendered once and React never reconciles per-frame.
   return (
     <g>
-      {particlesRef.current.map((particle) => {
-        const route = routes[particle.routeIndex];
-        if (!route || !route.points?.length) return null;
-
-        const point = samplePolyline(route.points, particle.progress);
-        const radius = particle.stopped
-          ? particle.radius + CONFIG.particles.stoppedRadiusBoost
-          : particle.radius;
-
-        const shadowY = point.y + CONFIG.routes.floorOffset;
-
-        return (
-          <g key={particle.id}>
-            <ellipse
-              cx={point.x}
-              cy={shadowY}
-              rx={radius * 1.2}
-              ry={radius * 0.6}
-              fill="rgba(15,23,42,0.12)"
-            />
-            <circle
-              cx={point.x}
-              cy={point.y}
-              r={radius}
-              fill={CONFIG.colors.particle}
-            />
-          </g>
-        );
-      })}
+      {slotsRef.current.map((_, i) => (
+        <g
+          key={i}
+          ref={(el) => {
+            slotsRef.current[i].g = el;
+          }}
+          style={{ display: 'none' }}
+        >
+          <ellipse
+            ref={(el) => {
+              slotsRef.current[i].ellipse = el;
+            }}
+            fill="rgba(15,23,42,0.12)"
+          />
+          <circle
+            ref={(el) => {
+              slotsRef.current[i].circle = el;
+            }}
+            fill={CONFIG.colors.particle}
+          />
+        </g>
+      ))}
     </g>
   );
 }
 
-let confettiId = 0;
+// Pool sized to comfortably hold a couple of overlapping bursts; surplus
+// pieces from a third concurrent burst are dropped rather than allocated.
+const CONFETTI_POOL_SIZE = CONFIG.confetti.pieces * 3;
 
 function ConfettiLayer({ burst }) {
-  const piecesRef = useRef([]);
+  const piecesRef = useRef(null);
+  const slotsRef = useRef(null);
   const frameRef = useRef(0);
   const lastTimeRef = useRef(0);
-  const [, render] = useState(0);
+
+  if (piecesRef.current === null) {
+    piecesRef.current = Array.from(
+      { length: CONFETTI_POOL_SIZE },
+      () => ({ active: false })
+    );
+  }
+  if (slotsRef.current === null) {
+    slotsRef.current = Array.from(
+      { length: CONFETTI_POOL_SIZE },
+      () => ({ rect: null })
+    );
+  }
 
   // Stop the RAF loop when no pieces remain; restart when a new burst arrives.
   const ensureLoop = useCallback(() => {
@@ -636,27 +699,41 @@ function ConfettiLayer({ burst }) {
       lastTimeRef.current = now;
 
       const dragFactor = Math.exp(-CONFIG.confetti.drag * dt);
+      const pieces = piecesRef.current;
+      const slots = slotsRef.current;
+      let anyActive = false;
 
-      piecesRef.current = piecesRef.current
-        .map((piece) => {
-          const age = piece.age + dt;
-          if (age >= piece.life) return null;
+      for (let i = 0; i < pieces.length; i += 1) {
+        const piece = pieces[i];
+        if (!piece.active) continue;
 
-          return {
-            ...piece,
-            age,
-            x: piece.x + piece.vx * dt,
-            y: piece.y + piece.vy * dt,
-            vx: piece.vx * dragFactor,
-            vy: piece.vy * dragFactor + CONFIG.confetti.gravity * dt,
-            rotation: piece.rotation + piece.spin * dt,
-          };
-        })
-        .filter(Boolean);
+        piece.age += dt;
+        const rect = slots[i].rect;
 
-      render((tick) => tick + 1);
+        if (piece.age >= piece.life) {
+          piece.active = false;
+          if (rect) rect.style.display = 'none';
+          continue;
+        }
 
-      if (piecesRef.current.length > 0) {
+        anyActive = true;
+        piece.x += piece.vx * dt;
+        piece.y += piece.vy * dt;
+        piece.vx *= dragFactor;
+        piece.vy = piece.vy * dragFactor + CONFIG.confetti.gravity * dt;
+        piece.rotation += piece.spin * dt;
+
+        if (rect) {
+          const fade = 1 - piece.age / piece.life;
+          rect.setAttribute('opacity', Math.max(0, fade));
+          rect.setAttribute(
+            'transform',
+            `translate(${piece.x} ${piece.y}) rotate(${piece.rotation})`
+          );
+        }
+      }
+
+      if (anyActive) {
         frameRef.current = requestAnimationFrame(loop);
       } else {
         frameRef.current = 0;
@@ -672,30 +749,54 @@ function ConfettiLayer({ burst }) {
     const { pieces, angleJitter, speedMin, speedMax, upwardBias, spinMin,
       spinMax, lifeMin, lifeMax, sizeMin, sizeMax, palette } = CONFIG.confetti;
 
+    const pool = piecesRef.current;
+    const slots = slotsRef.current;
+    let inserted = 0;
+
     // Even angle distribution with small jitter — burst reads as an organized
     // starburst rather than a chaotic spray.
-    const fresh = [];
-    for (let i = 0; i < pieces; i += 1) {
-      const angle =
-        (i / pieces) * Math.PI * 2 + (Math.random() - 0.5) * angleJitter;
-      const speed = rand(speedMin, speedMax);
+    for (let s = 0; s < pool.length && inserted < pieces; s += 1) {
+      const piece = pool[s];
+      if (piece.active) continue;
 
-      fresh.push({
-        id: `confetti-${confettiId++}`,
-        x: burst.x,
-        y: burst.y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed - upwardBias,
-        rotation: Math.random() * 360,
-        spin: rand(spinMin, spinMax),
-        size: rand(sizeMin, sizeMax),
-        color: palette[i % palette.length],
-        age: 0,
-        life: rand(lifeMin, lifeMax),
-      });
+      const angle =
+        (inserted / pieces) * Math.PI * 2 +
+        (Math.random() - 0.5) * angleJitter;
+      const speed = rand(speedMin, speedMax);
+      const size = rand(sizeMin, sizeMax);
+      const color = palette[inserted % palette.length];
+      const rotation = Math.random() * 360;
+
+      piece.active = true;
+      piece.x = burst.x;
+      piece.y = burst.y;
+      piece.vx = Math.cos(angle) * speed;
+      piece.vy = Math.sin(angle) * speed - upwardBias;
+      piece.rotation = rotation;
+      piece.spin = rand(spinMin, spinMax);
+      piece.size = size;
+      piece.life = rand(lifeMin, lifeMax);
+      piece.age = 0;
+
+      const rect = slots[s].rect;
+      if (rect) {
+        const half = size / 2;
+        rect.setAttribute('x', -half);
+        rect.setAttribute('y', -half * 1.4);
+        rect.setAttribute('width', size);
+        rect.setAttribute('height', size * 1.4);
+        rect.setAttribute('fill', color);
+        rect.setAttribute('opacity', 1);
+        rect.setAttribute(
+          'transform',
+          `translate(${burst.x} ${burst.y}) rotate(${rotation})`
+        );
+        rect.style.display = '';
+      }
+
+      inserted += 1;
     }
 
-    piecesRef.current = piecesRef.current.concat(fresh);
     ensureLoop();
   }, [burst, ensureLoop]);
 
@@ -706,26 +807,19 @@ function ConfettiLayer({ burst }) {
     []
   );
 
-  if (!piecesRef.current.length) return null;
-
+  // Fixed pool of <rect>s — the RAF loop mutates attributes directly, so this
+  // JSX is rendered once and React never reconciles per-frame.
   return (
     <g>
-      {piecesRef.current.map((piece) => {
-        const fade = 1 - piece.age / piece.life;
-        const half = piece.size / 2;
-        return (
-          <rect
-            key={piece.id}
-            x={-half}
-            y={-half * 1.4}
-            width={piece.size}
-            height={piece.size * 1.4}
-            fill={piece.color}
-            opacity={Math.max(0, fade)}
-            transform={`translate(${piece.x} ${piece.y}) rotate(${piece.rotation})`}
-          />
-        );
-      })}
+      {slotsRef.current.map((_, i) => (
+        <rect
+          key={i}
+          ref={(el) => {
+            slotsRef.current[i].rect = el;
+          }}
+          style={{ display: 'none' }}
+        />
+      ))}
     </g>
   );
 }
