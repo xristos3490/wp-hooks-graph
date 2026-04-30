@@ -190,7 +190,7 @@ function chooseSparseNodes(tiles) {
   return selected;
 }
 
-function bfsPath(start, end, { preferStraight = 0 } = {}) {
+function bfsPath(start, end, { preferStraightTiebreak = 0 } = {}) {
   const startKey = keyOf(start);
   const endKey = keyOf(end);
 
@@ -210,12 +210,12 @@ function bfsPath(start, end, { preferStraight = 0 } = {}) {
     const prevDir = direction.get(currentKey);
     let neighbors = shuffle(getNeighbors(current));
 
-    if (prevDir && preferStraight > 0) {
+    if (prevDir && preferStraightTiebreak > 0) {
       neighbors.sort((a, b) => {
         const score = (tile) => {
           const dx = tile.x - current.x;
           const dy = tile.y - current.y;
-          return dx === prevDir.x && dy === prevDir.y ? -preferStraight : 0;
+          return dx === prevDir.x && dy === prevDir.y ? -preferStraightTiebreak : 0;
         };
         return score(a) - score(b);
       });
@@ -264,7 +264,7 @@ function createRoute(nodes, index) {
   );
 
   for (const end of candidates) {
-    const segment = bfsPath(start, end, { preferStraight: 0.85 });
+    const segment = bfsPath(start, end, { preferStraightTiebreak: 0.85 });
     if (segment && segment.length >= CONFIG.routes.minLength) {
       return {
         id: `route-${index}`,
@@ -354,17 +354,17 @@ function createParticle(routes, idRef) {
   };
 }
 
+// Mutates particle in place. Returns true if the particle should remain alive.
 function advanceParticle(particle, routes, blocker, deltaSeconds) {
   const route = routes[particle.routeIndex];
 
-  if (!route) {
-    return { ...particle, done: true };
-  }
+  if (!route) return false;
 
   const point = samplePolyline(route.points, particle.progress);
 
   if (isInsideBlocker(point, blocker)) {
-    return { ...particle, stopped: true };
+    particle.stopped = true;
+    return true;
   }
 
   const step = particle.stopped
@@ -373,20 +373,11 @@ function advanceParticle(particle, routes, blocker, deltaSeconds) {
 
   const progress = particle.progress + particle.speed * step * deltaSeconds;
 
-  if (progress >= 1) {
-    return {
-      ...particle,
-      progress: 1,
-      stopped: false,
-      done: true,
-    };
-  }
+  if (progress >= 1) return false;
 
-  return {
-    ...particle,
-    progress,
-    stopped: false,
-  };
+  particle.progress = progress;
+  particle.stopped = false;
+  return true;
 }
 
 const CubeTile = memo(function CubeTile({ tile, isBlue }) {
@@ -587,16 +578,22 @@ function ParticleLayer({ routes, blocker, onAllStopped }) {
 
       const currentRoutes = routesRef.current;
 
-      particlesRef.current = particlesRef.current
-        .map((particle) =>
-          advanceParticle(
-            particle,
-            currentRoutes,
-            blockerRef.current,
-            deltaSeconds
-          )
-        )
-        .filter((particle) => !particle.done);
+      const particles = particlesRef.current;
+      let writeIdx = 0;
+      for (let i = 0; i < particles.length; i += 1) {
+        const particle = particles[i];
+        const alive = advanceParticle(
+          particle,
+          currentRoutes,
+          blockerRef.current,
+          deltaSeconds
+        );
+        if (alive) {
+          if (writeIdx !== i) particles[writeIdx] = particle;
+          writeIdx += 1;
+        }
+      }
+      particles.length = writeIdx;
 
       spawnAccumulator += deltaSeconds * CONFIG.particles.spawnRatePerSecond;
 
@@ -880,19 +877,28 @@ export default function HomePageBackground() {
   }, []);
 
   useEffect(() => {
-    function onMove(event) {
+    const latest = { x: 0, y: 0, valid: false };
+    let frame = 0;
+
+    function flush() {
+      frame = 0;
       const svg = svgRef.current;
       const stage = stageRef.current;
       if (!svg || !stage) return;
 
+      if (!latest.valid) {
+        if (pointerRef.current !== null) setPointer(null);
+        return;
+      }
+
       const rect = svg.getBoundingClientRect();
       if (
-        event.clientX < rect.left ||
-        event.clientX > rect.right ||
-        event.clientY < rect.top ||
-        event.clientY > rect.bottom
+        latest.x < rect.left ||
+        latest.x > rect.right ||
+        latest.y < rect.top ||
+        latest.y > rect.bottom
       ) {
-        setPointer(null);
+        if (pointerRef.current !== null) setPointer(null);
         return;
       }
 
@@ -900,8 +906,8 @@ export default function HomePageBackground() {
       if (!matrix) return;
 
       const point = svg.createSVGPoint();
-      point.x = event.clientX;
-      point.y = event.clientY;
+      point.x = latest.x;
+      point.y = latest.y;
       const projected = point.matrixTransform(matrix.inverse());
 
       setPointer({
@@ -912,8 +918,21 @@ export default function HomePageBackground() {
       });
     }
 
+    function schedule() {
+      if (frame) return;
+      frame = requestAnimationFrame(flush);
+    }
+
+    function onMove(event) {
+      latest.x = event.clientX;
+      latest.y = event.clientY;
+      latest.valid = true;
+      schedule();
+    }
+
     function onLeave() {
-      setPointer(null);
+      latest.valid = false;
+      schedule();
     }
 
     window.addEventListener('pointermove', onMove);
@@ -921,6 +940,7 @@ export default function HomePageBackground() {
     return () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerleave', onLeave);
+      if (frame) cancelAnimationFrame(frame);
     };
   }, []);
 
