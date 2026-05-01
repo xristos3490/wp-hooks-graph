@@ -48,6 +48,7 @@ export default function PluginsView() {
 				author: plugin.author,
 				description: plugin.description,
 				requires_php: plugin.requires_php,
+				abspath: plugin.abspath,
 			} ) ),
 		[ plugins ]
 	);

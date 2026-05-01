@@ -21,7 +21,9 @@ define( 'HOOKSGRAPH_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'HOOKSGRAPH_ADMIN_PAGE_SLUG', 'hooksgraph' );
 
 require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-admin-page.php';
+require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-rest-fields.php';
 
 add_action( 'plugins_loaded', static function (): void {
 	( new \HooksGraph\Plugin\Admin_Page() )->register();
+	( new \HooksGraph\Plugin\Rest_Fields() )->register();
 } );
