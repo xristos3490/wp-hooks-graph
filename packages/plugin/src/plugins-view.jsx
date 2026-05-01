@@ -3,7 +3,7 @@ import { Spinner } from '@wordpress/components';
 import { DataViews, filterSortAndPaginate } from '@wordpress/dataviews';
 import { useCallback, useEffect, useMemo, useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
-import { Notice, Stack } from '@wordpress/ui';
+import { Notice, Stack, Tabs } from '@wordpress/ui';
 
 import { defaultView, fields } from './fields';
 import ScheduleParseModal from './schedule-parse-modal';
@@ -52,6 +52,8 @@ export default function PluginsView() {
 	const [ scheduleTarget, setScheduleTarget ] = useState( null );
 	const [ scheduleSubmitting, setScheduleSubmitting ] = useState( false );
 	const [ scheduleError, setScheduleError ] = useState( null );
+
+	const [ tab, setTab ] = useState( 'dashboard' );
 
 	const loadAll = useCallback( ( { silent = false } = {} ) => {
 		if ( ! silent ) {
@@ -253,6 +255,8 @@ export default function PluginsView() {
 		);
 	}
 
+	const isActivePlugins = tab === 'active-plugins';
+
 	return (
 		<>
 			<DataViews
@@ -265,7 +269,49 @@ export default function PluginsView() {
 				getItemId={ ( item ) => item.id }
 				actions={ actions }
 				isLoading={ status !== 'ready' }
-			/>
+			>
+				<Stack
+					className="hooksgraph-plugins__view-actions"
+					direction="row"
+					justify="space-between"
+					align="center"
+					gap="sm"
+				>
+					<Tabs.Root value={ tab } onValueChange={ setTab }>
+						<Tabs.List variant="minimal">
+							<Tabs.Tab value="dashboard">
+								{ __( 'Dashboard', 'hooksgraph' ) }
+							</Tabs.Tab>
+							<Tabs.Tab value="active-plugins">
+								{ __( 'Active plugins', 'hooksgraph' ) }
+							</Tabs.Tab>
+						</Tabs.List>
+					</Tabs.Root>
+					{ isActivePlugins && (
+						<Stack
+							direction="row"
+							align="center"
+							gap="xs"
+							style={ { flexShrink: 0 } }
+						>
+							<DataViews.Search />
+							<DataViews.FiltersToggle />
+							<DataViews.ViewConfig />
+						</Stack>
+					) }
+				</Stack>
+				{ isActivePlugins ? (
+					<>
+						<DataViews.FiltersToggled className="dataviews-filters__container" />
+						<DataViews.Layout />
+						<DataViews.Footer />
+					</>
+				) : (
+					<h1 className="hooksgraph-plugins__dashboard">
+						{ __( 'Dashboard', 'hooksgraph' ) }
+					</h1>
+				) }
+			</DataViews>
 			{ scheduleTarget && (
 				<ScheduleParseModal
 					plugin={ scheduleTarget }
