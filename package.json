@@ -10,7 +10,7 @@
     "build": "composer install && pnpm build:cli",
     "build:viewer": "pnpm -F viewer build",
     "build:cli": "node scripts/build-cli.js",
-    "build:plugin": "bash scripts/build-plugin.sh",
+    "build:plugin": "pnpm -F @hooksgraph/plugin build",
     "mcp": "node packages/mcp/bin/hooksgraph-mcp.js",
     "test": "pnpm test:php && pnpm test:js",
     "test:php": "vendor/bin/phpunit",
