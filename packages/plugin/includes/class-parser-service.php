@@ -24,17 +24,18 @@ final class Parser_Service {
 	/**
 	 * Parse a plugin's source tree and persist the JSON.
 	 *
-	 * @param string $plugin_relative Plugin path as stored by core (`akismet/akismet`, `hello`).
-	 * @param string $version         Plugin header version, used in the output filename.
+	 * @param string       $plugin_relative  Plugin path as stored by core (`akismet/akismet`, `hello`).
+	 * @param string       $version          Plugin header version, used in the output filename.
+	 * @param list<string> $exclude_patterns Folder/file substrings or path segments to skip.
 	 *
 	 * @return array{ok: bool, path?: string, error?: string}
 	 */
-	public function parse( string $plugin_relative, string $version ): array {
+	public function parse( string $plugin_relative, string $version, array $exclude_patterns = [] ): array {
 		if ( ! $this->storage->ensure_dir() ) {
 			return [ 'ok' => false, 'error' => 'Could not create storage directory.' ];
 		}
 
-		[ $dirs, $files, $label ] = $this->resolve_targets( $plugin_relative );
+		[ $dirs, $files, $label ] = $this->resolve_targets( $plugin_relative, $exclude_patterns );
 		if ( $files === [] ) {
 			return [ 'ok' => false, 'error' => 'No PHP files found for this plugin.' ];
 		}
@@ -64,9 +65,10 @@ final class Parser_Service {
 	}
 
 	/**
+	 * @param list<string> $exclude_patterns
 	 * @return array{0: list<string>, 1: list<string>, 2: string} [$dirs, $files, $label]
 	 */
-	private function resolve_targets( string $plugin_relative ): array {
+	private function resolve_targets( string $plugin_relative, array $exclude_patterns ): array {
 		if ( str_contains( $plugin_relative, '/' ) ) {
 			$plugin_dir = trailingslashit( WP_PLUGIN_DIR ) . dirname( $plugin_relative );
 			if ( ! is_dir( $plugin_dir ) ) {
@@ -74,7 +76,7 @@ final class Parser_Service {
 			}
 
 			$label = basename( $plugin_dir );
-			$files = PhpFileFinder::find( $plugin_dir, [] );
+			$files = PhpFileFinder::find( $plugin_dir, $exclude_patterns );
 			return [ [ $plugin_dir ], array_values( $files ), $label ];
 		}
 

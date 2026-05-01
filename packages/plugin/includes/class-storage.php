@@ -20,6 +20,8 @@ final class Storage {
 	public const STATUS_STALE         = 'stale';
 	public const STATUS_NEEDS_PARSING = 'needs_parsing';
 
+	private const SETTINGS_OPTION = 'hooksgraph_plugin_settings';
+
 	public function dir(): string {
 		return trailingslashit( WP_CONTENT_DIR ) . 'hooksgraph';
 	}
@@ -71,6 +73,55 @@ final class Storage {
 		$basename = sanitize_file_name( basename( $plugin_relative ) );
 		$matches  = glob( $this->dir() . '/' . $basename . '-*.json' ) ?: [];
 		return $matches ? self::STATUS_STALE : self::STATUS_NEEDS_PARSING;
+	}
+
+	/**
+	 * Latest mtime among any `<basename>-*.json` files, or null when nothing
+	 * has been parsed yet. Returned as a Unix timestamp.
+	 */
+	public function last_parsed_at( string $plugin_relative ): ?int {
+		$basename = sanitize_file_name( basename( $plugin_relative ) );
+		$matches  = glob( $this->dir() . '/' . $basename . '-*.json' ) ?: [];
+		$latest   = null;
+		foreach ( $matches as $file ) {
+			$mtime = @filemtime( $file );
+			if ( false === $mtime ) {
+				continue;
+			}
+			if ( null === $latest || $mtime > $latest ) {
+				$latest = $mtime;
+			}
+		}
+		return $latest;
+	}
+
+	/**
+	 * Per-plugin settings (currently just exclude patterns) persisted in
+	 * a single option so the UI can pre-fill the schedule modal.
+	 *
+	 * @return array{exclude: list<string>}
+	 */
+	public function get_settings( string $plugin_relative ): array {
+		$all     = get_option( self::SETTINGS_OPTION, [] );
+		$entry   = is_array( $all ) && isset( $all[ $plugin_relative ] ) && is_array( $all[ $plugin_relative ] )
+			? $all[ $plugin_relative ]
+			: [];
+		$exclude = isset( $entry['exclude'] ) && is_array( $entry['exclude'] )
+			? array_values( array_filter( array_map( 'strval', $entry['exclude'] ) ) )
+			: [];
+		return [ 'exclude' => $exclude ];
+	}
+
+	/**
+	 * @param list<string> $exclude
+	 */
+	public function save_settings( string $plugin_relative, array $exclude ): void {
+		$all = get_option( self::SETTINGS_OPTION, [] );
+		if ( ! is_array( $all ) ) {
+			$all = [];
+		}
+		$all[ $plugin_relative ] = [ 'exclude' => array_values( $exclude ) ];
+		update_option( self::SETTINGS_OPTION, $all, false );
 	}
 
 	/**

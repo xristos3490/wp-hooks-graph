@@ -16,7 +16,10 @@ final class Cron {
 
 	public const HOOK = 'hooksgraph_parse_plugin';
 
-	public function __construct( private Parser_Service $parser ) {}
+	public function __construct(
+		private Parser_Service $parser,
+		private Storage $storage
+	) {}
 
 	public function register(): void {
 		add_action( self::HOOK, [ $this, 'run' ], 10, 1 );
@@ -55,7 +58,8 @@ final class Cron {
 			return;
 		}
 
-		$version = (string) ( $plugins[ $key ]['Version'] ?? '' );
-		$this->parser->parse( $plugin_relative, $version );
+		$version  = (string) ( $plugins[ $key ]['Version'] ?? '' );
+		$settings = $this->storage->get_settings( $plugin_relative );
+		$this->parser->parse( $plugin_relative, $version, $settings['exclude'] );
 	}
 }

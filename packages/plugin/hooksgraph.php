@@ -44,7 +44,7 @@ require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-rest-controller.php';
 add_action( 'plugins_loaded', static function (): void {
 	$storage = new \HooksGraph\Plugin\Storage();
 	$parser  = new \HooksGraph\Plugin\Parser_Service( $storage );
-	$cron    = new \HooksGraph\Plugin\Cron( $parser );
+	$cron    = new \HooksGraph\Plugin\Cron( $parser, $storage );
 
 	( new \HooksGraph\Plugin\Admin_Page() )->register();
 	( new \HooksGraph\Plugin\Rest_Controller( $storage, $cron ) )->register();

@@ -52,15 +52,49 @@ final class Rest_Controller {
 				'methods'             => WP_REST_Server::CREATABLE,
 				'permission_callback' => $auth,
 				'args'                => [
-					'plugin' => [
+					'plugin'  => [
 						'required'          => true,
 						'type'              => 'string',
 						'sanitize_callback' => [ $this, 'sanitize_plugin' ],
+					],
+					'exclude' => [
+						'required'          => false,
+						'type'              => 'array',
+						'default'           => [],
+						'items'             => [ 'type' => 'string' ],
+						'sanitize_callback' => [ $this, 'sanitize_exclude' ],
 					],
 				],
 				'callback'            => [ $this, 'schedule_parse' ],
 			]
 		);
+	}
+
+	/**
+	 * Normalize the exclude list: trim each entry, drop blanks, cap length.
+	 *
+	 * @param mixed $value
+	 * @return list<string>
+	 */
+	public function sanitize_exclude( $value ): array {
+		if ( is_string( $value ) ) {
+			$value = explode( ',', $value );
+		}
+		if ( ! is_array( $value ) ) {
+			return [];
+		}
+		$out = [];
+		foreach ( $value as $item ) {
+			if ( ! is_string( $item ) ) {
+				continue;
+			}
+			$item = trim( $item );
+			if ( '' === $item ) {
+				continue;
+			}
+			$out[] = mb_substr( $item, 0, 255 );
+		}
+		return array_values( array_unique( $out ) );
 	}
 
 	public function sanitize_plugin( $value ): string {
@@ -75,7 +109,8 @@ final class Rest_Controller {
 	}
 
 	/**
-	 * Return a `{ "<plugin-key>": "<status>" }` map for every active plugin.
+	 * Return a `{ "<plugin-key>": { status, last_parsed_at, exclude } }` map
+	 * for every active plugin.
 	 *
 	 * Status values: parsed | stale | needs_parsing | scheduled.
 	 */
@@ -97,9 +132,18 @@ final class Rest_Controller {
 			$key     = substr( $file, 0, -4 );
 			$version = (string) ( $all[ $file ]['Version'] ?? '' );
 
-			$map[ $key ] = $this->cron->is_scheduled( $key )
+			$status = $this->cron->is_scheduled( $key )
 				? 'scheduled'
 				: $this->storage->status_for( $key, $version );
+
+			$last     = $this->storage->last_parsed_at( $key );
+			$settings = $this->storage->get_settings( $key );
+
+			$map[ $key ] = [
+				'status'         => $status,
+				'last_parsed_at' => null !== $last ? gmdate( 'c', $last ) : null,
+				'exclude'        => $settings['exclude'],
+			];
 		}
 
 		return new WP_REST_Response( $map, 200 );
@@ -120,12 +164,16 @@ final class Rest_Controller {
 			return new WP_Error( 'hooksgraph_unknown_plugin', __( 'Plugin not installed.', 'hooksgraph' ), [ 'status' => 404 ] );
 		}
 
+		$exclude = (array) $request->get_param( 'exclude' );
+		$this->storage->save_settings( $plugin, $exclude );
+
 		$scheduled = $this->cron->schedule( $plugin );
 		return new WP_REST_Response(
 			[
 				'plugin'    => $plugin,
 				'scheduled' => true, // Either we just queued it or one was already pending.
 				'newly'     => $scheduled,
+				'exclude'   => $exclude,
 			],
 			202
 		);

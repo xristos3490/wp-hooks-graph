@@ -6,10 +6,13 @@ import { __ } from '@wordpress/i18n';
 import { Notice, Stack } from '@wordpress/ui';
 
 import { defaultView, fields } from './fields';
+import ScheduleParseModal from './schedule-parse-modal';
 
 const PLUGINS_PATH = '/wp/v2/plugins?context=view&per_page=100';
 const STATUS_PATH = '/hooksgraph/v1/parse-status';
 const PARSE_PATH = '/hooksgraph/v1/parse-plugin';
+
+const emptyStatus = { status: null, last_parsed_at: null, exclude: [] };
 
 export default function PluginsView() {
 	const [ plugins, setPlugins ] = useState( [] );
@@ -17,6 +20,10 @@ export default function PluginsView() {
 	const [ status, setStatus ] = useState( 'loading' );
 	const [ error, setError ] = useState( null );
 	const [ view, setView ] = useState( defaultView );
+
+	const [ scheduleTarget, setScheduleTarget ] = useState( null );
+	const [ scheduleSubmitting, setScheduleSubmitting ] = useState( false );
+	const [ scheduleError, setScheduleError ] = useState( null );
 
 	const loadAll = useCallback( ( { silent = false } = {} ) => {
 		if ( ! silent ) {
@@ -49,21 +56,59 @@ export default function PluginsView() {
 
 	const data = useMemo(
 		() =>
-			plugins.map( ( plugin ) => ( {
-				id: plugin.plugin,
-				name: plugin.name,
-				version: plugin.version,
-				author: plugin.author,
-				description: plugin.description,
-				requires_php: plugin.requires_php,
-				parse_status: statusMap[ plugin.plugin ] ?? null,
-			} ) ),
+			plugins.map( ( plugin ) => {
+				const entry = statusMap[ plugin.plugin ] ?? emptyStatus;
+				return {
+					id: plugin.plugin,
+					name: plugin.name,
+					version: plugin.version,
+					author: plugin.author,
+					description: plugin.description,
+					requires_php: plugin.requires_php,
+					parse_status: entry.status,
+					last_parsed_at: entry.last_parsed_at,
+					exclude: entry.exclude ?? [],
+				};
+			} ),
 		[ plugins, statusMap ]
 	);
 
 	const { data: rows, paginationInfo } = useMemo(
 		() => filterSortAndPaginate( data, view, fields ),
 		[ data, view ]
+	);
+
+	const closeSchedule = useCallback( () => {
+		setScheduleTarget( null );
+		setScheduleError( null );
+		setScheduleSubmitting( false );
+	}, [] );
+
+	const submitSchedule = useCallback(
+		async ( exclude ) => {
+			if ( ! scheduleTarget ) return;
+			setScheduleSubmitting( true );
+			setScheduleError( null );
+			try {
+				await apiFetch( {
+					path: PARSE_PATH,
+					method: 'POST',
+					data: { plugin: scheduleTarget.id, exclude },
+				} );
+				closeSchedule();
+				loadAll( { silent: true } );
+			} catch ( err ) {
+				setScheduleError(
+					err?.message ??
+						__(
+							'Could not schedule the parse. Please try again.',
+							'hooksgraph'
+						)
+				);
+				setScheduleSubmitting( false );
+			}
+		},
+		[ scheduleTarget, closeSchedule, loadAll ]
 	);
 
 	const actions = useMemo(
@@ -74,27 +119,15 @@ export default function PluginsView() {
 				isPrimary: true,
 				supportsBulk: false,
 				isEligible: ( item ) => item.parse_status !== 'scheduled',
-				callback: async ( items ) => {
+				callback: ( items ) => {
 					const item = items[ 0 ];
 					if ( ! item ) return;
-					try {
-						await apiFetch( {
-							path: PARSE_PATH,
-							method: 'POST',
-							data: { plugin: item.id },
-						} );
-						loadAll( { silent: true } );
-					} catch ( err ) {
-						// eslint-disable-next-line no-console
-						console.error(
-							'[hooksgraph] schedule failed',
-							err
-						);
-					}
+					setScheduleError( null );
+					setScheduleTarget( item );
 				},
 			},
 		],
-		[ loadAll ]
+		[]
 	);
 
 	if ( status === 'loading' ) {
@@ -117,16 +150,27 @@ export default function PluginsView() {
 	}
 
 	return (
-		<DataViews
-			data={ rows }
-			fields={ fields }
-			view={ view }
-			onChangeView={ setView }
-			paginationInfo={ paginationInfo }
-			defaultLayouts={ { table: {} } }
-			getItemId={ ( item ) => item.id }
-			actions={ actions }
-			isLoading={ status !== 'ready' }
-		/>
+		<>
+			<DataViews
+				data={ rows }
+				fields={ fields }
+				view={ view }
+				onChangeView={ setView }
+				paginationInfo={ paginationInfo }
+				defaultLayouts={ { table: {} } }
+				getItemId={ ( item ) => item.id }
+				actions={ actions }
+				isLoading={ status !== 'ready' }
+			/>
+			{ scheduleTarget && (
+				<ScheduleParseModal
+					plugin={ scheduleTarget }
+					isSubmitting={ scheduleSubmitting }
+					error={ scheduleError }
+					onSubmit={ submitSchedule }
+					onClose={ closeSchedule }
+				/>
+			) }
+		</>
 	);
 }

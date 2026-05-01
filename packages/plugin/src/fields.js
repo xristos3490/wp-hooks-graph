@@ -41,6 +41,7 @@ export const fields = [
 			value,
 			label,
 		} ) ),
+		getValue: ( { item } ) => item.parse_status ?? '',
 		render: ( { item } ) => {
 			const status = item.parse_status;
 			if ( ! status ) {
