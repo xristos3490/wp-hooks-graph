@@ -20,7 +20,7 @@ describe('index.get', () => {
 
     expect(built.id).toBe('alpha');
     expect(built.meta.source_labels).toEqual(['alpha']);
-    expect(built.nodes.size).toBe(7);
+    expect(built.nodes.size).toBe(8);
 
     expect(built.hookByName.has('init')).toBe(true);
     expect(built.hookByName.get('init').hook_type).toBe('action');
@@ -32,7 +32,7 @@ describe('index.get', () => {
     expect(built.firesByHook.get('hook::init')).toHaveLength(1);
     expect(built.firesByHook.get('hook::the_content')).toHaveLength(1);
 
-    expect(built.edgesByFile.get('file::alpha::plugin.php')).toHaveLength(4);
+    expect(built.edgesByFile.get('file::alpha::plugin.php')).toHaveLength(5);
 
     expect(built.allEdges.length).toBeGreaterThan(0);
   });

@@ -5,7 +5,7 @@ import { makeCtx } from './helpers.js';
 describe('hooks_in_file', () => {
   test('lists every hook edge in a file with edge_type and optional listen fields', () => {
     const result = tool.handler({ file_path: 'plugin.php', codebase: 'alpha' }, makeCtx());
-    expect(result.total).toBe(4);
+    expect(result.total).toBe(5);
     const byHook = Object.fromEntries(result.results.map((r) => [`${r.hook}@${r.line}`, r]));
     expect(byHook['init@20']).toEqual({
       hook: 'init',

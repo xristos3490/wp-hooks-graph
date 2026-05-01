@@ -12,6 +12,7 @@ import * as searchCallbacks from './tools/search_callbacks.js';
 import * as hotspots from './tools/hotspots.js';
 import * as sharedHooks from './tools/shared_hooks.js';
 import * as compareHook from './tools/compare_hook.js';
+import * as filterPriorityConflicts from './tools/filter_priority_conflicts.js';
 
 const TOOLS = [
   listCodebases,
@@ -23,6 +24,7 @@ const TOOLS = [
   hotspots,
   sharedHooks,
   compareHook,
+  filterPriorityConflicts,
 ];
 
 function toolErrorResult(err) {

@@ -3,7 +3,7 @@
     "scanned_dirs": ["/fake/beta"],
     "source_labels": ["beta"],
     "total_files": 2,
-    "total_hooks": 2,
+    "total_hooks": 3,
     "dynamic_hooks": 0,
     "scan_date": "2026-04-21T00:00:00+00:00"
   },
@@ -29,11 +29,21 @@
       "sources": ["beta"]
     },
     {
+      "id": "hook::wp_query_vars",
+      "type": "hook",
+      "hook_type": "filter",
+      "name": "wp_query_vars",
+      "fire_count": 0,
+      "listen_count": 1,
+      "dynamic": false,
+      "sources": ["beta"]
+    },
+    {
       "id": "file::beta::main.php",
       "type": "file",
       "path": "main.php",
       "source": "beta",
-      "hook_count": 2
+      "hook_count": 3
     },
     {
       "id": "file::beta::lib/helpers.php",
@@ -60,6 +70,17 @@
       "type": "fires",
       "line": 30,
       "scope_function": "beta_render"
+    },
+    {
+      "source": "file::beta::main.php",
+      "target": "hook::wp_query_vars",
+      "type": "listens",
+      "line": 45,
+      "callback": "beta_query_vars",
+      "callback_method": "beta_query_vars",
+      "callback_type": "function",
+      "priority": 10,
+      "scope_function": "beta_boot"
     }
   ]
 }

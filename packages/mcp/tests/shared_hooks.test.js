@@ -6,7 +6,7 @@ import { makeCtx } from './helpers.js';
 describe('shared_hooks', () => {
   test('defaults return hooks present in 2+ codebases, sorted by source_count desc', () => {
     const result = tool.handler({}, makeCtx());
-    expect(result.total).toBe(2);
+    expect(result.total).toBe(3);
     expect(result.has_more).toBe(false);
     const [first, second] = result.results;
     expect(first.hook).toBe('init');

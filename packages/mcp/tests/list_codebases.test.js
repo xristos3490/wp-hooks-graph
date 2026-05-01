@@ -10,7 +10,7 @@ describe('list_codebases', () => {
     const alpha = result.find((r) => r.id === 'alpha');
     expect(alpha.source_labels).toEqual(['alpha']);
     expect(alpha.total_files).toBe(3);
-    expect(alpha.total_hooks).toBe(4);
+    expect(alpha.total_hooks).toBe(5);
     expect(alpha.dynamic_hooks).toBe(1);
     expect(alpha.scan_date).toBe('2026-04-21T00:00:00+00:00');
     expect(alpha.path.endsWith('alpha.json')).toBe(true);

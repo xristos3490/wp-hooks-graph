@@ -3,7 +3,7 @@
     "scanned_dirs": ["/fake/alpha"],
     "source_labels": ["alpha"],
     "total_files": 3,
-    "total_hooks": 4,
+    "total_hooks": 5,
     "dynamic_hooks": 1,
     "scan_date": "2026-04-21T00:00:00+00:00"
   },
@@ -49,6 +49,16 @@
       "sources": ["alpha"]
     },
     {
+      "id": "hook::wp_query_vars",
+      "type": "hook",
+      "hook_type": "filter",
+      "name": "wp_query_vars",
+      "fire_count": 0,
+      "listen_count": 1,
+      "dynamic": false,
+      "sources": ["alpha"]
+    },
+    {
       "id": "file::alpha::core.php",
       "type": "file",
       "path": "core.php",
@@ -60,7 +70,7 @@
       "type": "file",
       "path": "plugin.php",
       "source": "alpha",
-      "hook_count": 2
+      "hook_count": 3
     },
     {
       "id": "file::alpha::extras.php",
@@ -143,6 +153,17 @@
       "type": "fires",
       "line": 80,
       "scope_function": "shared_trigger"
+    },
+    {
+      "source": "file::alpha::plugin.php",
+      "target": "hook::wp_query_vars",
+      "type": "listens",
+      "line": 90,
+      "callback": "alpha_query_vars",
+      "callback_method": "alpha_query_vars",
+      "callback_type": "function",
+      "priority": 10,
+      "scope_function": "alpha_boot"
     }
   ]
 }
