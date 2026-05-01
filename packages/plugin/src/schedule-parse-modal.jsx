@@ -111,7 +111,7 @@ export default function ScheduleParseModal( {
 	return (
 		<Modal
 			title={ title }
-			size="small"
+			size="medium"
 			onRequestClose={ onClose }
 			shouldCloseOnClickOutside={ ! isSubmitting }
 			shouldCloseOnEsc={ ! isSubmitting }

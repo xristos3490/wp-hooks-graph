@@ -173,7 +173,6 @@ final class Storage {
 			'version'       => $version,
 			'file'          => $filename,
 			'parsed_at'     => time(),
-			'scan_date'     => isset( $metadata['scan_date'] ) ? (string) $metadata['scan_date'] : '',
 			'source_labels' => $source_labels,
 			'total_files'   => isset( $metadata['total_files'] ) ? (int) $metadata['total_files'] : 0,
 			'total_hooks'   => isset( $metadata['total_hooks'] ) ? (int) $metadata['total_hooks'] : 0,
