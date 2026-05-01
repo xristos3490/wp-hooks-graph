@@ -1,0 +1,22 @@
+{
+	"name": "hooksgraph/plugin",
+	"description": "HooksGraph WordPress plugin runtime.",
+	"type": "wordpress-plugin",
+	"license": "MIT",
+	"require": {
+		"php": ">=8.2",
+		"hooksgraph/hooks-parser": "*"
+	},
+	"repositories": [
+		{
+			"type": "path",
+			"url": "../parser"
+		}
+	],
+	"config": {
+		"sort-packages": true,
+		"allow-plugins": {
+			"composer/installers": true
+		}
+	}
+}

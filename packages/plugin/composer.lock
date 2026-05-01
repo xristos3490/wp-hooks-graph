@@ -1,0 +1,46 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
+        "This file is @generated automatically"
+    ],
+    "content-hash": "106f3354076babcc3470e5fcba19fd20",
+    "packages": [
+        {
+            "name": "hooksgraph/hooks-parser",
+            "version": "1.0.0",
+            "dist": {
+                "type": "path",
+                "url": "../parser",
+                "reference": "aa50f043369e8dc30471ee30160f8c0078775cb9"
+            },
+            "require": {
+                "php": ">=8.2"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "HooksGraph\\": "src/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "Parse WordPress PHP codebases for hook relationships (do_action/add_action/apply_filters/add_filter).",
+            "transport-options": {
+                "relative": true
+            }
+        }
+    ],
+    "packages-dev": [],
+    "aliases": [],
+    "minimum-stability": "stable",
+    "stability-flags": {},
+    "prefer-stable": false,
+    "prefer-lowest": false,
+    "platform": {
+        "php": ">=8.2"
+    },
+    "platform-dev": {},
+    "plugin-api-version": "2.9.0"
+}

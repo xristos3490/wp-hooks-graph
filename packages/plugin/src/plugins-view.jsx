@@ -1,11 +1,14 @@
 import apiFetch from '@wordpress/api-fetch';
 import { Spinner } from '@wordpress/components';
 import { DataViews, filterSortAndPaginate } from '@wordpress/dataviews';
-import { useEffect, useMemo, useState } from '@wordpress/element';
+import { useCallback, useEffect, useMemo, useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import { Notice, Stack } from '@wordpress/ui';
 
 import { defaultView, fields } from './fields';
+
+const PLUGINS_PATH = '/wp/v2/plugins?context=view&per_page=100';
+const PARSE_PATH = '/hooksgraph/v1/parse-plugin';
 
 export default function PluginsView() {
 	const [ plugins, setPlugins ] = useState( [] );
@@ -13,12 +16,12 @@ export default function PluginsView() {
 	const [ error, setError ] = useState( null );
 	const [ view, setView ] = useState( defaultView );
 
-	useEffect( () => {
-		let cancelled = false;
-
-		apiFetch( { path: '/wp/v2/plugins?context=view&per_page=100' } )
+	const loadPlugins = useCallback( ( { silent = false } = {} ) => {
+		if ( ! silent ) {
+			setStatus( 'loading' );
+		}
+		return apiFetch( { path: PLUGINS_PATH } )
 			.then( ( response ) => {
-				if ( cancelled ) return;
 				const active = ( response ?? [] ).filter(
 					( plugin ) => plugin.status === 'active'
 				);
@@ -26,18 +29,17 @@ export default function PluginsView() {
 				setStatus( 'ready' );
 			} )
 			.catch( ( err ) => {
-				if ( cancelled ) return;
 				setError(
 					err?.message ??
 						__( 'Failed to load plugins.', 'hooksgraph' )
 				);
 				setStatus( 'error' );
 			} );
-
-		return () => {
-			cancelled = true;
-		};
 	}, [] );
+
+	useEffect( () => {
+		loadPlugins();
+	}, [ loadPlugins ] );
 
 	const data = useMemo(
 		() =>
@@ -49,6 +51,7 @@ export default function PluginsView() {
 				description: plugin.description,
 				requires_php: plugin.requires_php,
 				abspath: plugin.abspath,
+				parse_status: plugin.parse_status,
 			} ) ),
 		[ plugins ]
 	);
@@ -56,6 +59,37 @@ export default function PluginsView() {
 	const { data: rows, paginationInfo } = useMemo(
 		() => filterSortAndPaginate( data, view, fields ),
 		[ data, view ]
+	);
+
+	const actions = useMemo(
+		() => [
+			{
+				id: 'schedule-parse',
+				label: __( 'Schedule parse', 'hooksgraph' ),
+				isPrimary: true,
+				supportsBulk: false,
+				isEligible: ( item ) => item.parse_status !== 'scheduled',
+				callback: async ( items ) => {
+					const item = items[ 0 ];
+					if ( ! item ) return;
+					try {
+						await apiFetch( {
+							path: PARSE_PATH,
+							method: 'POST',
+							data: { plugin: item.id },
+						} );
+						loadPlugins( { silent: true } );
+					} catch ( err ) {
+						// eslint-disable-next-line no-console
+						console.error(
+							'[hooksgraph] schedule failed',
+							err
+						);
+					}
+				},
+			},
+		],
+		[ loadPlugins ]
 	);
 
 	if ( status === 'loading' ) {
@@ -86,6 +120,7 @@ export default function PluginsView() {
 			paginationInfo={ paginationInfo }
 			defaultLayouts={ { table: {} } }
 			getItemId={ ( item ) => item.id }
+			actions={ actions }
 			isLoading={ status !== 'ready' }
 		/>
 	);

@@ -1,8 +1,25 @@
 import { __ } from '@wordpress/i18n';
-import { Text } from '@wordpress/ui';
+import { Badge, Text } from '@wordpress/ui';
 
 const stripTags = ( html ) =>
 	typeof html === 'string' ? html.replace( /<[^>]*>/g, '' ).trim() : '';
+
+const STATUS_LABELS = {
+	parsed: __( 'Parsed', 'hooksgraph' ),
+	stale: __( 'Stale', 'hooksgraph' ),
+	needs_parsing: __( 'Needs parsing', 'hooksgraph' ),
+	scheduled: __( 'Scheduled', 'hooksgraph' ),
+};
+
+// Map status → @wordpress/ui Badge intent. Badge accepts "neutral" | "info" |
+// "success" | "warning" | "danger" depending on the version; falling back to
+// neutral keeps things safe across versions.
+const STATUS_INTENTS = {
+	parsed: 'success',
+	stale: 'warning',
+	needs_parsing: 'neutral',
+	scheduled: 'info',
+};
 
 export const fields = [
 	{
@@ -16,6 +33,26 @@ export const fields = [
 		id: 'version',
 		label: __( 'Version', 'hooksgraph' ),
 		enableSorting: true,
+	},
+	{
+		id: 'parse_status',
+		label: __( 'Parse status', 'hooksgraph' ),
+		enableSorting: true,
+		elements: Object.entries( STATUS_LABELS ).map( ( [ value, label ] ) => ( {
+			value,
+			label,
+		} ) ),
+		render: ( { item } ) => {
+			const status = item.parse_status;
+			if ( ! status ) {
+				return null;
+			}
+			return (
+				<Badge intent={ STATUS_INTENTS[ status ] ?? 'neutral' }>
+					{ STATUS_LABELS[ status ] ?? status }
+				</Badge>
+			);
+		},
 	},
 	{
 		id: 'author',
@@ -52,7 +89,7 @@ export const defaultView = {
 	type: 'table',
 	titleField: 'name',
 	descriptionField: 'description',
-	fields: [ 'version', 'author', 'requires_php', 'abspath' ],
+	fields: [ 'version', 'parse_status', 'author', 'requires_php', 'abspath' ],
 	page: 1,
 	perPage: 25,
 	search: '',
