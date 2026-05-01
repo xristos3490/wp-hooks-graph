@@ -9,10 +9,11 @@ Parses WordPress PHP codebases for hook relationships (do_action/add_action/appl
 | `pnpm install`                                                                | Install Node deps for every workspace package                                                                                                                  |
 | `composer install`                                                            | Install PHP dev deps at root (PHPUnit) and symlink the parser via the path repo                                                                                |
 | `pnpm setup:alias`                                                            | Install the `hooksgraph` shell alias (wraps `scripts/setup-profile.sh`)                                                                                        |
-| `hooksgraph <dir>...` (or `packages/cli/bin/hooksgraph.js`)                   | Parse + serve + open browser shortcut. The `hooksgraph` alias points directly at the Node shim (shebang-executable)                                            |
-| `hooksgraph parse <dir> [dir2...] [--overlap-only] [--exclude a,b] [-o path]` | Parse only. The Node shim spawns `php packages/parser/hooksgraph.php ...` with `HOOKSGRAPH_INVOKED_AS="hooksgraph parse"`                                      |
+| `hooksgraph <dir>...` (or `packages/cli/bin/hooksgraph.js`)                   | Parse + serve + open browser shortcut. Writes JSON to `~/.hooksgraph/parsed/`. The `hooksgraph` alias points directly at the Node shim (shebang-executable)    |
+| `hooksgraph parse <dir> [dir2...] [--overlap-only] [--exclude a,b] [-o path]` | Parse only into `~/.hooksgraph/parsed/` (override: `$HOOKSGRAPH_PARSED_DIR`). The Node shim spawns the PHP parser with `HOOKSGRAPH_INVOKED_AS="hooksgraph parse"` and `HOOKSGRAPH_OUTPUT_DIR=<resolved parsed dir>` |
+| `hooksgraph parse-codebase <dir> [...]`                                       | Parse only into `~/.hooksgraph/codebases/` (override: `$HOOKSGRAPH_CODEBASES_DIR`) for the MCP server to read. Same flag surface as `parse`; no server         |
 | `hooksgraph parse --help`                                                     | Parser help with Usage / Examples / Viewing-results sections rebranded via `HOOKSGRAPH_INVOKED_AS`                                                             |
-| `hooksgraph serve [path/to/hooks.json]`                                       | Serve the built viewer with a JSON. No arg = most recent file in `storage/`. Resolved by the Node shim                                                         |
+| `hooksgraph serve [path/to/hooks.json]`                                       | Serve the built viewer with a JSON. No arg = most recent file in `~/.hooksgraph/parsed/`. Resolved by the Node shim                                            |
 | `hooksgraph serve --help`                                                     | Serve help                                                                                                                                                     |
 | `hooksgraph --help` (or `hooksgraph` with no args)                            | Top-level help                                                                                                                                                 |
 | `pnpm dev`                                                                    | Vite dev server for the viewer (alias: `pnpm -F viewer dev`). Accepts `--json <path>` via `HOOKSGRAPH_JSON` env to bind a specific hooks JSON                  |
@@ -24,7 +25,7 @@ Parses WordPress PHP codebases for hook relationships (do_action/add_action/appl
 | `pnpm test:php` (or `vendor/bin/phpunit`)                                     | PHPUnit 11 suite at `packages/parser/tests/`                                                                                                                   |
 | `pnpm test:js`                                                                | Vitest (MCP suite under `packages/mcp/tests/`, viewer tests under `packages/viewer/src/**/*.test.js`)                                                          |
 | `pnpm test:watch`                                                             | Vitest in watch mode                                                                                                                                           |
-| `pnpm mcp -- [--storage <dir>]`                                               | Run the stdio MCP server (wraps `packages/mcp/bin/hooksgraph-mcp.js`). Storage resolves CLI arg → `HOOKSGRAPH_STORAGE` env → `./storage`                       |
+| `pnpm mcp -- [--storage <dir>]`                                               | Run the stdio MCP server (wraps `packages/mcp/bin/hooksgraph-mcp.js`). Storage resolves CLI arg → `HOOKSGRAPH_CODEBASES_DIR` env → `~/.hooksgraph/codebases/`  |
 
 ## Architecture
 
@@ -68,8 +69,24 @@ Root config:
   vitest.config.js    Explicit root=".", include = packages/viewer/src/**/*.test.js + packages/mcp/tests/**/*.test.js.
   pnpm-workspace.yaml packages: - "packages/*"
   .npmrc              public-hoist-pattern[] for react/webpack/@wordpress (wp-scripts compatibility).
-  storage/            Git-ignored output directory for generated JSON files (.keep tracked).
+  storage/            Legacy git-ignored output directory (.keep tracked). New runs write to
+                      ~/.hooksgraph/{parsed,codebases}/; this dir is kept for back-compat with
+                      `php hooksgraph.php` invocations that bypass the Node shim.
 ```
+
+## Storage layout (user-level)
+
+```
+~/.hooksgraph/
+  parsed/      Output of `hooksgraph parse` and the default `hooksgraph <dir>` shortcut.
+               Read by `hooksgraph serve` (most-recent JSON wins).
+               Override with $HOOKSGRAPH_PARSED_DIR.
+  codebases/   Output of `hooksgraph parse-codebase`. The MCP server reads exclusively
+               from here. Override with $HOOKSGRAPH_CODEBASES_DIR (or --storage on the
+               MCP shim).
+```
+
+The Node CLI shim is the single source of truth for routing parsed-vs-codebase output. It picks the dir per subcommand and forwards it to the PHP parser via `HOOKSGRAPH_OUTPUT_DIR` (a Node→PHP internal contract — not user-facing). `Runner.php` stays subcommand-agnostic.
 
 ### Data flow
 
@@ -113,7 +130,7 @@ PHP files → HooksGraph\Cli\Runner (discover → FileParser tokenize/extract �
 - `--print-path` mode reserves stdout for the output file path; the progress UI is redirected to stderr. The CLI shim's legacy-shortcut path depends on this.
 - `packages/parser/server.php` returns `false` for unknown paths so `php -S` serves static files itself — don't add logic that returns `true` by default.
 - The viewer's hotspot threshold is adaptive (top 10% of connections), not a fixed number.
-- MCP storage dir resolves in this order: CLI `--storage` → `HOOKSGRAPH_STORAGE` env → `cwd/storage`. A missing dir throws `MissingStorageError` — don't fall back silently.
+- MCP storage dir resolves in this order: CLI `--storage` → `HOOKSGRAPH_CODEBASES_DIR` env → `~/.hooksgraph/codebases/`. A missing dir throws `MissingStorageError` — don't fall back silently. The MCP server never reads from the parsed dir; populate the codebases dir with `hooksgraph parse-codebase`.
 - The MCP graph index caches parsed JSON by file path and invalidates on `mtime` change. Rewriting a storage JSON with the same mtime (rare, but possible with `touch -t`) will not refresh the cache.
 - MCP tools receive `{ registry, index }` via a shared ctx from `createServer()`. `UnknownCodebaseError` / `CodebaseLoadError` / `MissingStorageError` are converted to `isError` tool results; anything else bubbles up and crashes the transport.
 - Two composer scopes exist: root (dev umbrella — phpunit + parser via path repo) and `packages/parser/` (self-contained autoloader bundled into the CLI tarball). `packages/parser/hooksgraph.php` requires the package-local vendor; tests run against the root vendor. Don't conflate them.

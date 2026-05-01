@@ -34,11 +34,22 @@ Working in Claude Code? This repo ships an onboarding skill at [`.ai/skills/hook
 Parse once, re-serve the same JSON without re-parsing:
 
 ```sh
-hooksgraph parse /path/to/wordpress -o storage/wp.json
-hooksgraph serve storage/wp.json   # omit the path to use the latest file in storage/
+hooksgraph parse /path/to/wordpress    # writes ~/.hooksgraph/parsed/wordpress.json
+hooksgraph serve                       # serves the most recent file in ~/.hooksgraph/parsed/
 ```
 
 Run `hooksgraph --help` for the top-level command list, or `hooksgraph parse --help` / `hooksgraph serve --help` for per-subcommand flags.
+
+### Storage layout
+
+`hooksgraph` keeps two on-disk directories under `~/.hooksgraph/`, each with its own job:
+
+| Directory                  | Written by                         | Read by         | Override                       |
+| -------------------------- | ---------------------------------- | --------------- | ------------------------------ |
+| `~/.hooksgraph/parsed/`    | `hooksgraph parse`, `hooksgraph <dir>` | `hooksgraph serve` (viewer) | `$HOOKSGRAPH_PARSED_DIR`     |
+| `~/.hooksgraph/codebases/` | `hooksgraph parse-codebase`        | the MCP server  | `$HOOKSGRAPH_CODEBASES_DIR` (or `--storage` on the MCP shim) |
+
+Use **`parse`** for ad-hoc, viewer-bound runs (only the latest matters). Use **`parse-codebase`** to add a stable entry to your MCP corpus — the JSON's filename becomes the codebase id that LLMs query.
 
 ---
 
@@ -57,12 +68,13 @@ Run `hooksgraph --help` for the top-level command list, or `hooksgraph parse --h
 
 | Command                                                        | Description                                                           |
 | -------------------------------------------------------------- | --------------------------------------------------------------------- |
-| `hooksgraph <dirs...>` _(or `packages/cli/bin/hooksgraph.js`)_ | Parse + serve + open browser in one step                              |
-| `hooksgraph parse <dirs...>`                                   | Parse PHP files; output path printed at the end                       |
-| `hooksgraph parse --help`                                      | Show full parser help (all flags + examples)                          |
-| `hooksgraph serve [json]`                                      | Serve the built viewer with a JSON (defaults to latest in `storage/`) |
-| `hooksgraph --help`                                            | Top-level command list                                                |
-| `HOOKSGRAPH_JSON=<path> pnpm dev`                              | Vite dev server with hot reload, bound to a specific JSON             |
+| `hooksgraph <dirs...>` _(or `packages/cli/bin/hooksgraph.js`)_ | Parse + serve + open browser in one step                                            |
+| `hooksgraph parse <dirs...>`                                   | Parse into `~/.hooksgraph/parsed/`; output path printed at the end                  |
+| `hooksgraph parse-codebase <dirs...>`                          | Parse into `~/.hooksgraph/codebases/` for the MCP server (no viewer)                |
+| `hooksgraph parse --help`                                      | Show full parser help (all flags + examples)                                        |
+| `hooksgraph serve [json]`                                      | Serve the viewer with a JSON (defaults to latest in `~/.hooksgraph/parsed/`)        |
+| `hooksgraph --help`                                            | Top-level command list                                                              |
+| `HOOKSGRAPH_JSON=<path> pnpm dev`                              | Vite dev server with hot reload, bound to a specific JSON                           |
 
 ### Test
 
@@ -86,14 +98,14 @@ hooksgraph parse ~/Code/wordpress ~/Code/my-plugin --overlap-only
 hooksgraph parse ~/Code/wordpress --exclude vendor,tests,node_modules
 
 # Custom output file
-hooksgraph parse ~/Code/wordpress -o storage/wp-core.json
+hooksgraph parse ~/Code/wordpress -o ~/.hooksgraph/parsed/wp-core.json
 ```
 
 ---
 
 ## Viewer
 
-Run `hooksgraph <dir>` — or `hooksgraph serve` / `HOOKSGRAPH_JSON=storage/wp.json pnpm dev` after parsing separately — to open the viewer.
+Run `hooksgraph <dir>` — or `hooksgraph serve` / `HOOKSGRAPH_JSON=~/.hooksgraph/parsed/wp.json pnpm dev` after parsing separately — to open the viewer.
 
 **Features:** search, layout switching (dagre / force / concentric), source filtering, hotspot highlighting, and a detail panel on node click.
 
@@ -103,7 +115,7 @@ The **Sources** card in the sidebar holds per-repo fire/listen toggles, plus two
 
 ## MCP Server
 
-`packages/mcp/bin/hooksgraph-mcp.js` is a local MCP stdio server that exposes every parsed codebase in `storage/` as structured, paginated tools — so any agent on the machine can query your graphs without slurping JSON into context.
+`packages/mcp/bin/hooksgraph-mcp.js` is a local MCP stdio server that exposes every codebase under `~/.hooksgraph/codebases/` as structured, paginated tools — so any agent on the machine can query your graphs without slurping JSON into context. Populate that directory with `hooksgraph parse-codebase <dir>`; the JSON's filename becomes the codebase id.
 
 ### Register with Claude Code
 
@@ -111,14 +123,13 @@ The [`hooksgraph-setup` skill](#ai-assisted-setup-claude-code) handles this for 
 
 ```sh
 claude mcp add hooks-graph --scope user -- \
-  node /absolute/path/to/wp-hooks-graph/packages/mcp/bin/hooksgraph-mcp.js \
-  --storage /absolute/path/to/wp-hooks-graph/storage
+  node /absolute/path/to/wp-hooks-graph/packages/mcp/bin/hooksgraph-mcp.js
 ```
 
 `--scope user` registers the server in your user-level Claude config so it's available across every repo you open — handy when you want to query `wordpress` or `woocommerce` graphs from a plugin directory. Drop `--scope user` to register at the default local (per-project) scope instead.
 
 Verify with `claude mcp list` (should show `hooks-graph: ✓ Connected`) and `claude mcp get hooks-graph`. Remove with `claude mcp remove hooks-graph -s user`.
-Or run directly for testing: `pnpm mcp -- --storage storage`. Storage also falls back to `$HOOKSGRAPH_STORAGE` and then `./storage` relative to cwd.
+Or run directly for testing: `pnpm mcp`. Pass `--storage <dir>` to point at a non-default codebases directory; absent that, the server reads `$HOOKSGRAPH_CODEBASES_DIR` and finally falls back to `~/.hooksgraph/codebases/`.
 
 ### Tools
 
@@ -134,7 +145,7 @@ Or run directly for testing: `pnpm mcp -- --storage storage`. Storage also falls
 | `shared_hooks(codebases?, substring?, min_sources?, sort?, limit?, offset?)` | Hooks that appear in ≥2 codebases, with per-codebase counts and `hook_type_divergence` flag             |
 | `compare_hook(hook? \| substring?, codebases?, limit?, offset?)`             | Pivot one or more hooks across codebases; listeners sorted by priority ASC then codebase then file:line |
 
-Re-parse a codebase (`hooksgraph parse ...`) and the next MCP call picks up the new data automatically — mtime-based invalidation, no daemon, no restart.
+Re-parse a codebase (`hooksgraph parse-codebase ...`) and the next MCP call picks up the new data automatically — mtime-based invalidation, no daemon, no restart.
 
 **What to ask it:**
 
@@ -180,5 +191,6 @@ scripts/
   build-cli.js        Assembles packages/cli/ for publish (viewer build + parser composer no-dev)
   setup-profile.sh    Installs the `hooksgraph` shell alias (aliases to the Node shim)
 
-storage/              Generated JSON output (git-ignored; .keep tracked)
+storage/              Legacy in-repo output dir (git-ignored). New runs write to
+                      ~/.hooksgraph/{parsed,codebases}/ — see "Storage layout" above.
 ```

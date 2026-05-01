@@ -20,6 +20,7 @@ final class HelpTest extends TestCase
     protected function tearDown(): void
     {
         putenv('HOOKSGRAPH_INVOKED_AS');
+        putenv('HOOKSGRAPH_OUTPUT_DIR');
         parent::tearDown();
     }
 
@@ -31,6 +32,26 @@ final class HelpTest extends TestCase
         $this->assertStringContainsString('php hooksgraph.php ~/Code/wordpress',              $help);
         $this->assertStringContainsString('bin/hooksgraph DIR',                                $help);
         $this->assertStringContainsString('npm run serve -- PATH.json',                        $help);
+    }
+
+    public function test_help_documents_split_storage_env_vars(): void
+    {
+        putenv('HOOKSGRAPH_INVOKED_AS');
+        $help = Help::text();
+        $this->assertStringContainsString('HOOKSGRAPH_PARSED_DIR',    $help);
+        $this->assertStringContainsString('HOOKSGRAPH_CODEBASES_DIR', $help);
+        $this->assertStringContainsString('~/.hooksgraph/parsed/',    $help);
+        $this->assertStringContainsString('~/.hooksgraph/codebases/', $help);
+        $this->assertStringNotContainsString('HOOKSGRAPH_STORAGE', $help);
+    }
+
+    public function test_help_substitutes_resolved_default_dir(): void
+    {
+        putenv('HOOKSGRAPH_INVOKED_AS');
+        putenv('HOOKSGRAPH_OUTPUT_DIR=/tmp/whatever/parsed');
+        $help = Help::text();
+        $this->assertStringContainsString('/tmp/whatever/parsed/<dir-names>.json', $help);
+        $this->assertStringContainsString('/tmp/whatever/parsed/wp-core.json',     $help);
     }
 
     public function test_env_rewrites_usage_to_hooksgraph_parse(): void

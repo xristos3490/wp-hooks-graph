@@ -5,12 +5,41 @@
  */
 import { spawn, spawnSync } from 'node:child_process';
 import path from 'node:path';
+import os from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { existsSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
 import net from 'node:net';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PKG_ROOT = path.resolve(__dirname, '..');
+
+const HOOKSGRAPH_HOME = path.join(os.homedir(), '.hooksgraph');
+const STORAGE_DEFAULTS = {
+  parsed: path.join(HOOKSGRAPH_HOME, 'parsed'),
+  codebases: path.join(HOOKSGRAPH_HOME, 'codebases'),
+};
+const STORAGE_ENV_VARS = {
+  parsed: 'HOOKSGRAPH_PARSED_DIR',
+  codebases: 'HOOKSGRAPH_CODEBASES_DIR',
+};
+
+/**
+ * Resolve the on-disk directory for a given storage kind:
+ *   - 'parsed'    → output of `hooksgraph parse` and the default `hooksgraph <dir>` shortcut.
+ *                   The viewer's `serve` subcommand reads from here.
+ *   - 'codebases' → output of `hooksgraph parse-codebase`. The MCP server reads from here.
+ * Priority: dedicated env var → ~/.hooksgraph/{kind}/.
+ */
+function resolveStorageDir(kind) {
+  const envVar = STORAGE_ENV_VARS[kind];
+  const fromEnv = process.env[envVar];
+  if (fromEnv && fromEnv.length > 0) return path.resolve(fromEnv);
+  return STORAGE_DEFAULTS[kind];
+}
+
+function ensureDir(dir) {
+  mkdirSync(dir, { recursive: true });
+}
 
 // In a published tarball, `php/` and `dist/` sit inside this package.
 // In the monorepo (dev), they live next door under `packages/parser/` and
@@ -51,27 +80,51 @@ function printTopHelp() {
       '',
       'Usage:',
       '  hooksgraph <dir>...              Parse and open the viewer (default shortcut)',
-      '  hooksgraph parse <dir>...        Parse only; write JSON to storage/',
+      '  hooksgraph parse <dir>...        Parse only; write JSON to ~/.hooksgraph/parsed/',
+      '  hooksgraph parse-codebase <dir>...',
+      '                                   Parse only; write JSON to ~/.hooksgraph/codebases/',
+      '                                   for the MCP server to read',
       '  hooksgraph serve [path]          Serve the viewer; defaults to most recent JSON',
       '  hooksgraph <subcommand> --help   Show help for a subcommand',
+      '',
+      'Environment:',
+      `  HOOKSGRAPH_PARSED_DIR     Override ${STORAGE_DEFAULTS.parsed}`,
+      `  HOOKSGRAPH_CODEBASES_DIR  Override ${STORAGE_DEFAULTS.codebases}`,
       '',
     ].join('\n')
   );
 }
 
-function runParse(args) {
+/**
+ * Spawn the PHP parser. `kind` selects the output directory; the resolved
+ * path is forwarded as HOOKSGRAPH_OUTPUT_DIR (a Node→PHP internal contract,
+ * not user-facing) so Runner.php stays subcommand-agnostic.
+ */
+function runParse({ kind, invokedAs, args }) {
+  const outputDir = resolveStorageDir(kind);
+  ensureDir(outputDir);
   const child = spawn('php', [PARSER_ENTRY, ...args], {
     stdio: 'inherit',
-    env: { ...process.env, HOOKSGRAPH_INVOKED_AS: 'hooksgraph parse' },
+    env: {
+      ...process.env,
+      HOOKSGRAPH_INVOKED_AS: invokedAs,
+      HOOKSGRAPH_OUTPUT_DIR: outputDir,
+    },
   });
   child.on('exit', (code) => process.exit(code ?? 0));
 }
 
 function runParseCapture(args) {
+  const outputDir = resolveStorageDir('parsed');
+  ensureDir(outputDir);
   const result = spawnSync('php', [PARSER_ENTRY, '--print-path', ...args], {
     stdio: ['inherit', 'pipe', 'inherit'],
     encoding: 'utf8',
-    env: { ...process.env, HOOKSGRAPH_INVOKED_AS: 'hooksgraph' },
+    env: {
+      ...process.env,
+      HOOKSGRAPH_INVOKED_AS: 'hooksgraph',
+      HOOKSGRAPH_OUTPUT_DIR: outputDir,
+    },
   });
   if (result.status !== 0) process.exit(result.status ?? 1);
   return result.stdout.trim();
@@ -106,13 +159,14 @@ function mostRecentJson(dir) {
 
 async function runServe(args) {
   if (args[0] === '-h' || args[0] === '--help') {
+    const parsedDir = resolveStorageDir('parsed');
     process.stdout.write(
       [
         'hooksgraph serve — serve the built viewer against a parsed hooks JSON',
         '',
         'Usage:',
-        '  hooksgraph serve                 Use the most recent JSON in ./storage/',
-        '                                   (or $HOOKSGRAPH_STORAGE if set)',
+        `  hooksgraph serve                 Use the most recent JSON in ${parsedDir}`,
+        '                                   (override with $HOOKSGRAPH_PARSED_DIR)',
         '  hooksgraph serve PATH            Use a specific JSON file',
         '',
       ].join('\n')
@@ -122,9 +176,7 @@ async function runServe(args) {
 
   let hooksJson = args[0];
   if (!hooksJson) {
-    const storage = path.resolve(
-      process.env.HOOKSGRAPH_STORAGE || path.join(process.cwd(), 'storage')
-    );
+    const storage = resolveStorageDir('parsed');
     hooksJson = mostRecentJson(storage);
     if (!hooksJson) {
       process.stderr.write(
@@ -180,7 +232,11 @@ async function main() {
   const rest = args.slice(1);
 
   if (sub === 'parse') {
-    runParse(rest);
+    runParse({ kind: 'parsed', invokedAs: 'hooksgraph parse', args: rest });
+    return;
+  }
+  if (sub === 'parse-codebase') {
+    runParse({ kind: 'codebases', invokedAs: 'hooksgraph parse-codebase', args: rest });
     return;
   }
   if (sub === 'serve') {
@@ -188,7 +244,7 @@ async function main() {
     return;
   }
 
-  // Fall-through: legacy shortcut — parse + serve + open.
+  // Fall-through: legacy shortcut — parse (into the parsed dir) + serve + open.
   const out = runParseCapture(args);
   await runServe([out]);
 }

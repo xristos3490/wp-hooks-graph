@@ -23,9 +23,16 @@ final class Runner
         $this->storageDir = $storageDir ?? self::defaultStorageDir();
     }
 
+    /**
+     * The Node CLI shim sets HOOKSGRAPH_OUTPUT_DIR per subcommand
+     * (`parsed/` for `parse`, `codebases/` for `parse-codebase`). Keeping the
+     * routing decision in Node means this layer stays subcommand-agnostic.
+     * The cwd-relative fallback is a safety net for direct `php hooksgraph.php`
+     * invocations without the shim.
+     */
     private static function defaultStorageDir(): string
     {
-        $env = getenv('HOOKSGRAPH_STORAGE');
+        $env = getenv('HOOKSGRAPH_OUTPUT_DIR');
         if (is_string($env) && $env !== '') {
             return $env;
         }
