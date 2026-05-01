@@ -23,11 +23,11 @@ hooksgraph /path/to/wordpress    # parse + serve + open
 
 `hooksgraph <dir>` parses the given directory (or directories), builds the viewer on first run, starts a local PHP server on port 8080 (falls back to the next free port), and opens the viewer in your default browser.
 
-Setup supports zsh, bash, and fish — it picks the right RC file based on `$SHELL` and prints the exact `source` command to re-run. *Don't want a global alias? Call `packages/cli/bin/hooksgraph.js /path/to/wordpress` directly — no setup step needed.*
+Setup supports zsh, bash, and fish — it picks the right RC file based on `$SHELL` and prints the exact `source` command to re-run. _Don't want a global alias? Call `packages/cli/bin/hooksgraph.js /path/to/wordpress` directly — no setup step needed._
 
 ### AI-assisted setup (Claude Code)
 
-Working in Claude Code? This repo ships an onboarding skill at [`.ai/skills/hooksgraph-setup/`](.ai/skills/hooksgraph-setup/SKILL.md). Open the repo and say something like *"set up wp-hooks-graph"* — the skill runs `pnpm install`, wires the shell alias, and registers the [`hooks-graph` MCP server](#mcp-server) in one pass, asking for confirmation before touching your shell RC. Reruns are idempotent, so it's also the fastest way to repair a partial setup.
+Working in Claude Code? This repo ships an onboarding skill at [`.ai/skills/hooksgraph-setup/`](.ai/skills/hooksgraph-setup/SKILL.md). Open the repo and say something like _"set up wp-hooks-graph"_ — the skill runs `pnpm install`, wires the shell alias, and registers the [`hooks-graph` MCP server](#mcp-server) in one pass, asking for confirmation before touching your shell RC. Reruns are idempotent, so it's also the fastest way to repair a partial setup.
 
 ### Iterate faster
 
@@ -46,29 +46,29 @@ Run `hooksgraph --help` for the top-level command list, or `hooksgraph parse --h
 
 ### Setup
 
-| Command | Description |
-|---|---|
-| `pnpm install` | Install Node dependencies across the workspace |
-| `pnpm setup:alias` | Install the `hooksgraph` shell alias (zsh / bash / fish — the script picks the right RC file) |
-| `pnpm build` | One-shot: `composer install` + CLI assembly (viewer build + parser composer no-dev + copy into `packages/cli/`) |
-| `pnpm build:viewer` | Viewer-only rebuild into `packages/viewer/dist/` |
+| Command             | Description                                                                                                     |
+| ------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `pnpm install`      | Install Node dependencies across the workspace                                                                  |
+| `pnpm setup:alias`  | Install the `hooksgraph` shell alias (zsh / bash / fish — the script picks the right RC file)                   |
+| `pnpm build`        | One-shot: `composer install` + CLI assembly (viewer build + parser composer no-dev + copy into `packages/cli/`) |
+| `pnpm build:viewer` | Viewer-only rebuild into `packages/viewer/dist/`                                                                |
 
 ### Run
 
-| Command | Description |
-|---|---|
-| `hooksgraph <dirs...>` *(or `packages/cli/bin/hooksgraph.js`)* | Parse + serve + open browser in one step |
-| `hooksgraph parse <dirs...>` | Parse PHP files; output path printed at the end |
-| `hooksgraph parse --help` | Show full parser help (all flags + examples) |
-| `hooksgraph serve [json]` | Serve the built viewer with a JSON (defaults to latest in `storage/`) |
-| `hooksgraph --help` | Top-level command list |
-| `HOOKSGRAPH_JSON=<path> pnpm dev` | Vite dev server with hot reload, bound to a specific JSON |
+| Command                                                        | Description                                                           |
+| -------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `hooksgraph <dirs...>` _(or `packages/cli/bin/hooksgraph.js`)_ | Parse + serve + open browser in one step                              |
+| `hooksgraph parse <dirs...>`                                   | Parse PHP files; output path printed at the end                       |
+| `hooksgraph parse --help`                                      | Show full parser help (all flags + examples)                          |
+| `hooksgraph serve [json]`                                      | Serve the built viewer with a JSON (defaults to latest in `storage/`) |
+| `hooksgraph --help`                                            | Top-level command list                                                |
+| `HOOKSGRAPH_JSON=<path> pnpm dev`                              | Vite dev server with hot reload, bound to a specific JSON             |
 
 ### Test
 
-| Command | Description |
-|---|---|
-| `pnpm test` | Run PHP + JS test suites |
+| Command                                    | Description                           |
+| ------------------------------------------ | ------------------------------------- |
+| `pnpm test`                                | Run PHP + JS test suites              |
 | `pnpm test:php` / `test:js` / `test:watch` | PHP only / Vitest / Vitest watch mode |
 
 ---
@@ -122,26 +122,26 @@ Or run directly for testing: `pnpm mcp -- --storage storage`. Storage also falls
 
 ### Tools
 
-| Tool | Purpose |
-|---|---|
-| `list_codebases` | Enumerate available codebases with their scan metadata |
-| `find_hook(name, codebase?)` | Exact-name hook lookup, single codebase or across all |
-| `listeners_of(hook, codebase, limit?, offset?)` | Every `add_action` / `add_filter` for a hook |
-| `firers_of(hook, codebase, limit?, offset?)` | Every `do_action` / `apply_filters` call site |
-| `hooks_in_file(file_path, codebase, limit?, offset?)` | All hook activity in a specific file |
-| `search_callbacks(substring, codebase?, limit?, offset?)` | Case-insensitive substring search over listener callbacks, optionally cross-codebase |
-| `hotspots(codebase, metric?, limit?)` | Top hooks by `total`, `fires`, or `listens` |
-| `shared_hooks(codebases?, substring?, min_sources?, sort?, limit?, offset?)` | Hooks that appear in ≥2 codebases, with per-codebase counts and `hook_type_divergence` flag |
-| `compare_hook(hook? \| substring?, codebases?, limit?, offset?)` | Pivot one or more hooks across codebases; listeners sorted by priority ASC then codebase then file:line |
+| Tool                                                                         | Purpose                                                                                                 |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `list_codebases`                                                             | Enumerate available codebases with their scan metadata                                                  |
+| `find_hook(name, codebase?)`                                                 | Exact-name hook lookup, single codebase or across all                                                   |
+| `listeners_of(hook, codebase, limit?, offset?)`                              | Every `add_action` / `add_filter` for a hook                                                            |
+| `firers_of(hook, codebase, limit?, offset?)`                                 | Every `do_action` / `apply_filters` call site                                                           |
+| `hooks_in_file(file_path, codebase, limit?, offset?)`                        | All hook activity in a specific file                                                                    |
+| `search_callbacks(substring, codebase?, limit?, offset?)`                    | Case-insensitive substring search over listener callbacks, optionally cross-codebase                    |
+| `hotspots(codebase, metric?, limit?)`                                        | Top hooks by `total`, `fires`, or `listens`                                                             |
+| `shared_hooks(codebases?, substring?, min_sources?, sort?, limit?, offset?)` | Hooks that appear in ≥2 codebases, with per-codebase counts and `hook_type_divergence` flag             |
+| `compare_hook(hook? \| substring?, codebases?, limit?, offset?)`             | Pivot one or more hooks across codebases; listeners sorted by priority ASC then codebase then file:line |
 
 Re-parse a codebase (`hooksgraph parse ...`) and the next MCP call picks up the new data automatically — mtime-based invalidation, no daemon, no restart.
 
 **What to ask it:**
 
-- *"Which callbacks in `woocommerce-bookings` listen on `woocommerce_before_single_product`?"*
-- *"Across every codebase, anything with `gateway_stripe_webhook` in the callback name?"*
-- *"Which `woocommerce_cart_item_*` hooks do my extensions all touch?"* → one `shared_hooks(substring: "cart_item")` call
-- *"Show me every listener on `woocommerce_add_to_cart_validation` across my Woo extensions, in priority order."* → one `compare_hook(hook: "woocommerce_add_to_cart_validation")` call
+- _"Which callbacks in `woocommerce-bookings` listen on `woocommerce_before_single_product`?"_
+- _"Across every codebase, anything with `gateway_stripe_webhook` in the callback name?"_
+- _"Which `woocommerce*cart_item*_`hooks do my extensions all touch?"* → one`shared_hooks(substring: "cart_item")` call
+- _"Show me every listener on `woocommerce_add_to_cart_validation` across my Woo extensions, in priority order."_ → one `compare_hook(hook: "woocommerce_add_to_cart_validation")` call
 
 ---
 
@@ -150,8 +150,8 @@ Re-parse a codebase (`hooksgraph parse ...`) and the next MCP call picks up the 
 This is a **static parser**, not a runtime tracer. A few things to keep in mind:
 
 - **Dynamic hook names** — Hooks built from variables (e.g. `do_action( "save_post_{$post->post_type}" )`) can't be fully resolved at parse time. The parser extracts what it can and marks the rest with a `*` wildcard (`save_post_*`). Fully dynamic names (bare variables) are flagged but unresolvable.
-- **Conditional registration** — The parser sees every `add_action` / `add_filter` call in the source, whether or not the surrounding `if` block would execute at runtime. The graph shows what *could* run, not what *will* run.
-- **Callbacks only, not call chains** — The graph connects hooks to their direct callbacks. It won't trace what happens *inside* a callback (if a callback fires another hook, that's a separate edge — not a linked chain).
+- **Conditional registration** — The parser sees every `add_action` / `add_filter` call in the source, whether or not the surrounding `if` block would execute at runtime. The graph shows what _could_ run, not what _will_ run.
+- **Callbacks only, not call chains** — The graph connects hooks to their direct callbacks. It won't trace what happens _inside_ a callback (if a callback fires another hook, that's a separate edge — not a linked chain).
 - **No autoloading or `include` resolution** — Files are parsed independently. If a hook name or callback is defined in an included file, the parser won't cross-reference it — just scan both directories.
 
 ---

@@ -16,16 +16,16 @@ export function buildCytoscapeStyles(sourceLabels, repoPalettes, isLargeGraph) {
     {
       selector: 'node[type="hook"]',
       style: {
-        'label': 'data(name)',
+        label: 'data(name)',
         'font-size': 9,
         'min-zoomed-font-size': minZoomedFont,
         'font-family': 'system-ui, -apple-system, Segoe UI, sans-serif',
-        'color': tc.nodeText,
+        color: tc.nodeText,
         'text-valign': 'bottom',
         'text-margin-y': 6,
-        'width': 'data(nodeSize)',
-        'height': 'data(nodeSize)',
-        'shape': 'ellipse',
+        width: 'data(nodeSize)',
+        height: 'data(nodeSize)',
+        shape: 'ellipse',
         'border-width': 0,
         'text-wrap': 'wrap',
         'text-max-width': 200,
@@ -66,19 +66,19 @@ export function buildCytoscapeStyles(sourceLabels, repoPalettes, isLargeGraph) {
     {
       selector: 'node[type="file"]',
       style: {
-        'label': 'data(path)',
+        label: 'data(path)',
         'font-size': 7,
         'min-zoomed-font-size': minZoomedFont,
         'font-family': 'SF Mono, Cascadia Code, Menlo, Consolas, monospace',
-        'color': tc.nodeText,
+        color: tc.nodeText,
         'text-valign': 'bottom',
         'text-margin-y': 4,
-        'width': 'data(nodeSize)',
-        'height': 'data(nodeSize)',
-        'shape': 'round-rectangle',
+        width: 'data(nodeSize)',
+        height: 'data(nodeSize)',
+        shape: 'round-rectangle',
         'text-wrap': 'wrap',
         'text-max-width': 200,
-        'opacity': 0.7,
+        opacity: 0.7,
         'transition-property': 'opacity',
         'transition-duration': transitionDur,
       },
@@ -92,19 +92,19 @@ export function buildCytoscapeStyles(sourceLabels, repoPalettes, isLargeGraph) {
     {
       selector: 'node[type="class"]',
       style: {
-        'label': 'data(name)',
+        label: 'data(name)',
         'font-size': 7,
         'min-zoomed-font-size': minZoomedFont,
         'font-family': 'SF Mono, Cascadia Code, Menlo, Consolas, monospace',
-        'color': tc.nodeText,
+        color: tc.nodeText,
         'text-valign': 'bottom',
         'text-margin-y': 4,
-        'width': 'data(nodeSize)',
-        'height': 'data(nodeSize)',
-        'shape': 'round-rectangle',
+        width: 'data(nodeSize)',
+        height: 'data(nodeSize)',
+        shape: 'round-rectangle',
         'text-wrap': 'wrap',
         'text-max-width': 200,
-        'opacity': 0.85,
+        opacity: 0.85,
         'border-width': 1.5,
         'border-color': tc.classBorder,
         'transition-property': 'opacity',
@@ -122,7 +122,7 @@ export function buildCytoscapeStyles(sourceLabels, repoPalettes, isLargeGraph) {
       style: {
         'target-arrow-shape': 'triangle',
         'arrow-scale': 0.7,
-        'width': 1,
+        width: 1,
         'curve-style': curveStyle,
         'line-style': 'solid',
         'transition-property': 'opacity, line-color, width',
@@ -135,7 +135,7 @@ export function buildCytoscapeStyles(sourceLabels, repoPalettes, isLargeGraph) {
       style: {
         'target-arrow-shape': 'triangle',
         'arrow-scale': 0.7,
-        'width': 1,
+        width: 1,
         'curve-style': curveStyle,
         'line-style': 'dashed',
         'transition-property': 'opacity, line-color, width',
@@ -159,11 +159,11 @@ export function buildCytoscapeStyles(sourceLabels, repoPalettes, isLargeGraph) {
       },
     })),
     // Highlighted state
-    { selector: '.highlighted', style: { 'opacity': 1, 'z-index': 10 } },
+    { selector: '.highlighted', style: { opacity: 1, 'z-index': 10 } },
     {
       selector: 'node.highlighted[type="hook"]',
       style: {
-        'color': tc.highlightHookText,
+        color: tc.highlightHookText,
         'font-size': 10,
         'text-background-color': tc.highlightTextBg,
         'text-background-opacity': 0.92,
@@ -173,12 +173,12 @@ export function buildCytoscapeStyles(sourceLabels, repoPalettes, isLargeGraph) {
     },
     {
       selector: 'node.highlighted[type="file"]',
-      style: { 'color': tc.highlightFileText, 'font-size': 8 },
+      style: { color: tc.highlightFileText, 'font-size': 8 },
     },
     // Faded state
-    { selector: '.faded', style: { 'opacity': 0.1 } },
+    { selector: '.faded', style: { opacity: 0.1 } },
     // Highlighted edge
-    { selector: 'edge.highlighted-edge', style: { 'width': 2.5, 'opacity': 1, 'z-index': 10 } },
+    { selector: 'edge.highlighted-edge', style: { width: 2.5, opacity: 1, 'z-index': 10 } },
     // Per-repo highlighted fires edge
     ...sourceLabels.map((label, i) => ({
       selector: `edge.highlighted-edge[edgeType="fires"][sourceIndex = ${i}]`,
@@ -203,12 +203,12 @@ export function buildCytoscapeStyles(sourceLabels, repoPalettes, isLargeGraph) {
         'border-color': tc.selectedBorder,
         'border-opacity': 0.9,
         'border-style': 'solid',
-        'opacity': 1,
+        opacity: 1,
         'z-index': 20,
       },
     },
     // Hidden
-    { selector: '.hidden', style: { 'display': 'none' } },
+    { selector: '.hidden', style: { display: 'none' } },
   ];
 }
 

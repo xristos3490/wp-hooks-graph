@@ -28,11 +28,7 @@ describe('registry.list', () => {
     const reg = createRegistry({ storageDir: tmpDir });
     const entries = reg.list();
 
-    expect(entries.map((e) => e.id)).toEqual([
-      'gutenberg',
-      'woocommerce-bookings',
-      'wp-includes',
-    ]);
+    expect(entries.map((e) => e.id)).toEqual(['gutenberg', 'woocommerce-bookings', 'wp-includes']);
     for (const e of entries) {
       expect(e.path.startsWith(tmpDir)).toBe(true);
       expect(typeof e.mtime).toBe('number');

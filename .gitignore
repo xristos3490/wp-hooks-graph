@@ -18,6 +18,7 @@ packages/plugin/dist/
 vendor/
 packages/*/vendor/
 .phpunit.cache/
+.phpstan-cache/
 
 # Tooling
 .superpowers/

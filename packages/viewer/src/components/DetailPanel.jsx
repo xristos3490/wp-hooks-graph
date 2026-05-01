@@ -35,11 +35,13 @@ const edgeFields = [
     id: 'title',
     label: 'Name',
     render: ({ item }) => (
-      <span style={{
-        fontWeight: 'var(--wpds-typography-font-weight-medium)',
-        wordBreak: 'break-all',
-        overflowWrap: 'anywhere',
-      }}>
+      <span
+        style={{
+          fontWeight: 'var(--wpds-typography-font-weight-medium)',
+          wordBreak: 'break-all',
+          overflowWrap: 'anywhere',
+        }}
+      >
         {item.title}
       </span>
     ),
@@ -52,26 +54,34 @@ const edgeFields = [
     render: ({ item }) => (
       <>
         {item.files && (
-          <span style={{ ...monoStyle, display: 'block', fontSize: 11.5, opacity: 0.6, wordBreak: 'break-all' }}>
+          <span
+            style={{
+              ...monoStyle,
+              display: 'block',
+              fontSize: 11.5,
+              opacity: 0.6,
+              wordBreak: 'break-all',
+            }}
+          >
             {item.files}
           </span>
         )}
-        <span style={{ ...monoStyle, fontSize: 10.5, lineHeight: 1.5 }}>
-          {item.description}
-        </span>
+        <span style={{ ...monoStyle, fontSize: 10.5, lineHeight: 1.5 }}>{item.description}</span>
         {item.docComment && (
-          <span style={{
-            display: 'block',
-            fontSize: 'var(--wpds-typography-font-size-xs)',
-            fontStyle: 'italic',
-            marginTop: 2,
-            padding: 'var(--wpds-dimension-padding-xs) var(--wpds-dimension-padding-sm)',
-            borderLeft: '2px solid #e0e0e0',
-            borderRadius: '0 var(--wpds-border-radius-md) var(--wpds-border-radius-md) 0',
-            lineHeight: 1.45,
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-          }}>
+          <span
+            style={{
+              display: 'block',
+              fontSize: 'var(--wpds-typography-font-size-xs)',
+              fontStyle: 'italic',
+              marginTop: 2,
+              padding: 'var(--wpds-dimension-padding-xs) var(--wpds-dimension-padding-sm)',
+              borderLeft: '2px solid #e0e0e0',
+              borderRadius: '0 var(--wpds-border-radius-md) var(--wpds-border-radius-md) 0',
+              lineHeight: 1.45,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+            }}
+          >
             {item.docComment}
           </span>
         )}
@@ -133,14 +143,16 @@ export default function DetailPanel() {
     <div ref={panelRef} style={panelStyle}>
       {d && (
         <>
-          <div style={{
-            padding: 'var(--wpds-dimension-padding-xl)',
-            borderBottom: '1px solid #e0e0e0',
-            position: 'sticky',
-            top: 0,
-            background: '#fff',
-            zIndex: 1,
-          }}>
+          <div
+            style={{
+              padding: 'var(--wpds-dimension-padding-xl)',
+              borderBottom: '1px solid #e0e0e0',
+              position: 'sticky',
+              top: 0,
+              background: '#fff',
+              zIndex: 1,
+            }}
+          >
             <div style={{ position: 'absolute', top: 18, right: 18 }}>
               <IconButton
                 icon={close}
@@ -155,7 +167,12 @@ export default function DetailPanel() {
             {d.type === 'file' && <FileHeader d={d} />}
             {d.type === 'class' && <ClassHeader d={d} />}
           </div>
-          <div style={{ paddingTop: 'var(--wpds-dimension-gap-lg)', paddingBottom: 'var(--wpds-dimension-padding-3xl)' }}>
+          <div
+            style={{
+              paddingTop: 'var(--wpds-dimension-gap-lg)',
+              paddingBottom: 'var(--wpds-dimension-padding-3xl)',
+            }}
+          >
             {d.type === 'hook' && <HookBody d={d} cy={cy} onEdgeClick={handleEdgeClick} />}
             {d.type === 'file' && <FileBody d={d} cy={cy} onEdgeClick={handleEdgeClick} />}
             {d.type === 'class' && <ClassBody d={d} cy={cy} onEdgeClick={handleEdgeClick} />}
@@ -172,22 +189,25 @@ const BADGE_WRAPPER_STYLE = { display: 'block', marginBottom: 'var(--wpds-dimens
 
 function HookHeader({ d }) {
   const intent = d.hook_type === 'action' ? 'medium' : 'informational';
-  const sourceName = d.sources && d.sources.length === 1 ? d.sources[0] : (d.sources ? d.sources.join(', ') : '');
+  const sourceName =
+    d.sources && d.sources.length === 1 ? d.sources[0] : d.sources ? d.sources.join(', ') : '';
 
   return (
     <>
       <div style={BADGE_WRAPPER_STYLE}>
         <Badge intent={intent}>{d.hook_type + (d.dynamic ? ' \u00b7 dynamic' : '')}</Badge>
       </div>
-      <h3 style={{
-        fontSize: 16,
-        fontWeight: 600,
-        marginBottom: 'var(--wpds-dimension-gap-xs)',
-        lineHeight: 1.4,
-        paddingRight: 32,
-        wordBreak: 'break-word',
-        overflowWrap: 'anywhere',
-      }}>
+      <h3
+        style={{
+          fontSize: 16,
+          fontWeight: 600,
+          marginBottom: 'var(--wpds-dimension-gap-xs)',
+          lineHeight: 1.4,
+          paddingRight: 32,
+          wordBreak: 'break-word',
+          overflowWrap: 'anywhere',
+        }}
+      >
         {d.name}
       </h3>
       {sourceName && (
@@ -196,15 +216,17 @@ function HookHeader({ d }) {
         </Text>
       )}
       {d.dynamic && d.raw_expression && (
-        <div style={{
-          ...monoStyle,
-          fontSize: 11.5,
-          marginTop: 'var(--wpds-dimension-gap-xs)',
-          padding: 'var(--wpds-dimension-padding-xs) var(--wpds-dimension-padding-sm)',
-          borderRadius: 'var(--wpds-border-radius-md)',
-          wordBreak: 'break-all',
-          overflowWrap: 'anywhere',
-        }}>
+        <div
+          style={{
+            ...monoStyle,
+            fontSize: 11.5,
+            marginTop: 'var(--wpds-dimension-gap-xs)',
+            padding: 'var(--wpds-dimension-padding-xs) var(--wpds-dimension-padding-sm)',
+            borderRadius: 'var(--wpds-border-radius-md)',
+            wordBreak: 'break-all',
+            overflowWrap: 'anywhere',
+          }}
+        >
           {d.raw_expression}
         </div>
       )}
@@ -218,11 +240,17 @@ function FileHeader({ d }) {
       <div style={BADGE_WRAPPER_STYLE}>
         <Badge>file</Badge>
       </div>
-      <h3 style={{
-        fontSize: 16, fontWeight: 600,
-        marginBottom: 'var(--wpds-dimension-gap-xs)', lineHeight: 1.4,
-        paddingRight: 32, wordBreak: 'break-word', overflowWrap: 'anywhere',
-      }}>
+      <h3
+        style={{
+          fontSize: 16,
+          fontWeight: 600,
+          marginBottom: 'var(--wpds-dimension-gap-xs)',
+          lineHeight: 1.4,
+          paddingRight: 32,
+          wordBreak: 'break-word',
+          overflowWrap: 'anywhere',
+        }}
+      >
         {d.path}
       </h3>
       <Text variant="body-sm" style={{ display: 'block', opacity: 0.6 }}>
@@ -238,11 +266,17 @@ function ClassHeader({ d }) {
       <div style={BADGE_WRAPPER_STYLE}>
         <Badge>class</Badge>
       </div>
-      <h3 style={{
-        fontSize: 16, fontWeight: 600,
-        marginBottom: 'var(--wpds-dimension-gap-xs)', lineHeight: 1.4,
-        paddingRight: 32, wordBreak: 'break-word', overflowWrap: 'anywhere',
-      }}>
+      <h3
+        style={{
+          fontSize: 16,
+          fontWeight: 600,
+          marginBottom: 'var(--wpds-dimension-gap-xs)',
+          lineHeight: 1.4,
+          paddingRight: 32,
+          wordBreak: 'break-word',
+          overflowWrap: 'anywhere',
+        }}
+      >
         {d.name}
       </h3>
       <Text variant="body-sm" style={{ display: 'block', opacity: 0.6 }}>
@@ -256,14 +290,16 @@ function ClassHeader({ d }) {
 
 function StatsGrid({ children, cols }) {
   return (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: `repeat(${cols}, 1fr)`,
-      gap: 2,
-      borderRadius: 'var(--wpds-border-radius-lg)',
-      padding: `var(--wpds-dimension-padding-lg) ${PANEL_INSET}`,
-      marginBottom: 'var(--wpds-dimension-gap-xl)',
-    }}>
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: `repeat(${cols}, 1fr)`,
+        gap: 2,
+        borderRadius: 'var(--wpds-border-radius-lg)',
+        padding: `var(--wpds-dimension-padding-lg) ${PANEL_INSET}`,
+        marginBottom: 'var(--wpds-dimension-gap-xl)',
+      }}
+    >
       {children}
     </div>
   );
@@ -272,19 +308,23 @@ function StatsGrid({ children, cols }) {
 function StatCell({ number, label }) {
   return (
     <div style={{ padding: 'var(--wpds-dimension-padding-xs) 2px' }}>
-      <div style={{
-        ...monoStyle,
-        fontSize: 22,
-        fontWeight: 'var(--wpds-typography-font-weight-medium)',
-      }}>
+      <div
+        style={{
+          ...monoStyle,
+          fontSize: 22,
+          fontWeight: 'var(--wpds-typography-font-weight-medium)',
+        }}
+      >
         {number}
       </div>
-      <div style={{
-        fontSize: 10,
-        textTransform: 'uppercase',
-        letterSpacing: '0.05em',
-        marginTop: 3,
-      }}>
+      <div
+        style={{
+          fontSize: 10,
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em',
+          marginTop: 3,
+        }}
+      >
         {label}
       </div>
     </div>
@@ -312,15 +352,17 @@ function EdgeItem({ onClick, children }) {
 
 function FileRef({ children, style: s }) {
   return (
-    <span style={{
-      ...monoStyle,
-      fontSize: 11.5,
-      display: 'block',
-      wordBreak: 'break-all',
-      overflowWrap: 'anywhere',
-      lineHeight: 1.5,
-      ...s,
-    }}>
+    <span
+      style={{
+        ...monoStyle,
+        fontSize: 11.5,
+        display: 'block',
+        wordBreak: 'break-all',
+        overflowWrap: 'anywhere',
+        lineHeight: 1.5,
+        ...s,
+      }}
+    >
       {children}
     </span>
   );
@@ -328,12 +370,14 @@ function FileRef({ children, style: s }) {
 
 function CallbackRef({ children }) {
   return (
-    <span style={{
-      fontSize: 'var(--wpds-typography-font-size-md)',
-      fontWeight: 'var(--wpds-typography-font-weight-medium)',
-      display: 'block',
-      marginBottom: 2,
-    }}>
+    <span
+      style={{
+        fontSize: 'var(--wpds-typography-font-size-md)',
+        fontWeight: 'var(--wpds-typography-font-weight-medium)',
+        display: 'block',
+        marginBottom: 2,
+      }}
+    >
       {children}
     </span>
   );
@@ -341,7 +385,12 @@ function CallbackRef({ children }) {
 
 function EdgeMeta({ children }) {
   return (
-    <Stack direction="row" gap="sm" wrap="wrap" style={{ marginTop: 'var(--wpds-dimension-gap-xs)' }}>
+    <Stack
+      direction="row"
+      gap="sm"
+      wrap="wrap"
+      style={{ marginTop: 'var(--wpds-dimension-gap-xs)' }}
+    >
       {children}
     </Stack>
   );
@@ -349,10 +398,12 @@ function EdgeMeta({ children }) {
 
 function MetaLabel({ children }) {
   return (
-    <span style={{
-      fontSize: 10.5,
-      ...monoStyle,
-    }}>
+    <span
+      style={{
+        fontSize: 10.5,
+        ...monoStyle,
+      }}
+    >
       {children}
     </span>
   );
@@ -360,11 +411,13 @@ function MetaLabel({ children }) {
 
 function ScopeRef({ children }) {
   return (
-    <span style={{
-      fontSize: 10.5,
-      fontStyle: 'italic',
-      ...monoStyle,
-    }}>
+    <span
+      style={{
+        fontSize: 10.5,
+        fontStyle: 'italic',
+        ...monoStyle,
+      }}
+    >
       {children}
     </span>
   );
@@ -372,18 +425,20 @@ function ScopeRef({ children }) {
 
 function DocComment({ children }) {
   return (
-    <span style={{
-      fontSize: 'var(--wpds-typography-font-size-xs)',
-      fontStyle: 'italic',
-      display: 'block',
-      marginTop: 'var(--wpds-dimension-gap-xs)',
-      padding: 'var(--wpds-dimension-padding-xs) var(--wpds-dimension-padding-sm)',
-      borderLeft: '2px solid #e0e0e0',
-      borderRadius: '0 var(--wpds-border-radius-md) var(--wpds-border-radius-md) 0',
-      lineHeight: 1.45,
-      whiteSpace: 'pre-wrap',
-      wordBreak: 'break-word',
-    }}>
+    <span
+      style={{
+        fontSize: 'var(--wpds-typography-font-size-xs)',
+        fontStyle: 'italic',
+        display: 'block',
+        marginTop: 'var(--wpds-dimension-gap-xs)',
+        padding: 'var(--wpds-dimension-padding-xs) var(--wpds-dimension-padding-sm)',
+        borderLeft: '2px solid #e0e0e0',
+        borderRadius: '0 var(--wpds-border-radius-md) var(--wpds-border-radius-md) 0',
+        lineHeight: 1.45,
+        whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word',
+      }}
+    >
       {children}
     </span>
   );
@@ -404,7 +459,7 @@ function HookBody({ d, cy, onEdgeClick }) {
   const [fireView, setFireView] = useState(EDGE_VIEW);
   const [listenView, setListenView] = useState(EDGE_VIEW);
 
-  const fireData = fireEdges.toArray().map(e => {
+  const fireData = fireEdges.toArray().map((e) => {
     const src = e.source().data();
     const ed = e.data();
     return {
@@ -417,7 +472,7 @@ function HookBody({ d, cy, onEdgeClick }) {
     };
   });
 
-  const listenData = shownListens.map(e => {
+  const listenData = shownListens.map((e) => {
     const src = e.source().data();
     const ed = e.data();
     return {
@@ -425,11 +480,13 @@ function HookBody({ d, cy, onEdgeClick }) {
       nodeId: src.id,
       title: ed.callback || src.path || src.name,
       description: [
-        ed.callback ? (src.path || src.name) : null,
+        ed.callback ? src.path || src.name : null,
         scopeLabel(ed),
         `pri ${ed.priority || 10}`,
         `line ${ed.line}`,
-      ].filter(Boolean).join(' \u00b7 '),
+      ]
+        .filter(Boolean)
+        .join(' \u00b7 '),
       files: src.type === 'class' && src.files?.length > 0 ? src.files.join(', ') : null,
       docComment: ed.docComment,
     };
@@ -438,7 +495,7 @@ function HookBody({ d, cy, onEdgeClick }) {
   function handleEdgeSelect(items) {
     return (ids) => {
       if (ids.length > 0) {
-        const item = items.find(i => i.id === ids[0]);
+        const item = items.find((i) => i.id === ids[0]);
         if (item) onEdgeClick(item.nodeId);
       }
     };
@@ -454,7 +511,9 @@ function HookBody({ d, cy, onEdgeClick }) {
 
       {fireData.length > 0 && (
         <section style={{ marginBottom: 'var(--wpds-dimension-gap-2xl)' }}>
-          <Text variant="body-sm" render={<h4 />} style={sectionHeadingStyle}>Fired by ({fireData.length})</Text>
+          <Text variant="body-sm" render={<h4 />} style={sectionHeadingStyle}>
+            Fired by ({fireData.length})
+          </Text>
           <DataViews
             data={fireData}
             fields={edgeFields}
@@ -473,7 +532,9 @@ function HookBody({ d, cy, onEdgeClick }) {
 
       {listenData.length > 0 && (
         <section>
-          <Text variant="body-sm" render={<h4 />} style={sectionHeadingStyle}>Listened by ({listenEdges.length})</Text>
+          <Text variant="body-sm" render={<h4 />} style={sectionHeadingStyle}>
+            Listened by ({listenEdges.length})
+          </Text>
           <DataViews
             data={listenData}
             fields={edgeFields}
@@ -488,13 +549,16 @@ function HookBody({ d, cy, onEdgeClick }) {
             <DataViews.Layout />
           </DataViews>
           {sortedListens.length > LISTEN_TRUNCATION_LIMIT && (
-            <Text variant="body-sm" style={{
-              display: 'block',
-              fontSize: 'var(--wpds-typography-font-size-xs)',
-              textAlign: 'center',
-              padding: `var(--wpds-dimension-padding-sm) ${PANEL_INSET} 0`,
-              opacity: 0.6,
-            }}>
+            <Text
+              variant="body-sm"
+              style={{
+                display: 'block',
+                fontSize: 'var(--wpds-typography-font-size-xs)',
+                textAlign: 'center',
+                padding: `var(--wpds-dimension-padding-sm) ${PANEL_INSET} 0`,
+                opacity: 0.6,
+              }}
+            >
               ... showing {LISTEN_TRUNCATION_LIMIT} of {sortedListens.length}
             </Text>
           )}
@@ -511,7 +575,7 @@ function FileBody({ d, cy, onEdgeClick }) {
   const [fireView, setFireView] = useState(EDGE_VIEW);
   const [listenView, setListenView] = useState(EDGE_VIEW);
 
-  const fireData = fires.toArray().map(e => {
+  const fireData = fires.toArray().map((e) => {
     const tgt = e.target().data();
     const ed = e.data();
     return {
@@ -524,19 +588,16 @@ function FileBody({ d, cy, onEdgeClick }) {
     };
   });
 
-  const listenData = listens.toArray().map(e => {
+  const listenData = listens.toArray().map((e) => {
     const tgt = e.target().data();
     const ed = e.data();
     return {
       id: ed.id,
       nodeId: tgt.id,
       title: tgt.name,
-      description: [
-        ed.callback,
-        scopeLabel(ed),
-        `pri ${ed.priority || 10}`,
-        `line ${ed.line}`,
-      ].filter(Boolean).join(' \u00b7 '),
+      description: [ed.callback, scopeLabel(ed), `pri ${ed.priority || 10}`, `line ${ed.line}`]
+        .filter(Boolean)
+        .join(' \u00b7 '),
       files: null,
       docComment: ed.docComment,
     };
@@ -545,7 +606,7 @@ function FileBody({ d, cy, onEdgeClick }) {
   function handleEdgeSelect(items) {
     return (ids) => {
       if (ids.length > 0) {
-        const item = items.find(i => i.id === ids[0]);
+        const item = items.find((i) => i.id === ids[0]);
         if (item) onEdgeClick(item.nodeId);
       }
     };
@@ -560,7 +621,9 @@ function FileBody({ d, cy, onEdgeClick }) {
 
       {fireData.length > 0 && (
         <section style={{ marginBottom: 'var(--wpds-dimension-gap-2xl)' }}>
-          <Text variant="body-sm" render={<h4 />} style={sectionHeadingStyle}>Fires ({fireData.length})</Text>
+          <Text variant="body-sm" render={<h4 />} style={sectionHeadingStyle}>
+            Fires ({fireData.length})
+          </Text>
           <DataViews
             data={fireData}
             fields={edgeFields}
@@ -579,7 +642,9 @@ function FileBody({ d, cy, onEdgeClick }) {
 
       {listenData.length > 0 && (
         <section>
-          <Text variant="body-sm" render={<h4 />} style={sectionHeadingStyle}>Listens to ({listenData.length})</Text>
+          <Text variant="body-sm" render={<h4 />} style={sectionHeadingStyle}>
+            Listens to ({listenData.length})
+          </Text>
           <DataViews
             data={listenData}
             fields={edgeFields}
@@ -606,7 +671,7 @@ function ClassBody({ d, cy, onEdgeClick }) {
   const [fireView, setFireView] = useState(EDGE_VIEW);
   const [listenView, setListenView] = useState(EDGE_VIEW);
 
-  const fireData = classFires.toArray().map(e => {
+  const fireData = classFires.toArray().map((e) => {
     const tgt = e.target().data();
     const ed = e.data();
     return {
@@ -619,19 +684,16 @@ function ClassBody({ d, cy, onEdgeClick }) {
     };
   });
 
-  const listenData = classListens.toArray().map(e => {
+  const listenData = classListens.toArray().map((e) => {
     const tgt = e.target().data();
     const ed = e.data();
     return {
       id: ed.id,
       nodeId: tgt.id,
       title: tgt.name,
-      description: [
-        ed.callback,
-        scopeLabel(ed),
-        `pri ${ed.priority || 10}`,
-        `line ${ed.line}`,
-      ].filter(Boolean).join(' \u00b7 '),
+      description: [ed.callback, scopeLabel(ed), `pri ${ed.priority || 10}`, `line ${ed.line}`]
+        .filter(Boolean)
+        .join(' \u00b7 '),
       files: null,
       docComment: ed.docComment,
     };
@@ -640,7 +702,7 @@ function ClassBody({ d, cy, onEdgeClick }) {
   function handleEdgeSelect(items) {
     return (ids) => {
       if (ids.length > 0) {
-        const item = items.find(i => i.id === ids[0]);
+        const item = items.find((i) => i.id === ids[0]);
         if (item) onEdgeClick(item.nodeId);
       }
     };
@@ -650,12 +712,17 @@ function ClassBody({ d, cy, onEdgeClick }) {
     <>
       {d.files && d.files.length > 0 && (
         <section style={{ marginBottom: 'var(--wpds-dimension-gap-2xl)' }}>
-          <Text variant="body-sm" render={<h4 />} style={sectionHeadingStyle}>Files ({d.files.length})</Text>
+          <Text variant="body-sm" render={<h4 />} style={sectionHeadingStyle}>
+            Files ({d.files.length})
+          </Text>
           {d.files.map((f) => (
-            <div key={f} style={{
-              padding: `var(--wpds-dimension-padding-sm) ${PANEL_INSET}`,
-              borderRadius: 'var(--wpds-border-radius-lg)',
-            }}>
+            <div
+              key={f}
+              style={{
+                padding: `var(--wpds-dimension-padding-sm) ${PANEL_INSET}`,
+                borderRadius: 'var(--wpds-border-radius-lg)',
+              }}
+            >
               <FileRef>{f}</FileRef>
             </div>
           ))}
@@ -669,7 +736,9 @@ function ClassBody({ d, cy, onEdgeClick }) {
 
       {fireData.length > 0 && (
         <section style={{ marginBottom: 'var(--wpds-dimension-gap-2xl)' }}>
-          <Text variant="body-sm" render={<h4 />} style={sectionHeadingStyle}>Fires ({fireData.length})</Text>
+          <Text variant="body-sm" render={<h4 />} style={sectionHeadingStyle}>
+            Fires ({fireData.length})
+          </Text>
           <DataViews
             data={fireData}
             fields={edgeFields}
@@ -688,7 +757,9 @@ function ClassBody({ d, cy, onEdgeClick }) {
 
       {listenData.length > 0 && (
         <section>
-          <Text variant="body-sm" render={<h4 />} style={sectionHeadingStyle}>Listens to ({listenData.length})</Text>
+          <Text variant="body-sm" render={<h4 />} style={sectionHeadingStyle}>
+            Listens to ({listenData.length})
+          </Text>
           <DataViews
             data={listenData}
             fields={edgeFields}

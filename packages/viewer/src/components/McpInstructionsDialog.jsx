@@ -47,7 +47,8 @@ export default function McpInstructionsDialog({ disabled = false }) {
         <Stack direction="column" gap="lg">
           <Text>
             Expose every codebase parsed into <code style={inlineCodeStyle}>storage/</code> to
-            Claude Code as a local MCP server — so agents can query the graph without loading JSON into context.
+            Claude Code as a local MCP server — so agents can query the graph without loading JSON
+            into context.
           </Text>
           <Stack direction="column" gap="xs">
             <Text variant="heading-sm">1. Register with Claude Code</Text>
@@ -68,9 +69,7 @@ export default function McpInstructionsDialog({ disabled = false }) {
           </Text>
         </Stack>
         <Dialog.Footer>
-          <Dialog.Action render={<Button variant="primary" tone="accent" />}>
-            Got it
-          </Dialog.Action>
+          <Dialog.Action render={<Button variant="primary" tone="accent" />}>Got it</Dialog.Action>
         </Dialog.Footer>
       </Dialog.Popup>
     </Dialog.Root>

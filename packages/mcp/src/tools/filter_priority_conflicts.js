@@ -39,14 +39,7 @@ function comparePriorityGroupListener(a, b) {
 }
 
 export function handler(args, { registry, index }) {
-  const {
-    hook,
-    substring,
-    codebases,
-    min_codebases = 2,
-    limit = 50,
-    offset = 0,
-  } = args;
+  const { hook, substring, codebases, min_codebases = 2, limit = 50, offset = 0 } = args;
 
   const hasHook = typeof hook === 'string' && hook.length > 0;
   const hasSub = typeof substring === 'string' && substring.length > 0;
@@ -55,9 +48,7 @@ export function handler(args, { registry, index }) {
   }
   const needle = hasSub ? substring.toLowerCase() : null;
 
-  const entries = codebases
-    ? codebases.map((id) => registry.resolve(id))
-    : registry.list();
+  const entries = codebases ? codebases.map((id) => registry.resolve(id)) : registry.list();
 
   const loaded = [];
   for (const entry of entries) {

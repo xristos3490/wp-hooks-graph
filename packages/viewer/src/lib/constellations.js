@@ -72,8 +72,9 @@ function buildTree(rng) {
   }
 
   const leafSlots = total - nodes.length;
-  const leavesPerBranch = Array.from({ length: branches }, (_, i) =>
-    Math.floor(leafSlots / branches) + (i < leafSlots % branches ? 1 : 0)
+  const leavesPerBranch = Array.from(
+    { length: branches },
+    (_, i) => Math.floor(leafSlots / branches) + (i < leafSlots % branches ? 1 : 0)
   );
 
   for (let b = 0; b < branches; b++) {
@@ -158,7 +159,8 @@ function buildChain(rng) {
   for (let i = 0; i < n; i++) {
     const t = n === 1 ? 0.5 : i / (n - 1);
     const x = 22 + t * (VIEWBOX - 44) + randFloat(rng, -6, 6);
-    const y = CENTER + Math.sin(phase + i * randFloat(rng, 0.7, 1.1)) * wave + randFloat(rng, -5, 5);
+    const y =
+      CENTER + Math.sin(phase + i * randFloat(rng, 0.7, 1.1)) * wave + randFloat(rng, -5, 5);
     nodes.push([x, y]);
     if (i > 0) edges.push([i - 1, i]);
   }
@@ -233,15 +235,15 @@ export function buildArchetype(name, rng) {
 // x/y are viewport percent. Negative or >100 bleeds off-screen intentionally.
 // size is rem; opacity is the drifter's base opacity (on top of edge/node opacity).
 const CURATED_DRIFTERS = [
-  { archetype: 'mesh',    band: 'back',  x: 16, y: 22, size: 40, opacity: 0.09, spin: 520, dir:  1 },
-  { archetype: 'lattice', band: 'back',  x: 82, y: 14, size: 34, opacity: 0.08, spin: 560, dir: -1 },
-  { archetype: 'tree',    band: 'back',  x: 50, y:  4, size: 32, opacity: 0.07, spin: 600, dir:  1 },
-  { archetype: 'hub',     band: 'mid',   x: -3, y: 58, size: 28, opacity: 0.16, spin: 380, dir: -1 },
-  { archetype: 'tree',    band: 'mid',   x: 88, y: 74, size: 30, opacity: 0.18, spin: 340, dir:  1 },
-  { archetype: 'mesh',    band: 'mid',   x:  8, y: 92, size: 22, opacity: 0.17, spin: 420, dir: -1 },
-  { archetype: 'ring',    band: 'front', x: 22, y: 88, size: 20, opacity: 0.28, spin: 300, dir:  1 },
-  { archetype: 'hub',     band: 'front', x: 98, y: 42, size: 18, opacity: 0.30, spin: 260, dir: -1 },
-  { archetype: 'chain',   band: 'mid',   x: 58, y: 104, size: 32, opacity: 0.20, spin: 320, dir:  1 },
+  { archetype: 'mesh', band: 'back', x: 16, y: 22, size: 40, opacity: 0.09, spin: 520, dir: 1 },
+  { archetype: 'lattice', band: 'back', x: 82, y: 14, size: 34, opacity: 0.08, spin: 560, dir: -1 },
+  { archetype: 'tree', band: 'back', x: 50, y: 4, size: 32, opacity: 0.07, spin: 600, dir: 1 },
+  { archetype: 'hub', band: 'mid', x: -3, y: 58, size: 28, opacity: 0.16, spin: 380, dir: -1 },
+  { archetype: 'tree', band: 'mid', x: 88, y: 74, size: 30, opacity: 0.18, spin: 340, dir: 1 },
+  { archetype: 'mesh', band: 'mid', x: 8, y: 92, size: 22, opacity: 0.17, spin: 420, dir: -1 },
+  { archetype: 'ring', band: 'front', x: 22, y: 88, size: 20, opacity: 0.28, spin: 300, dir: 1 },
+  { archetype: 'hub', band: 'front', x: 98, y: 42, size: 18, opacity: 0.3, spin: 260, dir: -1 },
+  { archetype: 'chain', band: 'mid', x: 58, y: 104, size: 32, opacity: 0.2, spin: 320, dir: 1 },
 ];
 
 const CURATED_SEED = 2026;
@@ -250,9 +252,9 @@ const CURATED_SEED = 2026;
 // scale, not motion. Positioned off-center so they never cut through the hero
 // title. Sized in vw/vh so they stay proportional to the viewport.
 const CURATED_ORBITS = [
-  { cx: 16, cy: 26, rx: 24, ry: 15, rot: -18, opacity: 0.10 },
-  { cx: 84, cy: 72, rx: 28, ry: 18, rot:  22, opacity: 0.09 },
-  { cx: 78, cy: 18, rx: 14, ry:  9, rot:  10, opacity: 0.12 },
+  { cx: 16, cy: 26, rx: 24, ry: 15, rot: -18, opacity: 0.1 },
+  { cx: 84, cy: 72, rx: 28, ry: 18, rot: 22, opacity: 0.09 },
+  { cx: 78, cy: 18, rx: 14, ry: 9, rot: 10, opacity: 0.12 },
 ];
 
 export function buildCuratedScene() {

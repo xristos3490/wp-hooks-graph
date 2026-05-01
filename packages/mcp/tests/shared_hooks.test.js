@@ -66,7 +66,7 @@ describe('shared_hooks', () => {
 
   test('throws UnknownCodebaseError on bad codebase in filter', () => {
     expect(() => tool.handler({ codebases: ['alpha', 'nope'] }, makeCtx())).toThrow(
-      UnknownCodebaseError,
+      UnknownCodebaseError
     );
   });
 });

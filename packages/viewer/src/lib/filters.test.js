@@ -11,13 +11,48 @@ import {
 } from './filters.js';
 
 const hooks = [
-  { id: 'hook::init', hook_type: 'action', dynamic: false, sources: ['wp', 'plugin'], fire_count: 2, listen_count: 10 },
-  { id: 'hook::the_content', hook_type: 'filter', dynamic: false, sources: ['wp'], fire_count: 1, listen_count: 5 },
+  {
+    id: 'hook::init',
+    hook_type: 'action',
+    dynamic: false,
+    sources: ['wp', 'plugin'],
+    fire_count: 2,
+    listen_count: 10,
+  },
+  {
+    id: 'hook::the_content',
+    hook_type: 'filter',
+    dynamic: false,
+    sources: ['wp'],
+    fire_count: 1,
+    listen_count: 5,
+  },
   // Raw fire-only orphan: listen_count === 0, fire edge from wp.
-  { id: 'hook::admin_init', hook_type: 'action', dynamic: false, sources: ['wp'], fire_count: 1, listen_count: 0 },
+  {
+    id: 'hook::admin_init',
+    hook_type: 'action',
+    dynamic: false,
+    sources: ['wp'],
+    fire_count: 1,
+    listen_count: 0,
+  },
   // Raw listen-only orphan: fire_count === 0, listen edge from plugin.
-  { id: 'hook::dynamic_1', hook_type: 'action', dynamic: true, sources: ['plugin'], fire_count: 0, listen_count: 1 },
-  { id: 'hook::the_title', hook_type: 'filter', dynamic: true, sources: ['wp', 'plugin'], fire_count: 1, listen_count: 2 },
+  {
+    id: 'hook::dynamic_1',
+    hook_type: 'action',
+    dynamic: true,
+    sources: ['plugin'],
+    fire_count: 0,
+    listen_count: 1,
+  },
+  {
+    id: 'hook::the_title',
+    hook_type: 'filter',
+    dynamic: true,
+    sources: ['wp', 'plugin'],
+    fire_count: 1,
+    listen_count: 2,
+  },
 ];
 
 const edges = [
@@ -46,17 +81,21 @@ const allOn = { fireRepos: { wp: true, plugin: true }, listenRepos: { wp: true, 
 describe('filterByHookType', () => {
   test('both enabled returns all', () => {
     const state = { hookType: { actions: true, filters: true } };
-    expect(filterByHookType(hooks, state)).toEqual(new Set(hooks.map(h => h.id)));
+    expect(filterByHookType(hooks, state)).toEqual(new Set(hooks.map((h) => h.id)));
   });
 
   test('only actions', () => {
     const state = { hookType: { actions: true, filters: false } };
-    expect(filterByHookType(hooks, state)).toEqual(new Set(['hook::init', 'hook::admin_init', 'hook::dynamic_1']));
+    expect(filterByHookType(hooks, state)).toEqual(
+      new Set(['hook::init', 'hook::admin_init', 'hook::dynamic_1'])
+    );
   });
 
   test('only filters', () => {
     const state = { hookType: { actions: false, filters: true } };
-    expect(filterByHookType(hooks, state)).toEqual(new Set(['hook::the_content', 'hook::the_title']));
+    expect(filterByHookType(hooks, state)).toEqual(
+      new Set(['hook::the_content', 'hook::the_title'])
+    );
   });
 
   test('both disabled returns empty', () => {
@@ -67,32 +106,52 @@ describe('filterByHookType', () => {
 
 describe('filterByDynamic', () => {
   test('disabled returns all', () => {
-    expect(filterByDynamic(hooks, { dynamic: false })).toEqual(new Set(hooks.map(h => h.id)));
+    expect(filterByDynamic(hooks, { dynamic: false })).toEqual(new Set(hooks.map((h) => h.id)));
   });
 
   test('enabled returns only dynamic', () => {
-    expect(filterByDynamic(hooks, { dynamic: true })).toEqual(new Set(['hook::dynamic_1', 'hook::the_title']));
+    expect(filterByDynamic(hooks, { dynamic: true })).toEqual(
+      new Set(['hook::dynamic_1', 'hook::the_title'])
+    );
   });
 
   test('enabled with no dynamic hooks returns empty', () => {
-    const noDynamic = hooks.filter(h => !h.dynamic);
+    const noDynamic = hooks.filter((h) => !h.dynamic);
     expect(filterByDynamic(noDynamic, { dynamic: true })).toEqual(new Set());
   });
 });
 
 describe('filterByOverlapping', () => {
   test('disabled returns all', () => {
-    expect(filterByOverlapping(hooks, { overlapping: false })).toEqual(new Set(hooks.map(h => h.id)));
+    expect(filterByOverlapping(hooks, { overlapping: false })).toEqual(
+      new Set(hooks.map((h) => h.id))
+    );
   });
 
   test('enabled returns only multi-source', () => {
-    expect(filterByOverlapping(hooks, { overlapping: true })).toEqual(new Set(['hook::init', 'hook::the_title']));
+    expect(filterByOverlapping(hooks, { overlapping: true })).toEqual(
+      new Set(['hook::init', 'hook::the_title'])
+    );
   });
 
   test('enabled with all single-source returns empty', () => {
     const singleSource = [
-      { id: 'hook::a', sources: ['wp'], hook_type: 'action', dynamic: false, fire_count: 1, listen_count: 1 },
-      { id: 'hook::b', sources: ['plugin'], hook_type: 'filter', dynamic: false, fire_count: 1, listen_count: 1 },
+      {
+        id: 'hook::a',
+        sources: ['wp'],
+        hook_type: 'action',
+        dynamic: false,
+        fire_count: 1,
+        listen_count: 1,
+      },
+      {
+        id: 'hook::b',
+        sources: ['plugin'],
+        hook_type: 'filter',
+        dynamic: false,
+        fire_count: 1,
+        listen_count: 1,
+      },
     ];
     expect(filterByOverlapping(singleSource, { overlapping: true })).toEqual(new Set());
   });
@@ -101,7 +160,7 @@ describe('filterByOverlapping', () => {
 describe('filterByHighTraffic', () => {
   test('disabled returns all', () => {
     const state = { highTraffic: { enabled: false, minConnections: 10 } };
-    expect(filterByHighTraffic(hooks, state)).toEqual(new Set(hooks.map(h => h.id)));
+    expect(filterByHighTraffic(hooks, state)).toEqual(new Set(hooks.map((h) => h.id)));
   });
 
   test('enabled with threshold 5', () => {
@@ -111,7 +170,7 @@ describe('filterByHighTraffic', () => {
 
   test('enabled with threshold 1 returns all', () => {
     const state = { highTraffic: { enabled: true, minConnections: 1 } };
-    expect(filterByHighTraffic(hooks, state)).toEqual(new Set(hooks.map(h => h.id)));
+    expect(filterByHighTraffic(hooks, state)).toEqual(new Set(hooks.map((h) => h.id)));
   });
 
   test('enabled with very high threshold returns empty', () => {
@@ -126,7 +185,9 @@ describe('intersectSets', () => {
   });
 
   test('two overlapping sets', () => {
-    expect(intersectSets([new Set(['a', 'b', 'c']), new Set(['b', 'c', 'd'])])).toEqual(new Set(['b', 'c']));
+    expect(intersectSets([new Set(['a', 'b', 'c']), new Set(['b', 'c', 'd'])])).toEqual(
+      new Set(['b', 'c'])
+    );
   });
 
   test('three sets narrows result', () => {
@@ -146,49 +207,74 @@ describe('intersectSets', () => {
 });
 
 describe('filterEdgesByRepo', () => {
-  const allVisible = new Set(['hook::init', 'hook::the_content', 'hook::dynamic_1', 'hook::admin_init', 'hook::the_title']);
+  const allVisible = new Set([
+    'hook::init',
+    'hook::the_content',
+    'hook::dynamic_1',
+    'hook::admin_init',
+    'hook::the_title',
+  ]);
 
   test('all sources enabled in both maps keeps all edges to visible hooks', () => {
     expect(filterEdgesByRepo(edges, fileNodes, allVisible, allOn)).toHaveLength(9);
   });
 
   test('fire-edge from a source unchecked in fireRepos is dropped', () => {
-    const state = { fireRepos: { wp: true, plugin: false }, listenRepos: { wp: true, plugin: true } };
+    const state = {
+      fireRepos: { wp: true, plugin: false },
+      listenRepos: { wp: true, plugin: true },
+    };
     const result = filterEdgesByRepo(edges, fileNodes, allVisible, state);
     // No fire-edge originates from plugin in the fixture, so nothing drops.
     // Confirm by inverse: unchecking wp in fireRepos drops wp fire-edges.
-    const state2 = { fireRepos: { wp: false, plugin: true }, listenRepos: { wp: true, plugin: true } };
+    const state2 = {
+      fireRepos: { wp: false, plugin: true },
+      listenRepos: { wp: true, plugin: true },
+    };
     const result2 = filterEdgesByRepo(edges, fileNodes, allVisible, state2);
     expect(result).toHaveLength(9);
     // Drops: wp fires to init, the_content, admin_init, the_title = 4 edges
     expect(result2).toHaveLength(5);
-    expect(result2.every(e => e.type !== 'fires' || !e.source.startsWith('file::wp'))).toBe(true);
+    expect(result2.every((e) => e.type !== 'fires' || !e.source.startsWith('file::wp'))).toBe(true);
   });
 
   test('listen-edge from a source unchecked in listenRepos is dropped', () => {
-    const state = { fireRepos: { wp: true, plugin: true }, listenRepos: { wp: true, plugin: false } };
+    const state = {
+      fireRepos: { wp: true, plugin: true },
+      listenRepos: { wp: true, plugin: false },
+    };
     const result = filterEdgesByRepo(edges, fileNodes, allVisible, state);
     // Drops: plugin listens to init, the_content, dynamic_1, the_title = 4 edges
     expect(result).toHaveLength(5);
-    expect(result.every(e => e.type !== 'listens' || !e.source.startsWith('file::plugin'))).toBe(true);
+    expect(result.every((e) => e.type !== 'listens' || !e.source.startsWith('file::plugin'))).toBe(
+      true
+    );
   });
 
   test('edge routing is based on its own edge type, not the other map', () => {
     // plugin unchecked in fireRepos only: plugin listen-edges still kept; no plugin fire-edge exists.
-    const state = { fireRepos: { wp: true, plugin: false }, listenRepos: { wp: true, plugin: true } };
+    const state = {
+      fireRepos: { wp: true, plugin: false },
+      listenRepos: { wp: true, plugin: true },
+    };
     const result = filterEdgesByRepo(edges, fileNodes, allVisible, state);
-    const pluginListens = result.filter(e => e.type === 'listens' && e.source.startsWith('file::plugin'));
+    const pluginListens = result.filter(
+      (e) => e.type === 'listens' && e.source.startsWith('file::plugin')
+    );
     expect(pluginListens).toHaveLength(4);
   });
 
   test('edges to invisible hooks are removed', () => {
     const result = filterEdgesByRepo(edges, fileNodes, new Set(['hook::init']), allOn);
     expect(result).toHaveLength(3);
-    expect(result.every(e => e.target === 'hook::init')).toBe(true);
+    expect(result.every((e) => e.target === 'hook::init')).toBe(true);
   });
 
   test('all sources disabled returns empty', () => {
-    const state = { fireRepos: { wp: false, plugin: false }, listenRepos: { wp: false, plugin: false } };
+    const state = {
+      fireRepos: { wp: false, plugin: false },
+      listenRepos: { wp: false, plugin: false },
+    };
     expect(filterEdgesByRepo(edges, fileNodes, allVisible, state)).toHaveLength(0);
   });
 });
@@ -264,7 +350,13 @@ describe('applyFilterPipeline', () => {
     const state = { ...baseState, includeFireOnly: true, includeListenOnly: true };
     const result = applyFilterPipeline(hooks, edges, fileNodes, state);
     expect(result.visibleHookIds).toEqual(
-      new Set(['hook::init', 'hook::the_content', 'hook::the_title', 'hook::admin_init', 'hook::dynamic_1'])
+      new Set([
+        'hook::init',
+        'hook::the_content',
+        'hook::the_title',
+        'hook::admin_init',
+        'hook::dynamic_1',
+      ])
     );
     expect(result.visibleEdges).toHaveLength(9);
   });

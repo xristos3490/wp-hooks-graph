@@ -91,9 +91,9 @@ describe('filter_priority_conflicts', () => {
   });
 
   test('throws when both hook and substring provided', () => {
-    expect(() =>
-      tool.handler({ hook: 'wp_query_vars', substring: 'query' }, makeCtx()),
-    ).toThrow(/at most one/);
+    expect(() => tool.handler({ hook: 'wp_query_vars', substring: 'query' }, makeCtx())).toThrow(
+      /at most one/
+    );
   });
 
   test('throws UnknownCodebaseError on bad codebase in filter', () => {

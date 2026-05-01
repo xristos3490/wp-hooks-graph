@@ -48,7 +48,9 @@ export default function useGraphData() {
       .catch(() => {
         if (!cancelled) setIsLoading(false);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [parseJson]);
 
   // Manual file upload

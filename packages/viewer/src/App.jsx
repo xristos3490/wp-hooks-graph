@@ -21,39 +21,59 @@ export default function App() {
   const cyRef = useRef(null);
 
   // Derive source labels + palettes from data
-  const { sourceLabels, repoPalettes, hookDataCache, isLargeGraph, defaultThreshold, maxConnections } =
-    useMemo(() => {
-      if (!data) return { sourceLabels: [], repoPalettes: {}, hookDataCache: null, isLargeGraph: false, defaultThreshold: 10, maxConnections: 100 };
-
-      const meta = data.metadata;
-      const labels = meta.source_labels ||
-        (meta.scanned_dirs || []).map((d) => d.split('/').filter(Boolean).pop());
-      const palettes = generateRepoPalette(labels);
-
-      const hookNodes = data.nodes.filter((n) => n.type === 'hook');
-      const fileNodes = data.nodes.filter((n) => n.type === 'file');
-      const connections = hookNodes
-        .map((n) => n.fire_count + n.listen_count)
-        .sort((a, b) => b - a);
-      const threshold = connections[Math.floor(connections.length * 0.1)] || 5;
-      const maxConn = connections[0] || 100;
-
-      const totalElements = data.nodes.length + data.edges.length;
-
+  const {
+    sourceLabels,
+    repoPalettes,
+    hookDataCache,
+    isLargeGraph,
+    defaultThreshold,
+    maxConnections,
+  } = useMemo(() => {
+    if (!data)
       return {
-        sourceLabels: labels,
-        repoPalettes: palettes,
-        hookDataCache: { hooks: hookNodes, edges: data.edges, fileNodes },
-        isLargeGraph: totalElements > LARGE_GRAPH_THRESHOLD,
-        defaultThreshold: threshold,
-        maxConnections: maxConn,
+        sourceLabels: [],
+        repoPalettes: {},
+        hookDataCache: null,
+        isLargeGraph: false,
+        defaultThreshold: 10,
+        maxConnections: 100,
       };
-    }, [data]);
+
+    const meta = data.metadata;
+    const labels =
+      meta.source_labels ||
+      (meta.scanned_dirs || []).map((d) => d.split('/').filter(Boolean).pop());
+    const palettes = generateRepoPalette(labels);
+
+    const hookNodes = data.nodes.filter((n) => n.type === 'hook');
+    const fileNodes = data.nodes.filter((n) => n.type === 'file');
+    const connections = hookNodes.map((n) => n.fire_count + n.listen_count).sort((a, b) => b - a);
+    const threshold = connections[Math.floor(connections.length * 0.1)] || 5;
+    const maxConn = connections[0] || 100;
+
+    const totalElements = data.nodes.length + data.edges.length;
+
+    return {
+      sourceLabels: labels,
+      repoPalettes: palettes,
+      hookDataCache: { hooks: hookNodes, edges: data.edges, fileNodes },
+      isLargeGraph: totalElements > LARGE_GRAPH_THRESHOLD,
+      defaultThreshold: threshold,
+      maxConnections: maxConn,
+    };
+  }, [data]);
 
   const {
-    filterState, filterResult,
-    toggleHookType, toggleBoolFilter, toggleFireRepo, toggleListenRepo,
-    toggleHighTraffic, setHighTrafficValue, initRepos, setDefaultThreshold,
+    filterState,
+    filterResult,
+    toggleHookType,
+    toggleBoolFilter,
+    toggleFireRepo,
+    toggleListenRepo,
+    toggleHighTraffic,
+    setHighTrafficValue,
+    initRepos,
+    setDefaultThreshold,
   } = useFilterState(hookDataCache);
 
   // Initialize repos when data arrives
@@ -99,12 +119,29 @@ export default function App() {
       isBusy: isLoading || isComputing,
     }),
     [
-      data, sourceLabels, repoPalettes, hookDataCache, isLargeGraph,
-      defaultThreshold, maxConnections, filterState, filterResult,
-      toggleHookType, toggleBoolFilter, toggleFireRepo, toggleListenRepo, toggleHighTraffic,
-      setHighTrafficValue, selectedNode, selectNode, clearSelection,
-      searchQuery, groupBy, loadFile,
-      isLoading, isComputing,
+      data,
+      sourceLabels,
+      repoPalettes,
+      hookDataCache,
+      isLargeGraph,
+      defaultThreshold,
+      maxConnections,
+      filterState,
+      filterResult,
+      toggleHookType,
+      toggleBoolFilter,
+      toggleFireRepo,
+      toggleListenRepo,
+      toggleHighTraffic,
+      setHighTrafficValue,
+      selectedNode,
+      selectNode,
+      clearSelection,
+      searchQuery,
+      groupBy,
+      loadFile,
+      isLoading,
+      isComputing,
     ]
   );
 

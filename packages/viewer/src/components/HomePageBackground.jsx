@@ -7,12 +7,16 @@ import './HomePageBackground.css';
 // across lines of different lengths. Node/edge refs let the physics hook mutate
 // cx/cy (and connected line endpoints) bypassing React.
 function Constellation({ nodes, edges, style, spinDir, nodeElRefs, edgeElRefs }) {
-  const edgeData = useMemo(() => edges.map(([a, b]) => {
-    const [x1, y1] = nodes[a];
-    const [x2, y2] = nodes[b];
-    const len = Math.hypot(x2 - x1, y2 - y1);
-    return { x1, y1, x2, y2, len };
-  }), [nodes, edges]);
+  const edgeData = useMemo(
+    () =>
+      edges.map(([a, b]) => {
+        const [x1, y1] = nodes[a];
+        const [x2, y2] = nodes[b];
+        const len = Math.hypot(x2 - x1, y2 - y1);
+        return { x1, y1, x2, y2, len };
+      }),
+    [nodes, edges]
+  );
 
   return (
     <div className="hp-constellation" data-spin-dir={spinDir} style={style}>
@@ -23,7 +27,10 @@ function Constellation({ nodes, edges, style, spinDir, nodeElRefs, edgeElRefs })
               <line
                 key={i}
                 ref={edgeElRefs[i]}
-                x1={x1} y1={y1} x2={x2} y2={y2}
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
                 strokeDasharray={`6 ${Math.max(len - 6, 4)}`}
                 style={{ animationDelay: `${(i * 0.7) % 5}s` }}
               />
@@ -34,7 +41,9 @@ function Constellation({ nodes, edges, style, spinDir, nodeElRefs, edgeElRefs })
               <circle
                 key={i}
                 ref={nodeElRefs[i]}
-                cx={cx} cy={cy} r="3.5"
+                cx={cx}
+                cy={cy}
+                r="3.5"
                 style={{ animationDelay: `${(i * 0.4) % 3}s` }}
               />
             ))}

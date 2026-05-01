@@ -9,6 +9,10 @@
 }
 
 .gh-link:hover,
-.gh-link:focus-visible { opacity: 1; }
+.gh-link:focus-visible {
+  opacity: 1;
+}
 
-.gh-link svg { display: block; }
+.gh-link svg {
+  display: block;
+}

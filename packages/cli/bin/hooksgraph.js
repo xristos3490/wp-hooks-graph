@@ -39,7 +39,7 @@ function ensurePhp() {
       '  Debian: sudo apt install php-cli',
       '  Fedora: sudo dnf install php-cli',
       '',
-    ].join('\n'),
+    ].join('\n')
   );
   process.exit(2);
 }
@@ -55,7 +55,7 @@ function printTopHelp() {
       '  hooksgraph serve [path]          Serve the viewer; defaults to most recent JSON',
       '  hooksgraph <subcommand> --help   Show help for a subcommand',
       '',
-    ].join('\n'),
+    ].join('\n')
   );
 }
 
@@ -115,19 +115,21 @@ async function runServe(args) {
         '                                   (or $HOOKSGRAPH_STORAGE if set)',
         '  hooksgraph serve PATH            Use a specific JSON file',
         '',
-      ].join('\n'),
+      ].join('\n')
     );
     return;
   }
 
   let hooksJson = args[0];
   if (!hooksJson) {
-    const storage = path.resolve(process.env.HOOKSGRAPH_STORAGE || path.join(process.cwd(), 'storage'));
+    const storage = path.resolve(
+      process.env.HOOKSGRAPH_STORAGE || path.join(process.cwd(), 'storage')
+    );
     hooksJson = mostRecentJson(storage);
     if (!hooksJson) {
       process.stderr.write(
         `Error: no JSON path given and no files found in ${storage}.\n` +
-          "Run 'hooksgraph parse <dir>' first, or pass a path: hooksgraph serve path/to/hooks.json\n",
+          "Run 'hooksgraph parse <dir>' first, or pass a path: hooksgraph serve path/to/hooks.json\n"
       );
       process.exit(1);
     }
@@ -141,14 +143,10 @@ async function runServe(args) {
   const port = await findFreePort(8080);
   const url = `http://127.0.0.1:${port}`;
 
-  const srv = spawn(
-    'php',
-    ['-S', `127.0.0.1:${port}`, '-t', DIST_DIR, SERVER_ENTRY],
-    {
-      stdio: 'inherit',
-      env: { ...process.env, HOOKS_JSON: path.resolve(hooksJson) },
-    },
-  );
+  const srv = spawn('php', ['-S', `127.0.0.1:${port}`, '-t', DIST_DIR, SERVER_ENTRY], {
+    stdio: 'inherit',
+    env: { ...process.env, HOOKS_JSON: path.resolve(hooksJson) },
+  });
 
   const openers = ['open', 'xdg-open', 'wslview', 'start'];
   for (const candidate of openers) {
