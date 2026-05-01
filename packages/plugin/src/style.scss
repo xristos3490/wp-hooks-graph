@@ -44,6 +44,10 @@ body.tools_page_hooksgraph {
 		}
 	}
 
+	.dataviews-filters__container {
+		padding-top: var( --wpds-dimension-padding-md );
+	}
+
 	.hooksgraph-plugins__dashboard {
 		padding: 24px;
 		margin: 0;
