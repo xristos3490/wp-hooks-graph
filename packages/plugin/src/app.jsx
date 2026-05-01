@@ -6,6 +6,7 @@ import PluginsView from './plugins-view';
 export default function App() {
 	return (
 		<Page
+			className="hooksgraph-page"
 			title={ __( 'HooksGraph', 'hooksgraph' ) }
 			subTitle={ __(
 				'Active plugins on this site.',
