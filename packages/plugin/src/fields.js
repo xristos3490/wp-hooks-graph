@@ -1,5 +1,5 @@
 import { __ } from '@wordpress/i18n';
-import { Badge, Text } from '@wordpress/ui';
+import { Badge } from '@wordpress/ui';
 
 const stripTags = ( html ) =>
 	typeof html === 'string' ? html.replace( /<[^>]*>/g, '' ).trim() : '';
@@ -11,14 +11,13 @@ const STATUS_LABELS = {
 	scheduled: __( 'Scheduled', 'hooksgraph' ),
 };
 
-// Map status → @wordpress/ui Badge intent. Badge accepts "neutral" | "info" |
-// "success" | "warning" | "danger" depending on the version; falling back to
-// neutral keeps things safe across versions.
+// Map status → @wordpress/ui Badge intent. Valid intents are
+// 'high' | 'medium' | 'low' | 'stable' | 'informational' | 'draft' | 'none'.
 const STATUS_INTENTS = {
-	parsed: 'success',
-	stale: 'warning',
-	needs_parsing: 'neutral',
-	scheduled: 'info',
+	parsed: 'stable',
+	stale: 'medium',
+	needs_parsing: 'draft',
+	scheduled: 'informational',
 };
 
 export const fields = [
@@ -48,7 +47,7 @@ export const fields = [
 				return null;
 			}
 			return (
-				<Badge intent={ STATUS_INTENTS[ status ] ?? 'neutral' }>
+				<Badge intent={ STATUS_INTENTS[ status ] ?? 'none' }>
 					{ STATUS_LABELS[ status ] ?? status }
 				</Badge>
 			);
@@ -73,23 +72,13 @@ export const fields = [
 		label: __( 'Requires PHP', 'hooksgraph' ),
 		enableSorting: true,
 	},
-	{
-		id: 'abspath',
-		label: __( 'Absolute path', 'hooksgraph' ),
-		enableGlobalSearch: true,
-		enableSorting: true,
-		render: ( { item } ) =>
-			item.abspath ? (
-				<Text className="hooksgraph-abspath">{ item.abspath }</Text>
-			) : null,
-	},
 ];
 
 export const defaultView = {
 	type: 'table',
 	titleField: 'name',
 	descriptionField: 'description',
-	fields: [ 'version', 'parse_status', 'author', 'requires_php', 'abspath' ],
+	fields: [ 'version', 'parse_status', 'author', 'requires_php' ],
 	page: 1,
 	perPage: 25,
 	search: '',

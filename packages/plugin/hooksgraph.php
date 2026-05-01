@@ -39,7 +39,6 @@ require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-storage.php';
 require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-parser-service.php';
 require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-cron.php';
 require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-admin-page.php';
-require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-rest-fields.php';
 require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-rest-controller.php';
 
 add_action( 'plugins_loaded', static function (): void {
@@ -48,7 +47,6 @@ add_action( 'plugins_loaded', static function (): void {
 	$cron    = new \HooksGraph\Plugin\Cron( $parser );
 
 	( new \HooksGraph\Plugin\Admin_Page() )->register();
-	( new \HooksGraph\Plugin\Rest_Fields( $storage, $cron ) )->register();
-	( new \HooksGraph\Plugin\Rest_Controller( $cron ) )->register();
+	( new \HooksGraph\Plugin\Rest_Controller( $storage, $cron ) )->register();
 	$cron->register();
 } );

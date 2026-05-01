@@ -8,24 +8,30 @@ import { Notice, Stack } from '@wordpress/ui';
 import { defaultView, fields } from './fields';
 
 const PLUGINS_PATH = '/wp/v2/plugins?context=view&per_page=100';
+const STATUS_PATH = '/hooksgraph/v1/parse-status';
 const PARSE_PATH = '/hooksgraph/v1/parse-plugin';
 
 export default function PluginsView() {
 	const [ plugins, setPlugins ] = useState( [] );
+	const [ statusMap, setStatusMap ] = useState( {} );
 	const [ status, setStatus ] = useState( 'loading' );
 	const [ error, setError ] = useState( null );
 	const [ view, setView ] = useState( defaultView );
 
-	const loadPlugins = useCallback( ( { silent = false } = {} ) => {
+	const loadAll = useCallback( ( { silent = false } = {} ) => {
 		if ( ! silent ) {
 			setStatus( 'loading' );
 		}
-		return apiFetch( { path: PLUGINS_PATH } )
-			.then( ( response ) => {
-				const active = ( response ?? [] ).filter(
+		return Promise.all( [
+			apiFetch( { path: PLUGINS_PATH } ),
+			apiFetch( { path: STATUS_PATH } ),
+		] )
+			.then( ( [ pluginsResponse, statusResponse ] ) => {
+				const active = ( pluginsResponse ?? [] ).filter(
 					( plugin ) => plugin.status === 'active'
 				);
 				setPlugins( active );
+				setStatusMap( statusResponse ?? {} );
 				setStatus( 'ready' );
 			} )
 			.catch( ( err ) => {
@@ -38,8 +44,8 @@ export default function PluginsView() {
 	}, [] );
 
 	useEffect( () => {
-		loadPlugins();
-	}, [ loadPlugins ] );
+		loadAll();
+	}, [ loadAll ] );
 
 	const data = useMemo(
 		() =>
@@ -50,10 +56,9 @@ export default function PluginsView() {
 				author: plugin.author,
 				description: plugin.description,
 				requires_php: plugin.requires_php,
-				abspath: plugin.abspath,
-				parse_status: plugin.parse_status,
+				parse_status: statusMap[ plugin.plugin ] ?? null,
 			} ) ),
-		[ plugins ]
+		[ plugins, statusMap ]
 	);
 
 	const { data: rows, paginationInfo } = useMemo(
@@ -78,7 +83,7 @@ export default function PluginsView() {
 							method: 'POST',
 							data: { plugin: item.id },
 						} );
-						loadPlugins( { silent: true } );
+						loadAll( { silent: true } );
 					} catch ( err ) {
 						// eslint-disable-next-line no-console
 						console.error(
@@ -89,7 +94,7 @@ export default function PluginsView() {
 				},
 			},
 		],
-		[ loadPlugins ]
+		[ loadAll ]
 	);
 
 	if ( status === 'loading' ) {
