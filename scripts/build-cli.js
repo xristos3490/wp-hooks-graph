@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Assemble packages/cli/ for npm publish:
- *   1. Build the viewer (pnpm -F viewer build).
+ *   1. Build the viewer (pnpm -F @hooksgraph/viewer build).
  *   2. Validate parser composer.json.
  *   3. Install parser deps (no-dev, optimized autoloader).
  *   4. Copy parser src/vendor/*.php → packages/cli/php/.
@@ -41,7 +41,7 @@ function copyIntoPhp(source, destName) {
 
 process.stderr.write(`Building CLI package at ${CLI}\n`);
 
-run('pnpm', ['-F', 'viewer', 'build'], { cwd: ROOT });
+run('pnpm', ['-F', '@hooksgraph/viewer', 'build'], { cwd: ROOT });
 
 run('composer', ['validate', '--working-dir=packages/parser', '--no-check-publish'], { cwd: ROOT });
 

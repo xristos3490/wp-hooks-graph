@@ -11,6 +11,26 @@ import ScheduleParseModal from './schedule-parse-modal';
 const PLUGINS_PATH = '/wp/v2/plugins?context=view&per_page=100';
 const STATUS_PATH = '/hooksgraph/v1/parse-status';
 const PARSE_PATH = '/hooksgraph/v1/parse-plugin';
+const DOWNLOAD_PATH = '/hooksgraph/v1/parse-download';
+
+const DOWNLOADABLE_STATUSES = new Set( [ 'parsed', 'stale' ] );
+
+const filenameFromContentDisposition = ( header ) => {
+	if ( ! header ) return null;
+	const match = header.match( /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i );
+	return match ? decodeURIComponent( match[ 1 ] ) : null;
+};
+
+const triggerBrowserDownload = ( blob, filename ) => {
+	const url = URL.createObjectURL( blob );
+	const link = document.createElement( 'a' );
+	link.href = url;
+	link.download = filename;
+	document.body.appendChild( link );
+	link.click();
+	link.remove();
+	URL.revokeObjectURL( url );
+};
 
 const emptyStatus = { status: null, last_parsed_at: null, exclude: [] };
 
@@ -111,6 +131,22 @@ export default function PluginsView() {
 		[ scheduleTarget, closeSchedule, loadAll ]
 	);
 
+	const downloadParse = useCallback( async ( item ) => {
+		const path = `${ DOWNLOAD_PATH }?plugin=${ encodeURIComponent(
+			item.id
+		) }`;
+		const response = await apiFetch( { path, parse: false } );
+		const blob = await response.blob();
+		const fallback = `${ item.id.split( '/' ).pop() }-${
+			item.version || 'unversioned'
+		}.json`;
+		const filename =
+			filenameFromContentDisposition(
+				response.headers.get( 'Content-Disposition' )
+			) ?? fallback;
+		triggerBrowserDownload( blob, filename );
+	}, [] );
+
 	const actions = useMemo(
 		() => [
 			{
@@ -126,8 +162,28 @@ export default function PluginsView() {
 					setScheduleTarget( item );
 				},
 			},
+			{
+				id: 'download-parse',
+				label: __( 'Download JSON', 'hooksgraph' ),
+				supportsBulk: false,
+				isEligible: ( item ) =>
+					DOWNLOADABLE_STATUSES.has( item.parse_status ),
+				callback: async ( items ) => {
+					const item = items[ 0 ];
+					if ( ! item ) return;
+					try {
+						await downloadParse( item );
+					} catch ( err ) {
+						// eslint-disable-next-line no-console
+						console.error(
+							'HooksGraph: download failed',
+							err
+						);
+					}
+				},
+			},
 		],
-		[]
+		[ downloadParse ]
 	);
 
 	if ( status === 'loading' ) {

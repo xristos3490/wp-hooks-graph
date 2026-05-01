@@ -47,6 +47,23 @@ final class Rest_Controller {
 
 		register_rest_route(
 			self::NAMESPACE,
+			'/parse-download',
+			[
+				'methods'             => WP_REST_Server::READABLE,
+				'permission_callback' => $auth,
+				'args'                => [
+					'plugin' => [
+						'required'          => true,
+						'type'              => 'string',
+						'sanitize_callback' => [ $this, 'sanitize_plugin' ],
+					],
+				],
+				'callback'            => [ $this, 'download_parse' ],
+			]
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
 			'/parse-plugin',
 			[
 				'methods'             => WP_REST_Server::CREATABLE,
@@ -147,6 +164,64 @@ final class Rest_Controller {
 		}
 
 		return new WP_REST_Response( $map, 200 );
+	}
+
+	/**
+	 * Stream the most recent parsed JSON for `$plugin` as an attachment.
+	 *
+	 * Bypasses the REST serializer via `rest_pre_serve_request` so the file is
+	 * sent byte-for-byte rather than re-encoded.
+	 */
+	public function download_parse( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		$plugin = (string) $request->get_param( 'plugin' );
+		if ( '' === $plugin ) {
+			return new WP_Error( 'hooksgraph_invalid_plugin', __( 'Invalid plugin identifier.', 'hooksgraph' ), [ 'status' => 400 ] );
+		}
+
+		$basename = sanitize_file_name( basename( $plugin ) );
+		$matches  = glob( $this->storage->dir() . '/' . $basename . '-*.json' ) ?: [];
+		if ( ! $matches ) {
+			return new WP_Error( 'hooksgraph_not_parsed', __( 'No parsed graph found for this plugin.', 'hooksgraph' ), [ 'status' => 404 ] );
+		}
+
+		// Prefer the newest file on disk — handles both `parsed` (current version)
+		// and `stale` (older version) cases without the caller needing to know which.
+		usort( $matches, static fn ( string $a, string $b ): int => ( (int) @filemtime( $b ) ) <=> ( (int) @filemtime( $a ) ) );
+		$file = $matches[0];
+
+		if ( ! is_readable( $file ) ) {
+			return new WP_Error( 'hooksgraph_read_failed', __( 'Could not read the parsed graph.', 'hooksgraph' ), [ 'status' => 500 ] );
+		}
+
+		$filename = basename( $file );
+		$size     = (int) @filesize( $file );
+
+		add_filter(
+			'rest_pre_serve_request',
+			static function ( bool $served, $result, WP_REST_Request $req ) use ( $file, $filename, $size ): bool {
+				if ( $served || $req->get_route() !== '/' . self::NAMESPACE . '/parse-download' ) {
+					return $served;
+				}
+				if ( ! headers_sent() ) {
+					header( 'Content-Type: application/json; charset=utf-8' );
+					header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
+					if ( $size > 0 ) {
+						header( 'Content-Length: ' . $size );
+					}
+					nocache_headers();
+				}
+				readfile( $file );
+				return true;
+			},
+			10,
+			3
+		);
+
+		// Returned response is consumed only if the filter above is bypassed
+		// (e.g., headers already sent). Body is a no-op marker.
+		$response = new WP_REST_Response( null, 200 );
+		$response->header( 'Content-Disposition', 'attachment; filename="' . $filename . '"' );
+		return $response;
 	}
 
 	public function schedule_parse( WP_REST_Request $request ): WP_REST_Response|WP_Error {
