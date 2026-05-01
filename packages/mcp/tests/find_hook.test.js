@@ -35,7 +35,7 @@ describe('find_hook', () => {
 
   test('throws UnknownCodebaseError on bad codebase', () => {
     expect(() => tool.handler({ name: 'init', codebase: 'nope' }, makeCtx())).toThrow(
-      UnknownCodebaseError,
+      UnknownCodebaseError
     );
   });
 });

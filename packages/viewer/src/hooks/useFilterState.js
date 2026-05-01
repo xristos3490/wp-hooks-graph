@@ -1,7 +1,5 @@
 import { useReducer, useMemo, useCallback } from 'react';
-import {
-  applyFilterPipeline,
-} from '../lib/filters.js';
+import { applyFilterPipeline } from '../lib/filters.js';
 
 const ACTIONS = {
   TOGGLE_HOOK_TYPE: 'TOGGLE_HOOK_TYPE',
@@ -109,19 +107,12 @@ export default function useFilterState(hookDataCache) {
     (label) => dispatch({ type: ACTIONS.TOGGLE_LISTEN_REPO, label }),
     []
   );
-  const toggleHighTraffic = useCallback(
-    () => dispatch({ type: ACTIONS.TOGGLE_HIGH_TRAFFIC }),
-    []
-  );
+  const toggleHighTraffic = useCallback(() => dispatch({ type: ACTIONS.TOGGLE_HIGH_TRAFFIC }), []);
   const setHighTrafficValue = useCallback(
-    (value) =>
-      dispatch({ type: ACTIONS.SET_HIGH_TRAFFIC_VALUE, value: parseInt(value, 10) }),
+    (value) => dispatch({ type: ACTIONS.SET_HIGH_TRAFFIC_VALUE, value: parseInt(value, 10) }),
     []
   );
-  const initRepos = useCallback(
-    (labels) => dispatch({ type: ACTIONS.INIT_REPOS, labels }),
-    []
-  );
+  const initRepos = useCallback((labels) => dispatch({ type: ACTIONS.INIT_REPOS, labels }), []);
   const setDefaultThreshold = useCallback(
     (value) => dispatch({ type: ACTIONS.SET_DEFAULT_THRESHOLD, value }),
     []

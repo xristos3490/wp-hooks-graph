@@ -59,7 +59,7 @@ describe('index.get', () => {
           metadata: { source_labels: ['v1'] },
           nodes: [{ id: 'hook::a', type: 'hook', name: 'a', hook_type: 'action' }],
           edges: [],
-        }),
+        })
       );
       const idx = createIndex();
       const first = idx.get({ id: 'x', path: file });
@@ -73,7 +73,7 @@ describe('index.get', () => {
           metadata: { source_labels: ['v2'] },
           nodes: [{ id: 'hook::b', type: 'hook', name: 'b', hook_type: 'filter' }],
           edges: [],
-        }),
+        })
       );
       fs.utimesSync(file, later, later);
 
@@ -89,7 +89,9 @@ describe('index.get', () => {
 
   test('throws CodebaseLoadError when file missing', () => {
     const idx = createIndex();
-    expect(() => idx.get({ id: 'missing', path: '/nonexistent/path.json' })).toThrow(CodebaseLoadError);
+    expect(() => idx.get({ id: 'missing', path: '/nonexistent/path.json' })).toThrow(
+      CodebaseLoadError
+    );
   });
 
   test('throws CodebaseLoadError on invalid JSON', () => {

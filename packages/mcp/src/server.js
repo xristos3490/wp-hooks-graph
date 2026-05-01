@@ -49,7 +49,7 @@ export function createServer({ storageDir }) {
       capabilities: { tools: {} },
       instructions:
         'Query WordPress hook graphs built by wp-hooks-graph. Call list_codebases first to see which codebases are available, then pass the codebase id to the other tools.',
-    },
+    }
   );
 
   for (const tool of TOOLS) {
@@ -73,7 +73,7 @@ export function createServer({ storageDir }) {
           }
           throw err;
         }
-      },
+      }
     );
   }
 

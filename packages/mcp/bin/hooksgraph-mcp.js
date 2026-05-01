@@ -35,7 +35,7 @@ function printHelp() {
       '                    Falls back to $HOOKSGRAPH_STORAGE, then ./storage.',
       '  -h, --help        Show this message.',
       '',
-    ].join('\n'),
+    ].join('\n')
   );
 }
 

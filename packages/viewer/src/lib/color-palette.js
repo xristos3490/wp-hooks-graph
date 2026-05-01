@@ -15,8 +15,8 @@
 const TONES = {
   action: { L: 54, C: 0.22 }, // matches WPDS brand blue — primary hook color
   filter: { L: 72, C: 0.13 }, // softer counterpart, echoes bg-surface-brand tone
-  file:   { L: 42, C: 0.08 }, // muted, lives near fg-content-neutral-weak
-  fire:   { L: 54, C: 0.20 }, // ~action, used for "fires" edges
+  file: { L: 42, C: 0.08 }, // muted, lives near fg-content-neutral-weak
+  fire: { L: 54, C: 0.2 }, // ~action, used for "fires" edges
   listen: { L: 65, C: 0.13 }, // ~filter, used for "listens" edges
 };
 
@@ -41,16 +41,16 @@ function oklchToRgb(L, C, h) {
   // OKLab → cube-root LMS
   const lC = lP + 0.3963377774 * a + 0.2158037573 * b;
   const mC = lP - 0.1055613458 * a - 0.0638541728 * b;
-  const sC = lP - 0.0894841775 * a - 1.2914855480 * b;
+  const sC = lP - 0.0894841775 * a - 1.291485548 * b;
 
   const lL = lC ** 3;
   const mL = mC ** 3;
   const sL = sC ** 3;
 
   // LMS → linear sRGB
-  const r =  4.0767416621 * lL - 3.3077115913 * mL + 0.2309699292 * sL;
+  const r = 4.0767416621 * lL - 3.3077115913 * mL + 0.2309699292 * sL;
   const g = -1.2684380046 * lL + 2.6097574011 * mL - 0.3413193965 * sL;
-  const bl = -0.0041960863 * lL - 0.7034186147 * mL + 1.7076147010 * sL;
+  const bl = -0.0041960863 * lL - 0.7034186147 * mL + 1.707614701 * sL;
 
   return [linearToSrgb(r), linearToSrgb(g), linearToSrgb(bl)];
 }
@@ -71,14 +71,14 @@ export function generateRepoPalette(sourceLabels) {
   for (let i = 0; i < n; i++) {
     const h = (BRAND_HUE + (360 / n) * i) % 360;
     palettes[sourceLabels[i]] = {
-      action:              toHex(TONES.action, h),
-      filter:              toHex(TONES.filter, h),
-      file:                toHex(TONES.file,   h),
-      fireEdge:            toHex(TONES.fire,   h),
-      listenEdge:          toHex(TONES.listen, h),
-      fireEdgeAlpha:       toRgba(TONES.fire,   h, 0.4),
-      listenEdgeAlpha:     toRgba(TONES.listen, h, 0.3),
-      fireEdgeHighlight:   toRgba(TONES.fire,   h, 0.8),
+      action: toHex(TONES.action, h),
+      filter: toHex(TONES.filter, h),
+      file: toHex(TONES.file, h),
+      fireEdge: toHex(TONES.fire, h),
+      listenEdge: toHex(TONES.listen, h),
+      fireEdgeAlpha: toRgba(TONES.fire, h, 0.4),
+      listenEdgeAlpha: toRgba(TONES.listen, h, 0.3),
+      fireEdgeHighlight: toRgba(TONES.fire, h, 0.8),
       listenEdgeHighlight: toRgba(TONES.listen, h, 0.8),
     };
   }

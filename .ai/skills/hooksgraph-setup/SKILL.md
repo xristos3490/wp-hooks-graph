@@ -39,12 +39,12 @@ Report the preflight results as a compact list, not as five separate blocks of p
 
 Check what's already done so reruns don't redo finished work:
 
-| Step | How to check | Already done if… |
-|------|--------------|------------------|
-| Node deps | `test -f pnpm-lock.yaml && test -d node_modules` | both exist |
-| Shell alias | `grep -lF "# --- WordPress Hooks Graph ---" "$HOME/.zshrc" "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.config/fish/config.fish" 2>/dev/null` | marker found in any RC file |
-| MCP registered | `claude mcp get hooks-graph 2>/dev/null` | exit 0 |
-| MCP connected | `claude mcp list 2>/dev/null` shows `hooks-graph: ✓ Connected` | line matches |
+| Step           | How to check                                                                                                                                   | Already done if…            |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| Node deps      | `test -f pnpm-lock.yaml && test -d node_modules`                                                                                               | both exist                  |
+| Shell alias    | `grep -lF "# --- WordPress Hooks Graph ---" "$HOME/.zshrc" "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.config/fish/config.fish" 2>/dev/null` | marker found in any RC file |
+| MCP registered | `claude mcp get hooks-graph 2>/dev/null`                                                                                                       | exit 0                      |
+| MCP connected  | `claude mcp list 2>/dev/null` shows `hooks-graph: ✓ Connected`                                                                                 | line matches                |
 
 The last two are distinct: a server can be registered but failing to start (wrong path, missing deps). If registered-but-not-connected, don't re-register — diagnose.
 
@@ -53,6 +53,7 @@ The last two are distinct: a server can be registered but failing to start (wron
 Send one short message listing only the outstanding steps, e.g.:
 
 > Here's what I'll run:
+>
 > 1. `pnpm install` (installs Node deps across the workspace)
 > 2. Append the `hooksgraph` alias block to `~/.zshrc`
 > 3. Register `hooks-graph` MCP server with Claude Code at user scope
@@ -99,6 +100,7 @@ claude mcp list
 ```
 
 Look for `hooks-graph: ✓ Connected`. If it shows as failed, the most common causes are:
+
 - `node_modules` wasn't installed (re-run 4a)
 - The storage dir doesn't exist yet — `mkdir -p storage` and retry
 - An older node on `PATH` — `node -v` should report ≥ 18

@@ -1,11 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import cytoscape from 'cytoscape';
 import { useGraphContext } from '../context/GraphContext';
-import {
-  buildCytoscapeStyles,
-  buildElements,
-  buildLayoutOptions,
-} from '../lib/cytoscape-setup';
+import { buildCytoscapeStyles, buildElements, buildLayoutOptions } from '../lib/cytoscape-setup';
 import { BATCH_SIZE } from '../lib/constants';
 
 function yieldToMain() {
@@ -96,7 +92,10 @@ export default function GraphCanvas() {
 
       if (destroyed) return;
 
-      setProgress({ label: 'Computing layout\u2026', detail: isLargeGraph ? 'This may take a moment.' : '' });
+      setProgress({
+        label: 'Computing layout\u2026',
+        detail: isLargeGraph ? 'This may take a moment.' : '',
+      });
       await yieldToMain();
 
       if (destroyed) return;
@@ -222,7 +221,7 @@ export default function GraphCanvas() {
     const matched = cy.nodes().filter((n) => {
       if (n.hasClass('hidden')) return false;
       const d = n.data();
-      return ((d.name || d.path || '').toLowerCase()).includes(query);
+      return (d.name || d.path || '').toLowerCase().includes(query);
     });
 
     cy.batch(() => {
@@ -259,7 +258,7 @@ export default function GraphCanvas() {
       const matched = cy.nodes().filter((n) => {
         if (n.hasClass('hidden')) return false;
         const d = n.data();
-        return ((d.name || d.path || '').toLowerCase()).includes(query);
+        return (d.name || d.path || '').toLowerCase().includes(query);
       });
       const searchNeighborhood = matched.neighborhood().add(matched);
       const selNeighborhood = node.neighborhood().add(node);
@@ -277,49 +276,51 @@ export default function GraphCanvas() {
       node.addClass('selected-node');
     });
 
-    cy.animate(
-      { center: { eles: node }, zoom: Math.max(cy.zoom(), 1.5) },
-      { duration: 300 }
-    );
+    cy.animate({ center: { eles: node }, zoom: Math.max(cy.zoom(), 1.5) }, { duration: 300 });
   }, [selectedNode, graphReady]);
 
   return (
     <>
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
       {progress && (
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 20,
-          gap: 'var(--wpds-dimension-gap-lg)',
-          background: 'var(--wpds-color-bg-surface-neutral-weak)',
-        }}>
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 20,
+            gap: 'var(--wpds-dimension-gap-lg)',
+            background: 'var(--wpds-color-bg-surface-neutral-weak)',
+          }}
+        >
           <div className="hg-spinner" />
-          <div style={{
-            fontSize: 'var(--wpds-typography-font-size-lg)',
-            fontWeight: 'var(--wpds-typography-font-weight-medium)',
-          }}>
+          <div
+            style={{
+              fontSize: 'var(--wpds-typography-font-size-lg)',
+              fontWeight: 'var(--wpds-typography-font-weight-medium)',
+            }}
+          >
             {progress.label}
           </div>
           {progress.detail && (
-            <div style={{ fontSize: 'var(--wpds-typography-font-size-sm)' }}>
-              {progress.detail}
-            </div>
+            <div style={{ fontSize: 'var(--wpds-typography-font-size-sm)' }}>{progress.detail}</div>
           )}
           {isLargeGraph && (
-            <div style={{
-              fontSize: 'var(--wpds-typography-font-size-sm)',
-              fontStyle: 'italic',
-              opacity: 0.7,
-              maxWidth: '32rem',
-              textAlign: 'center',
-              padding: '0 var(--wpds-dimension-gap-lg)',
-            }}>
-              If the browser warns that this page is unresponsive, click <strong>Wait</strong>. It may prompt more than once while the layout finishes computing.
+            <div
+              style={{
+                fontSize: 'var(--wpds-typography-font-size-sm)',
+                fontStyle: 'italic',
+                opacity: 0.7,
+                maxWidth: '32rem',
+                textAlign: 'center',
+                padding: '0 var(--wpds-dimension-gap-lg)',
+              }}
+            >
+              If the browser warns that this page is unresponsive, click <strong>Wait</strong>. It
+              may prompt more than once while the layout finishes computing.
             </div>
           )}
         </div>

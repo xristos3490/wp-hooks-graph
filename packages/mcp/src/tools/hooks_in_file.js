@@ -14,10 +14,7 @@ export const inputSchema = {
   offset: z.number().int().min(0).default(0).optional(),
 };
 
-export function handler(
-  { file_path, codebase, limit = 50, offset = 0 },
-  { registry, index },
-) {
+export function handler({ file_path, codebase, limit = 50, offset = 0 }, { registry, index }) {
   const entry = registry.resolve(codebase);
   const built = index.get(entry);
   const fileNode = built.fileByPath.get(file_path);

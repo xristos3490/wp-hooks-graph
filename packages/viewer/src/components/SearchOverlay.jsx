@@ -13,8 +13,7 @@ function debounce(fn, ms) {
 }
 
 export default function SearchOverlay() {
-  const { setSearchQuery, isLargeGraph, groupBy, setGroupBy } =
-    useGraphContext();
+  const { setSearchQuery, isLargeGraph, groupBy, setGroupBy } = useGraphContext();
   const [inputValue, setInputValue] = useState('');
   const inputRef = useRef(null);
 
@@ -80,7 +79,6 @@ export default function SearchOverlay() {
             size="__unstable-large"
           />
         </div>
-
       </div>
     </div>
   );

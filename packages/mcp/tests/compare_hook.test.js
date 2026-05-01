@@ -67,10 +67,7 @@ describe('compare_hook', () => {
   });
 
   test('codebases filter narrows both candidate discovery and the pivot', () => {
-    const result = tool.handler(
-      { substring: 'init', codebases: ['alpha', 'beta'] },
-      makeCtx(),
-    );
+    const result = tool.handler({ substring: 'init', codebases: ['alpha', 'beta'] }, makeCtx());
     expect(result.matches.map((m) => m.hook)).toEqual(['init']);
     const init = result.matches[0];
     expect(Object.keys(init.hook_type_by_codebase).sort()).toEqual(['alpha', 'beta']);
@@ -91,7 +88,7 @@ describe('compare_hook', () => {
 
   test('throws when both hook and substring are provided', () => {
     expect(() => tool.handler({ hook: 'init', substring: 'init' }, makeCtx())).toThrow(
-      /exactly one/,
+      /exactly one/
     );
   });
 
@@ -110,7 +107,7 @@ describe('compare_hook', () => {
 
   test('throws UnknownCodebaseError on bad codebase in filter', () => {
     expect(() => tool.handler({ hook: 'init', codebases: ['nope'] }, makeCtx())).toThrow(
-      UnknownCodebaseError,
+      UnknownCodebaseError
     );
   });
 });
