@@ -15,6 +15,7 @@
 .hp-hero {
   position: relative;
   z-index: 1;
+  box-sizing: border-box;
   height: 100%;
   width: 100%;
   display: flex;
@@ -22,6 +23,14 @@
   justify-content: center;
   padding: var(--wpds-dimension-padding-3xl);
   animation: hp-hero-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  /* Hero is a full-bleed flex container; only the centered card needs to
+     intercept pointer events. Letting the rest pass through means pointer
+     hover reaches the city SVGs underneath. */
+  pointer-events: none;
+}
+
+.hp-hero > * {
+  pointer-events: auto;
 }
 
 @keyframes hp-hero-in {

@@ -1,129 +1,199 @@
-/* Front-band drifters are tinted brand blue so the most visible clusters echo
-   the "Browse files" CTA; mid/back stay neutral ink for depth. */
+/* Isometric magnetic grid backdrop for the homepage. Floating cube-nodes
+   sit on a sparse iso plane; particle dots travel between them along
+   precomputed routes, slowing and pausing where the cursor hovers. */
 
-.hp-field {
+.hp-bg {
   position: absolute;
   inset: 0;
+  /* Pointer events are listened on `window` so the centered hero card above
+     this layer does not swallow them — keep this layer non-interactive. */
   pointer-events: none;
+  background: #f8fafc;
   overflow: hidden;
-  color: #111;
-  animation: hp-field-in 1.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+
+  /* Where the tile cluster's vertical center lands as a fraction of the
+     viewport height. 22dvh ≈ the 2nd of 6 horizontal bands from the top, so
+     the iso tiles sit just above the hero card on every screen. Tweak this
+     one number to shift the whole scene up (smaller) or down (larger). */
+  --hp-bg-anchor: 22dvh;
+
+  /* Caps how far the SVG can be pulled upward — guards short/landscape
+     viewports where the unclamped calc would yank the cluster offscreen. */
+  --hp-bg-anchor-min: -8rem;
 }
 
-@keyframes hp-field-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+.hp-bg__stage {
+  /* Width clamps the iso scene between mobile (96vw) and desktop (48rem).
+     Aspect ratio matches the viewBox (720x480, 1.5:1). */
+  position: relative;
+  width: min(48rem, 96vw);
+  aspect-ratio: 720 / 480;
+
+  /* The visible tile cluster centers near the SVG's vertical midpoint, so
+     half the SVG height = (width / 1.5) / 2 = width / 3. Subtracting that
+     from --hp-bg-anchor lands the cluster's center on the anchor line at
+     every viewport size, instead of the SVG's top edge drifting around. */
+  margin-top: max(var(--hp-bg-anchor-min), calc(var(--hp-bg-anchor) - min(48rem, 96vw) / 3));
+
+  animation: hp-bg-in 0.75s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* Orbital guides are deliberately static — drifters carry the motion,
-   orbits anchor the composition. */
-.hp-orbits {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  overflow: hidden;
-  color: var(--wpds-color-stroke-surface-brand);
-  animation: hp-field-in 1.6s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.hp-orbit {
-  position: absolute;
+.hp-bg__svg {
   display: block;
-  border: 1px dashed currentColor;
-  border-radius: 50%;
-  transform-origin: center;
-}
-
-/* Body wrapper stays fixed; physics mutates per-node cx/cy via refs so each
-   node reacts independently. Color is set per-band (front = brand accent). */
-.hp-constellation-body {
-  position: absolute;
-  aspect-ratio: 1;
-  color: #111;
-}
-
-.hp-constellation-body[data-band='front'] {
-  color: var(--wpds-color-fg-interactive-brand);
-}
-
-.hp-constellation {
   width: 100%;
   height: 100%;
-}
-
-.hp-constellation svg {
-  width: 100%;
-  height: 100%;
-  display: block;
+  /* Iso shapes draw past the viewBox bounds; let them render outside the
+     SVG frame without clipping. */
   overflow: visible;
 }
 
-.hp-constellation__spin {
-  transform-origin: 100px 100px;
-  animation: hp-constellation-spin var(--c-spin, 360s) linear infinite;
-  will-change: transform;
-}
-.hp-constellation[data-spin-dir='-1'] .hp-constellation__spin {
-  animation-direction: reverse;
+/* Hidden-achievement progress chip — fades in once the cursor freezes 2+
+   particles, counts up to the win threshold. Anchored to the same
+   --hp-bg-anchor formula the iso cluster uses, then offset upward to land
+   just above the cluster's top edge. */
+.hp-bg__counter {
+  position: absolute;
+  /* Anchor minus ~0.21 * stage_width lands at the top of the visible iso
+     cubes; add a touch more to float comfortably above them. The 0.5rem
+     floor keeps the chip on-screen on short viewports where the anchor
+     calc would otherwise go negative. */
+  top: max(0.5rem, calc(var(--hp-bg-anchor) - min(48rem, 96vw) * 0.235));
+  left: 50%;
+  z-index: 2;
+  display: flex;
+  align-items: baseline;
+  gap: 0.15em;
+  padding: 0.3rem 0.65rem;
+  font:
+    500 11px/1 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  letter-spacing: 0.04em;
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 999px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  backdrop-filter: blur(6px);
+  font-variant-numeric: tabular-nums;
+  transform: translateX(-50%);
+  animation: hp-counter-in 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  pointer-events: none;
+  will-change: transform, opacity, filter;
 }
 
-@keyframes hp-constellation-spin {
-  to {
-    transform: rotate(360deg);
+.hp-bg__counter-num {
+  color: #3858e9;
+  font-weight: 600;
+}
+
+.hp-bg__counter-sep {
+  color: rgba(15, 23, 42, 0.4);
+}
+
+.hp-bg__counter-max {
+  color: rgba(15, 23, 42, 0.55);
+}
+
+@keyframes hp-counter-in {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 12px) scale(0.94);
+    filter: blur(2px);
   }
-}
-
-.hp-constellation__edges line {
-  stroke: currentColor;
-  stroke-width: 0.6;
-  stroke-linecap: round;
-  fill: none;
-  opacity: 0.4;
-  animation: hp-edge-flow 5s linear infinite;
-}
-
-@keyframes hp-edge-flow {
-  from {
-    stroke-dashoffset: 0;
-  }
-  to {
-    stroke-dashoffset: -200;
-  }
-}
-
-.hp-constellation__nodes circle {
-  fill: currentColor;
-  transform-origin: center;
-  transform-box: fill-box;
-  opacity: 0.8;
-  animation: hp-node-pulse 3.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-  will-change: transform, opacity;
-}
-
-@keyframes hp-node-pulse {
-  0%,
-  100% {
-    transform: scale(1);
-    opacity: 0.8;
-  }
-  50% {
-    transform: scale(1.4);
+  55% {
     opacity: 1;
+    filter: blur(0);
   }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes hp-bg-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Risograph grain overlay — fractal noise rendered into a single tile and
+   repeated; multiply blend keeps highlights intact while breaking up flat
+   fills. Sits on top of the SVG but below the hero card. */
+.hp-grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.3;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.92' numOctaves='2' stitchTiles='stitch' seed='9'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.55 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  background-size: 220px 220px;
+}
+
+/* Cursor-follower (Blocker). Position is set per-frame on the wrapper <g>
+   via translate(); CSS only drives the scale + opacity envelope, so the
+   pop animation composes cleanly with the moving anchor. */
+.hp-bg__blocker-orb,
+.hp-bg__blocker-shadow {
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scale(0);
+  opacity: 0;
+  /* Snappy collapse on the exit path. */
+  transition:
+    transform 180ms cubic-bezier(0.4, 0, 0.7, 0.2),
+    opacity 160ms ease-in;
+}
+
+.hp-bg__blocker-line {
+  opacity: 0;
+  transition: opacity 160ms ease-in;
+}
+
+/* Entry path — slight overshoot for the orb, calmer for the shadow, line
+   trails in last so the structure assembles top-down. */
+.hp-bg__blocker.is-active .hp-bg__blocker-orb {
+  transform: scale(1);
+  opacity: 1;
+  transition:
+    transform 280ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 200ms ease-out;
+}
+
+.hp-bg__blocker.is-active .hp-bg__blocker-shadow {
+  transform: scale(1);
+  opacity: 1;
+  transition:
+    transform 280ms cubic-bezier(0.22, 1, 0.36, 1) 40ms,
+    opacity 220ms ease-out 40ms;
+}
+
+.hp-bg__blocker.is-active .hp-bg__blocker-line {
+  opacity: 1;
+  transition: opacity 220ms ease-out 80ms;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hp-field,
-  .hp-orbits,
-  .hp-constellation-body,
-  .hp-constellation,
-  .hp-constellation__spin,
-  .hp-constellation__edges line,
-  .hp-constellation__nodes circle {
+  .hp-bg__stage {
     animation: none;
+  }
+  .hp-bg__counter {
+    animation: none;
+  }
+  .hp-bg__blocker-orb,
+  .hp-bg__blocker-shadow,
+  .hp-bg__blocker-line {
+    transition: none;
   }
 }
