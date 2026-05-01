@@ -15,6 +15,7 @@
 		"@wordpress/api-fetch": "^7.45.0",
 		"@wordpress/components": "^33.0.0",
 		"@wordpress/dataviews": "^14.2.0",
+		"@wordpress/date": "^5.45.0",
 		"@wordpress/element": "^6.45.0",
 		"@wordpress/i18n": "^6.18.0",
 		"@wordpress/icons": "^13.0.0",

@@ -32,7 +32,15 @@ const triggerBrowserDownload = ( blob, filename ) => {
 	URL.revokeObjectURL( url );
 };
 
-const emptyStatus = { status: null, last_parsed_at: null, exclude: [] };
+const emptyStatus = {
+	status: null,
+	last_parsed_at: null,
+	exclude: [],
+	total_files: null,
+	total_hooks: null,
+	total_edges: null,
+	dynamic_hooks: null,
+};
 
 export default function PluginsView() {
 	const [ plugins, setPlugins ] = useState( [] );
@@ -88,6 +96,22 @@ export default function PluginsView() {
 					parse_status: entry.status,
 					last_parsed_at: entry.last_parsed_at,
 					exclude: entry.exclude ?? [],
+					total_files:
+						typeof entry.total_files === 'number'
+							? entry.total_files
+							: null,
+					total_hooks:
+						typeof entry.total_hooks === 'number'
+							? entry.total_hooks
+							: null,
+					total_edges:
+						typeof entry.total_edges === 'number'
+							? entry.total_edges
+							: null,
+					dynamic_hooks:
+						typeof entry.dynamic_hooks === 'number'
+							? entry.dynamic_hooks
+							: null,
 				};
 			} ),
 		[ plugins, statusMap ]

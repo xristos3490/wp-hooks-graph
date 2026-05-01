@@ -20,7 +20,8 @@ final class Storage {
 	public const STATUS_STALE         = 'stale';
 	public const STATUS_NEEDS_PARSING = 'needs_parsing';
 
-	private const SETTINGS_OPTION = 'hooksgraph_plugin_settings';
+	private const SETTINGS_OPTION        = 'hooksgraph_plugin_settings';
+	private const CODEBASE_OPTION_PREFIX = 'hooksgraph-parsed-data-';
 
 	public function dir(): string {
 		return trailingslashit( WP_CONTENT_DIR ) . 'hooksgraph';
@@ -122,6 +123,65 @@ final class Storage {
 		}
 		$all[ $plugin_relative ] = [ 'exclude' => array_values( $exclude ) ];
 		update_option( self::SETTINGS_OPTION, $all, false );
+	}
+
+	/**
+	 * Stable id for a parsed codebase. Matches the file basename used for JSON
+	 * output, lower-cased and sanitized to be safe in an option name.
+	 */
+	public function codebase_id( string $plugin_relative ): string {
+		return sanitize_key( basename( $plugin_relative ) );
+	}
+
+	public function codebase_option_name( string $plugin_relative ): string {
+		return self::CODEBASE_OPTION_PREFIX . $this->codebase_id( $plugin_relative );
+	}
+
+	/**
+	 * Read the codebase metadata option, or null when nothing has been parsed.
+	 *
+	 * @return array<string, mixed>|null
+	 */
+	public function get_codebase_meta( string $plugin_relative ): ?array {
+		$value = get_option( $this->codebase_option_name( $plugin_relative ), null );
+		return is_array( $value ) ? $value : null;
+	}
+
+	/**
+	 * Persist a small metadata record per parsed codebase in its own
+	 * non-autoloaded option (`hooksgraph-parsed-data-<id>`). The shape mirrors
+	 * the JSON header plus a few derived counts the UI may want without
+	 * re-reading the full graph file.
+	 *
+	 * @param array<string, mixed> $metadata `metadata` block from the parser JSON.
+	 */
+	public function save_codebase_meta(
+		string $plugin_relative,
+		string $version,
+		string $filename,
+		array $metadata,
+		int $total_edges
+	): void {
+		$source_labels = [];
+		if ( isset( $metadata['source_labels'] ) && is_array( $metadata['source_labels'] ) ) {
+			$source_labels = array_values( array_map( 'strval', $metadata['source_labels'] ) );
+		}
+
+		$payload = [
+			'id'            => $this->codebase_id( $plugin_relative ),
+			'plugin'        => $plugin_relative,
+			'version'       => $version,
+			'file'          => $filename,
+			'parsed_at'     => time(),
+			'scan_date'     => isset( $metadata['scan_date'] ) ? (string) $metadata['scan_date'] : '',
+			'source_labels' => $source_labels,
+			'total_files'   => isset( $metadata['total_files'] ) ? (int) $metadata['total_files'] : 0,
+			'total_hooks'   => isset( $metadata['total_hooks'] ) ? (int) $metadata['total_hooks'] : 0,
+			'dynamic_hooks' => isset( $metadata['dynamic_hooks'] ) ? (int) $metadata['dynamic_hooks'] : 0,
+			'total_edges'   => $total_edges,
+		];
+
+		update_option( $this->codebase_option_name( $plugin_relative ), $payload, false );
 	}
 
 	/**

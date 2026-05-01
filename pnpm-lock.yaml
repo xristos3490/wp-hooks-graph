@@ -52,6 +52,9 @@ importers:
       '@wordpress/dataviews':
         specifier: ^14.2.0
         version: 14.2.0(@date-fns/tz@1.4.1)(@emotion/is-prop-valid@1.4.0)(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(stylelint@16.26.1(typescript@6.0.3))
+      '@wordpress/date':
+        specifier: ^5.45.0
+        version: 5.45.0
       '@wordpress/element':
         specifier: ^6.45.0
         version: 6.45.0
@@ -3101,10 +3104,6 @@ packages:
     peerDependencies:
       react: ^18.0.0
       react-dom: ^18.0.0
-
-  '@wordpress/date@5.44.0':
-    resolution: {integrity: sha512-8TUnhQKqjnMyQij1dQgVtpiJ5luRueCgu9iXGUwfoYfS6YmTS8u7lACVxn+LtWwGuJNSeZS4Dghsq5DgeW6sUQ==}
-    engines: {node: '>=18.12.0', npm: '>=8.19.2'}
 
   '@wordpress/date@5.45.0':
     resolution: {integrity: sha512-34v3hCxn68kYzWs8bhuAt8cfMxdFX9ukKn3a3FB+tAJXpxafnPCcZoWfJHn4I8hepCbreFrf3UiGdA+id2kQ4A==}
@@ -12368,7 +12367,7 @@ snapshots:
       '@wordpress/a11y': 4.44.0
       '@wordpress/base-styles': 6.20.0
       '@wordpress/compose': 7.44.0(react@18.3.1)
-      '@wordpress/date': 5.44.0
+      '@wordpress/date': 5.45.0
       '@wordpress/deprecated': 4.44.0
       '@wordpress/dom': 4.44.0
       '@wordpress/element': 6.45.0
@@ -12537,7 +12536,7 @@ snapshots:
       '@wordpress/components': 32.6.0(@emotion/is-prop-valid@1.4.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@wordpress/compose': 7.44.0(react@18.3.1)
       '@wordpress/data': 10.44.0(react@18.3.1)
-      '@wordpress/date': 5.44.0
+      '@wordpress/date': 5.45.0
       '@wordpress/deprecated': 4.44.0
       '@wordpress/element': 6.45.0
       '@wordpress/i18n': 6.18.0
@@ -12593,12 +12592,6 @@ snapshots:
       - '@types/react'
       - stylelint
       - supports-color
-
-  '@wordpress/date@5.44.0':
-    dependencies:
-      '@wordpress/deprecated': 4.44.0
-      moment: 2.30.1
-      moment-timezone: 0.5.48
 
   '@wordpress/date@5.45.0':
     dependencies:

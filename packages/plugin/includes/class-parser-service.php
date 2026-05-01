@@ -61,6 +61,14 @@ final class Parser_Service {
 
 		$this->storage->prune_older( $plugin_relative, basename( $output_path ) );
 
+		$this->storage->save_codebase_meta(
+			$plugin_relative,
+			$version,
+			basename( $output_path ),
+			is_array( $graph['metadata'] ?? null ) ? $graph['metadata'] : [],
+			is_array( $graph['edges'] ?? null ) ? count( $graph['edges'] ) : 0
+		);
+
 		return [ 'ok' => true, 'path' => $output_path ];
 	}
 

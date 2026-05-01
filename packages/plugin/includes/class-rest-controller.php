@@ -155,11 +155,16 @@ final class Rest_Controller {
 
 			$last     = $this->storage->last_parsed_at( $key );
 			$settings = $this->storage->get_settings( $key );
+			$meta     = $this->storage->get_codebase_meta( $key );
 
 			$map[ $key ] = [
 				'status'         => $status,
 				'last_parsed_at' => null !== $last ? gmdate( 'c', $last ) : null,
 				'exclude'        => $settings['exclude'],
+				'total_files'    => isset( $meta['total_files'] ) ? (int) $meta['total_files'] : null,
+				'total_hooks'    => isset( $meta['total_hooks'] ) ? (int) $meta['total_hooks'] : null,
+				'total_edges'    => isset( $meta['total_edges'] ) ? (int) $meta['total_edges'] : null,
+				'dynamic_hooks'  => isset( $meta['dynamic_hooks'] ) ? (int) $meta['dynamic_hooks'] : null,
 			];
 		}
 
