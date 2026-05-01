@@ -34,14 +34,17 @@ export default function HomePage({ onFileLoad, isLoading }) {
     e.stopPropagation();
   }, []);
 
-  const handleDrop = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragging(false);
-    dragCounter.current = 0;
-    const file = e.dataTransfer.files[0];
-    if (file) onFileLoad(file);
-  }, [onFileLoad]);
+  const handleDrop = useCallback(
+    (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDragging(false);
+      dragCounter.current = 0;
+      const file = e.dataTransfer.files[0];
+      if (file) onFileLoad(file);
+    },
+    [onFileLoad]
+  );
 
   const description = isLoading
     ? 'Parsing your graph…'
@@ -51,11 +54,9 @@ export default function HomePage({ onFileLoad, isLoading }) {
 
   return (
     <div
-      className={[
-        'home-page',
-        dragging && 'home-page--dragging',
-        isLoading && 'home-page--loading',
-      ].filter(Boolean).join(' ')}
+      className={['home-page', dragging && 'home-page--dragging', isLoading && 'home-page--loading']
+        .filter(Boolean)
+        .join(' ')}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}

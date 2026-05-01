@@ -1,10 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import {
-  makeRng,
-  buildArchetype,
-  buildCuratedScene,
-  ARCHETYPE_NAMES,
-} from './constellations.js';
+import { makeRng, buildArchetype, buildCuratedScene, ARCHETYPE_NAMES } from './constellations.js';
 
 const NODE_BOUNDS = {
   hub: [6, 10],

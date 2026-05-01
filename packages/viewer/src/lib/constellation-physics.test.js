@@ -1,9 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import {
-  DEFAULT_PARAMS,
-  createBodyState,
-  stepBody,
-} from './constellation-physics.js';
+import { DEFAULT_PARAMS, createBodyState, stepBody } from './constellation-physics.js';
 
 function anchorsOf(points) {
   const arr = new Float32Array(points.length * 2);
@@ -41,7 +37,11 @@ describe('createBodyState', () => {
 
 describe('stepBody', () => {
   test('rest stability: no pointer, nodes stay at origin and dirty stays false', () => {
-    const anchors = anchorsOf([[0, 0], [10, 0], [0, 10]]);
+    const anchors = anchorsOf([
+      [0, 0],
+      [10, 0],
+      [0, 10],
+    ]);
     const state = createBodyState(3);
     run(state, anchors, null, { steps: 500 });
     for (let i = 0; i < 3; i++) {
@@ -110,7 +110,7 @@ describe('stepBody', () => {
     const huge = createBodyState(1);
     const pointer = { x: -30, y: 0 };
     stepBody(clamped, { anchorsScreen: anchors, pointer, dtSec: 1 / 30 });
-    stepBody(huge,    { anchorsScreen: anchors, pointer, dtSec: 5 });
+    stepBody(huge, { anchorsScreen: anchors, pointer, dtSec: 5 });
     expect(huge.x[0]).toBeCloseTo(clamped.x[0], 12);
     expect(huge.vx[0]).toBeCloseTo(clamped.vx[0], 12);
   });
@@ -126,8 +126,8 @@ describe('stepBody', () => {
 
   test('per-node independence: only nodes near the pointer move', () => {
     const anchors = anchorsOf([
-      [0, 0],                          // near
-      [DEFAULT_PARAMS.OUTER_R + 20, 0] // far
+      [0, 0], // near
+      [DEFAULT_PARAMS.OUTER_R + 20, 0], // far
     ]);
     const state = createBodyState(2);
     const pointer = { x: -30, y: 0 };
@@ -151,7 +151,10 @@ describe('stepBody', () => {
   });
 
   test('deterministic: same inputs produce identical trajectories', () => {
-    const anchors = anchorsOf([[10, -20], [300, 400]]);
+    const anchors = anchorsOf([
+      [10, -20],
+      [300, 400],
+    ]);
     const a = createBodyState(2);
     const b = createBodyState(2);
     const pointer = { x: 50, y: -10 };

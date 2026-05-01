@@ -24,12 +24,20 @@ body {
 
 /* Keyframes used across components */
 @keyframes hg-fade-in {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes hg-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* GPU-composited spinner — animates smoothly even when main thread is blocked */
@@ -75,9 +83,22 @@ body {
   margin-bottom: var(--wpds-dimension-padding-lg);
 }
 /* Shared logo — SVG mark + handwritten wordmark */
-.hg-logo { display: inline-flex; align-items: center; gap: 0.5rem; }
-.hg-logo__mark { width: 1.75rem; height: 1.75rem; flex-shrink: 0; }
-.hg-logo__wordmark { font-size: var(--wpds-typography-font-size-md); font-weight: var(--wpds-typography-font-weight-medium); line-height: 1; letter-spacing: -0.01em; }
+.hg-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.hg-logo__mark {
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+}
+.hg-logo__wordmark {
+  font-size: var(--wpds-typography-font-size-md);
+  font-weight: var(--wpds-typography-font-weight-medium);
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
 .hg-logo__mark g:nth-of-type(2) circle {
   transform-box: fill-box;
   transform-origin: center;
@@ -87,30 +108,70 @@ body {
   animation-name: hg-logo-flash, hg-logo-flash;
 }
 /* Forward pass at 0.5s; reverse starts 0.3s after forward ends. Cycle repeats every 7s. */
-.hg-logo__mark g:nth-of-type(2) circle:nth-child(1) { animation-delay: 0.5s, 2.3s; }
-.hg-logo__mark g:nth-of-type(2) circle:nth-child(2) { animation-delay: 0.6s, 2.2s; }
-.hg-logo__mark g:nth-of-type(2) circle:nth-child(3) { animation-delay: 0.7s, 2.1s; }
-.hg-logo__mark g:nth-of-type(2) circle:nth-child(4) { animation-delay: 0.8s, 2.0s; }
-.hg-logo__mark g:nth-of-type(2) circle:nth-child(5) { animation-delay: 0.9s, 1.9s; }
-.hg-logo__mark g:nth-of-type(2) circle:nth-child(6) { animation-delay: 1.0s, 1.8s; }
+.hg-logo__mark g:nth-of-type(2) circle:nth-child(1) {
+  animation-delay: 0.5s, 2.3s;
+}
+.hg-logo__mark g:nth-of-type(2) circle:nth-child(2) {
+  animation-delay: 0.6s, 2.2s;
+}
+.hg-logo__mark g:nth-of-type(2) circle:nth-child(3) {
+  animation-delay: 0.7s, 2.1s;
+}
+.hg-logo__mark g:nth-of-type(2) circle:nth-child(4) {
+  animation-delay: 0.8s, 2s;
+}
+.hg-logo__mark g:nth-of-type(2) circle:nth-child(5) {
+  animation-delay: 0.9s, 1.9s;
+}
+.hg-logo__mark g:nth-of-type(2) circle:nth-child(6) {
+  animation-delay: 1s, 1.8s;
+}
 /* Pulse occupies the first ~7% (0.5s) of the 7s cycle; the rest is idle. */
 @keyframes hg-logo-flash {
-  0%   { transform: scale(1); }
-  2%   { transform: scale(1.5); }
-  4%   { transform: scale(0.97); }
-  5.5% { transform: scale(1.03); }
-  7%, 100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+  2% {
+    transform: scale(1.5);
+  }
+  4% {
+    transform: scale(0.97);
+  }
+  5.5% {
+    transform: scale(1.03);
+  }
+  7%,
+  100% {
+    transform: scale(1);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .hg-logo__mark g:nth-of-type(2) circle { animation: none; }
+  .hg-logo__mark g:nth-of-type(2) circle {
+    animation: none;
+  }
 }
-.sidebar__load-btn { width: 100%; margin-top: var(--wpds-dimension-padding-lg); }
-.sidebar__mcp-btn { width: 100%; margin-top: var(--wpds-dimension-gap-sm); }
-.sidebar__github { display: flex; justify-content: center; margin-top: var(--wpds-dimension-padding-lg); }
+.sidebar__load-btn {
+  width: 100%;
+  margin-top: var(--wpds-dimension-padding-lg);
+}
+.sidebar__mcp-btn {
+  width: 100%;
+  margin-top: var(--wpds-dimension-gap-sm);
+}
+.sidebar__github {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--wpds-dimension-padding-lg);
+}
 /* DataForm row-layout renders the header and the children row as siblings in a plain div (no Stack gap). Give the header breathing room. */
-.sidebar .dataforms-layouts-row__header { margin-bottom: var(--wpds-dimension-gap-sm); }
+.sidebar .dataforms-layouts-row__header {
+  margin-bottom: var(--wpds-dimension-gap-sm);
+}
 /* Metrics card: panel rows are read-only key/value pairs — right-align the values for column-style scanning. */
-.sidebar .dataforms-layouts-panel__field-control { justify-content: flex-end; text-align: right; }
+.sidebar .dataforms-layouts-panel__field-control {
+  justify-content: flex-end;
+  text-align: right;
+}
 
 /* Homepage (idle / file-drop screen) styles live beside the component in
    src/components/HomePage.css and src/components/HomePageBackground.css. */

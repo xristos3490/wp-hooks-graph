@@ -52,7 +52,10 @@ export function createRegistry({ storageDir }) {
     const entries = list();
     const match = entries.find((e) => e.id === id);
     if (!match) {
-      throw new UnknownCodebaseError(id, entries.map((e) => e.id));
+      throw new UnknownCodebaseError(
+        id,
+        entries.map((e) => e.id)
+      );
     }
     return match;
   }

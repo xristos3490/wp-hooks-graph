@@ -1,0 +1,9 @@
+parameters:
+  level: 3
+  paths:
+    - packages/parser/src
+    - packages/parser/tests
+  excludePaths:
+    - packages/parser/vendor (?)
+    - packages/cli/php (?)
+  tmpDir: .phpstan-cache

@@ -33,9 +33,7 @@ export function handler(args, { registry, index }) {
     offset = 0,
   } = args;
 
-  const entries = codebases
-    ? codebases.map((id) => registry.resolve(id))
-    : registry.list();
+  const entries = codebases ? codebases.map((id) => registry.resolve(id)) : registry.list();
   const needle = typeof substring === 'string' ? substring.toLowerCase() : null;
 
   const table = new Map();
@@ -82,9 +80,7 @@ export function handler(args, { registry, index }) {
         if (!canonicalType) canonicalType = stats.hook_type;
       }
     }
-    per_codebase.sort((a, b) =>
-      a.codebase < b.codebase ? -1 : a.codebase > b.codebase ? 1 : 0,
-    );
+    per_codebase.sort((a, b) => (a.codebase < b.codebase ? -1 : a.codebase > b.codebase ? 1 : 0));
     rows.push({
       hook: hookName,
       hook_type: canonicalType,
