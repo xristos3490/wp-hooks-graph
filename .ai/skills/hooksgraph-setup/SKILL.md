@@ -84,13 +84,12 @@ After it runs, capture the RC file path from the script output (it prints `✓ A
 
 ### 4c. MCP registration
 
-Build the command with absolute paths — Claude Code stores the command as given, and relative paths break when the server launches from a different cwd:
+Build the command with absolute paths — Claude Code stores the command as given, and relative paths break when the server launches from a different cwd. The MCP server reads `~/.hooksgraph/codebases/` by default; no `--storage` flag is required for the standard setup:
 
 ```sh
 REPO="$(pwd)"
 claude mcp add hooks-graph --scope user -- \
-  node "$REPO/packages/mcp/bin/hooksgraph-mcp.js" \
-  --storage "$REPO/storage"
+  node "$REPO/packages/mcp/bin/hooksgraph-mcp.js"
 ```
 
 Then verify:
@@ -102,7 +101,7 @@ claude mcp list
 Look for `hooks-graph: ✓ Connected`. If it shows as failed, the most common causes are:
 
 - `node_modules` wasn't installed (re-run 4a)
-- The storage dir doesn't exist yet — `mkdir -p storage` and retry
+- The codebases dir doesn't exist yet — run `hooksgraph parse-codebase <dir>` once (it auto-creates `~/.hooksgraph/codebases/`), or `mkdir -p ~/.hooksgraph/codebases` and retry
 - An older node on `PATH` — `node -v` should report ≥ 18
 
 Don't retry blindly. Read the error, fix it, then re-run `claude mcp list`.

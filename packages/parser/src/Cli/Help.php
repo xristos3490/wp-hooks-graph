@@ -21,9 +21,7 @@ Arguments:
 
 Options:
   -o, --output PATH     Output JSON file path
-                        (default: ./storage/<dir-names>.json, relative to the
-                        current working directory; override with the
-                        HOOKSGRAPH_STORAGE env var).
+                        (default: %DEFAULT_DIR%/<dir-names>.json).
   --overlap-only        Only output hooks present in 2+ scanned directories.
                         Useful for finding shared integration points between
                         a core codebase and plugins.
@@ -39,11 +37,19 @@ Options:
                         by the `hooksgraph` launcher to capture the path.
   -h, --help            Show this help message.
 
+Environment:
+  HOOKSGRAPH_PARSED_DIR     Override the dir used by `hooksgraph parse` and
+                            the default `hooksgraph <dir>` shortcut
+                            (defaults to ~/.hooksgraph/parsed/).
+  HOOKSGRAPH_CODEBASES_DIR  Override the dir used by `hooksgraph
+                            parse-codebase` and read by the MCP server
+                            (defaults to ~/.hooksgraph/codebases/).
+
 Examples:
   php hooksgraph.php ~/Code/wordpress
   php hooksgraph.php ~/Code/wordpress ~/Code/my-plugin --overlap-only
   php hooksgraph.php ~/Code/wordpress --exclude vendor,tests,node_modules
-  php hooksgraph.php ~/Code/wordpress -o storage/wp-core.json
+  php hooksgraph.php ~/Code/wordpress -o %DEFAULT_DIR%/wp-core.json
 
 Supported hook functions:
   do_action, do_action_ref_array          fires an action hook
@@ -62,15 +68,19 @@ Output format:
 Viewing results:
   bin/hooksgraph DIR              parse + serve + open the viewer in one step
   npm run serve -- PATH.json      serve the viewer against an already-parsed JSON
-                                  (omit the path to use the most recent in storage/)
+                                  (omit the path to use the most recent in
+                                  ~/.hooksgraph/parsed/)
 
 HELP;
 
     public static function text(): string
     {
+        $defaultDir = self::resolveDefaultDir();
+        $template   = strtr(self::TEMPLATE, ['%DEFAULT_DIR%' => $defaultDir]);
+
         $invokedAs = getenv('HOOKSGRAPH_INVOKED_AS');
         if ($invokedAs === false || $invokedAs === '') {
-            return self::TEMPLATE;
+            return $template;
         }
 
         $replacements = [
@@ -79,6 +89,15 @@ HELP;
             'bin/hooksgraph DIR              ' => 'hooksgraph <dir>                ',
             'npm run serve -- PATH.json'       => 'hooksgraph serve PATH.json',
         ];
-        return strtr(self::TEMPLATE, $replacements);
+        return strtr($template, $replacements);
+    }
+
+    private static function resolveDefaultDir(): string
+    {
+        $env = getenv('HOOKSGRAPH_OUTPUT_DIR');
+        if (is_string($env) && $env !== '') {
+            return $env;
+        }
+        return './storage';
     }
 }
