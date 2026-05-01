@@ -186,6 +186,34 @@ export default function PluginsView() {
 				}
 			};
 
+			const runSchedule = async ( items ) => {
+				if ( items.length === 0 ) return;
+				if ( items.length === 1 ) {
+					setScheduleError( null );
+					setScheduleTarget( items[ 0 ] );
+					return;
+				}
+				const results = await Promise.allSettled(
+					items.map( ( item ) =>
+						apiFetch( {
+							path: PARSE_PATH,
+							method: 'POST',
+							data: { plugin: item.id, exclude: item.exclude },
+						} )
+					)
+				);
+				results.forEach( ( result, i ) => {
+					if ( result.status === 'rejected' ) {
+						// eslint-disable-next-line no-console
+						console.error(
+							`HooksGraph: schedule failed for ${ items[ i ].id }`,
+							result.reason
+						);
+					}
+				} );
+				loadAll( { silent: true } );
+			};
+
 			return [
 				{
 					id: 'download-parse-primary',
@@ -199,28 +227,18 @@ export default function PluginsView() {
 					id: 'schedule-parse',
 					label: __( 'Schedule parse', 'hooksgraph' ),
 					isPrimary: true,
-					supportsBulk: false,
+					supportsBulk: true,
 					isEligible: ( item ) =>
 						item.parse_status !== 'scheduled' &&
 						item.parse_status !== 'parsed',
-					callback: ( items ) => {
-						const item = items[ 0 ];
-						if ( ! item ) return;
-						setScheduleError( null );
-						setScheduleTarget( item );
-					},
+					callback: runSchedule,
 				},
 				{
 					id: 'reschedule-parse',
 					label: __( 'Re-schedule parse', 'hooksgraph' ),
-					supportsBulk: false,
+					supportsBulk: true,
 					isEligible: ( item ) => item.parse_status === 'parsed',
-					callback: ( items ) => {
-						const item = items[ 0 ];
-						if ( ! item ) return;
-						setScheduleError( null );
-						setScheduleTarget( item );
-					},
+					callback: runSchedule,
 				},
 				{
 					id: 'download-parse',
@@ -233,7 +251,7 @@ export default function PluginsView() {
 				},
 			];
 		},
-		[ downloadParse ]
+		[ downloadParse, loadAll ]
 	);
 
 	if ( status === 'loading' ) {
