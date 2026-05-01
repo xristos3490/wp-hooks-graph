@@ -25,9 +25,10 @@
   --hp-bg-anchor-min: -8rem;
 }
 
-.hp-bg__svg {
+.hp-bg__stage {
   /* Width clamps the iso scene between mobile (96vw) and desktop (48rem).
      Aspect ratio matches the viewBox (720x480, 1.5:1). */
+  position: relative;
   width: min(48rem, 96vw);
   aspect-ratio: 720 / 480;
 
@@ -40,11 +41,81 @@
     calc(var(--hp-bg-anchor) - min(48rem, 96vw) / 3)
   );
 
+  animation: hp-bg-in 0.75s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.hp-bg__svg {
   display: block;
+  width: 100%;
+  height: 100%;
   /* Iso shapes draw past the viewBox bounds; let them render outside the
      SVG frame without clipping. */
   overflow: visible;
-  animation: hp-bg-in 0.75s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Hidden-achievement progress chip — fades in once the cursor freezes 2+
+   particles, counts up to the win threshold. Anchored to the same
+   --hp-bg-anchor formula the iso cluster uses, then offset upward to land
+   just above the cluster's top edge. */
+.hp-bg__counter {
+  position: absolute;
+  /* Anchor minus ~0.21 * stage_width lands at the top of the visible iso
+     cubes; add a touch more to float comfortably above them. The 0.5rem
+     floor keeps the chip on-screen on short viewports where the anchor
+     calc would otherwise go negative. */
+  top: max(
+    0.5rem,
+    calc(var(--hp-bg-anchor) - min(48rem, 96vw) * 0.235)
+  );
+  left: 50%;
+  z-index: 2;
+  display: flex;
+  align-items: baseline;
+  gap: 0.15em;
+  padding: 0.3rem 0.65rem;
+  font: 500 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.04em;
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 999px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  backdrop-filter: blur(6px);
+  font-variant-numeric: tabular-nums;
+  transform: translateX(-50%);
+  animation: hp-counter-in 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  pointer-events: none;
+  will-change: transform, opacity, filter;
+}
+
+.hp-bg__counter-num {
+  color: #3858e9;
+  font-weight: 600;
+}
+
+.hp-bg__counter-sep {
+  color: rgba(15, 23, 42, 0.4);
+}
+
+.hp-bg__counter-max {
+  color: rgba(15, 23, 42, 0.55);
+}
+
+@keyframes hp-counter-in {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 12px) scale(0.94);
+    filter: blur(2px);
+  }
+  55% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+    filter: blur(0);
+  }
 }
 
 @keyframes hp-bg-in {
@@ -66,6 +137,55 @@
   background-size: 220px 220px;
 }
 
+/* Cursor-follower (Blocker). Position is set per-frame on the wrapper <g>
+   via translate(); CSS only drives the scale + opacity envelope, so the
+   pop animation composes cleanly with the moving anchor. */
+.hp-bg__blocker-orb,
+.hp-bg__blocker-shadow {
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scale(0);
+  opacity: 0;
+  /* Snappy collapse on the exit path. */
+  transition:
+    transform 180ms cubic-bezier(0.4, 0, 0.7, 0.2),
+    opacity 160ms ease-in;
+}
+
+.hp-bg__blocker-line {
+  opacity: 0;
+  transition: opacity 160ms ease-in;
+}
+
+/* Entry path — slight overshoot for the orb, calmer for the shadow, line
+   trails in last so the structure assembles top-down. */
+.hp-bg__blocker.is-active .hp-bg__blocker-orb {
+  transform: scale(1);
+  opacity: 1;
+  transition:
+    transform 280ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 200ms ease-out;
+}
+
+.hp-bg__blocker.is-active .hp-bg__blocker-shadow {
+  transform: scale(1);
+  opacity: 1;
+  transition:
+    transform 280ms cubic-bezier(0.22, 1, 0.36, 1) 40ms,
+    opacity 220ms ease-out 40ms;
+}
+
+.hp-bg__blocker.is-active .hp-bg__blocker-line {
+  opacity: 1;
+  transition: opacity 220ms ease-out 80ms;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .hp-bg__svg { animation: none; }
+  .hp-bg__stage { animation: none; }
+  .hp-bg__counter { animation: none; }
+  .hp-bg__blocker-orb,
+  .hp-bg__blocker-shadow,
+  .hp-bg__blocker-line {
+    transition: none;
+  }
 }

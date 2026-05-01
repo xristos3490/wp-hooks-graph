@@ -1,386 +1,37 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './HomePageBackground.css';
+import {
+  CONFIG,
+  TILE_MAP,
+  advanceParticle,
+  createParticle,
+  createScene,
+  rand,
+  sameTile,
+  samplePolyline,
+  svgPoints,
+  tileCenter,
+  tileCorners,
+} from './homepage-background-scene.js';
 
-const CONFIG = {
-  grid: {
-    size: 8,
-    tileWidth: 88,
-    tileHeight: 44,
-    cubeHeight: 34,
-    floatHeight: 28,
-    shadowInset: 0.62,
-    nodeRatio: 0.22,
-    minNodes: 10,
-    minNodeDistance: 2,
+const STYLE = {
+  route: {
+    color: '#0b0b0b',
+    width: 1,
+    style: 'solid',
   },
-  routes: {
-    count: 32,
-    minLength: 3,
-    waypointChance: 0.65,
-    maxWaypoints: 2,
-    floorOffset: 48.4,
+  tile: {
+    fill: '#ebeeff',
+    edge: '#ffffff',
   },
-  particles: {
-    initialCount: 7,
-    maxActive: 14,
-    spawnRatePerSecond: 1.2,
-    baseStep: 0.18,
-    releaseStep: 0.06,
-    minSpeed: 0.8,
-    maxSpeed: 1.4,
-    radiusMin: 4.2,
-    radiusMax: 5.4,
-    stoppedRadiusBoost: 0.9,
-    winThreshold: 5,
-  },
-  blocker: {
-    radius: 26,
-    floatHeight: 32,
-  },
-  confetti: {
-    pieces: 28,
-    angleJitter: 0.18,
-    speedMin: 220,
-    speedMax: 320,
-    upwardBias: 80,
-    gravity: 520,
-    drag: 1.6,
-    spinMin: -540,
-    spinMax: 540,
-    lifeMin: 1.4,
-    lifeMax: 1.9,
-    sizeMin: 5,
-    sizeMax: 8,
-    palette: ['#3858e9', '#f43f5e', '#fbbf24', '#34d399', '#8b5cf6', '#0ea5e9'],
-  },
-  colors: {
-    background: '#f8fafc',
-    gridFill: 'rgba(15,23,42,0.04)',
-    missingTileFill: 'rgba(15,23,42,0.015)',
-    gridStroke: 'rgba(15,23,42,0.08)',
-    blockerFill: 'rgba(15,23,42,0.06)',
-    blockerStroke: 'rgba(15,23,42,0.25)',
-    // WPDS primary brand: --wpds-color-fg-interactive-brand
-    particle: '#3858e9',
-    cube: {
-      left: '#e2e8f0',
-      right: '#cbd5f5',
-      front: '#cbd5e1',
-      top: '#ffffff',
-      stroke: 'rgba(15,23,42,0.18)',
-    },
-    // Brand-tinted shades derived from WPDS brand tokens.
-    blueCube: {
-      left: '#2337c8',  // --wpds-color-stroke-interactive-brand-active
-      right: '#3858e9', // --wpds-color-fg-interactive-brand
-      front: '#2e49d9', // --wpds-color-bg-interactive-brand-strong-active
-      top: '#a3b1d4',   // --wpds-color-stroke-surface-brand
-    },
-  },
-  stage: {
-    y: 60,
-    // Tight viewBox cropped to the actual iso scene bounds (≈ ±340 wide,
-    // 0–400 tall after the stage translate). Eliminates the wide internal
-    // padding the original component carried around the content.
-    viewBox: '-360 -60 720 480',
+  node: {
+    fill: '#ffffff',
+    edge: '#6b6b6b',
+    core: '#3858e9',
   },
 };
 
-const TILE_MAP = [
-  [1, 1, 1, 0, 1, 1, 1, 0],
-  [1, 0, 1, 1, 1, 0, 1, 1],
-  [1, 1, 1, 0, 1, 1, 1, 1],
-  [0, 1, 1, 1, 1, 1, 0, 1],
-  [1, 1, 0, 1, 1, 1, 1, 1],
-  [1, 0, 1, 1, 0, 1, 1, 0],
-  [1, 1, 1, 1, 1, 1, 0, 1],
-  [0, 1, 1, 0, 1, 1, 1, 1],
-];
-
-const rand = (min, max) => min + Math.random() * (max - min);
-const pick = (items) => {
-  if (!items.length) return null;
-  return items[Math.floor(Math.random() * items.length)];
-};
-const keyOf = ({ x, y }) => `${x}:${y}`;
-const sameTile = (a, b) => Boolean(a && b && a.x === b.x && a.y === b.y);
-const tileDistance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-
-function shuffle(items) {
-  const copy = items.slice();
-  for (let i = copy.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
-}
-
-function iso(x, y, z = 0) {
-  return {
-    x: (x - y) * (CONFIG.grid.tileWidth / 2),
-    y: (x + y) * (CONFIG.grid.tileHeight / 2) - z,
-  };
-}
-
-function tileCenter(tile, z = 0) {
-  return iso(tile.x + 0.5, tile.y + 0.5, z);
-}
-
-function tileCorners(x, y, z = 0) {
-  return [
-    iso(x, y, z),
-    iso(x + 1, y, z),
-    iso(x + 1, y + 1, z),
-    iso(x, y + 1, z),
-  ];
-}
-
-function svgPoints(points) {
-  return points.map(({ x, y }) => `${x},${y}`).join(' ');
-}
-
-const PLANE_TILES = TILE_MAP.flatMap((row, y) =>
-  row.map((exists, x) => (exists ? { x, y } : null))
-).filter(Boolean);
-
-const WALKABLE = new Set(PLANE_TILES.map(keyOf));
-
-const INNER_TILES = PLANE_TILES.filter(
-  ({ x, y }) =>
-    x > 0 &&
-    y > 0 &&
-    x < CONFIG.grid.size - 1 &&
-    y < CONFIG.grid.size - 1
-);
-
-function getNeighbors(tile) {
-  const candidates = [
-    { x: tile.x + 1, y: tile.y },
-    { x: tile.x - 1, y: tile.y },
-    { x: tile.x, y: tile.y + 1 },
-    { x: tile.x, y: tile.y - 1 },
-  ];
-  return candidates.filter((next) => WALKABLE.has(keyOf(next)));
-}
-
-function chooseSparseNodes(tiles) {
-  const target = Math.max(
-    CONFIG.grid.minNodes,
-    Math.round(tiles.length * CONFIG.grid.nodeRatio)
-  );
-  const candidates = shuffle(tiles);
-  const selected = [];
-
-  for (const tile of candidates) {
-    const farEnough = selected.every(
-      (node) => tileDistance(tile, node) >= CONFIG.grid.minNodeDistance
-    );
-    if (farEnough) selected.push(tile);
-    if (selected.length >= target) return selected;
-  }
-
-  // Fallback: if the distance rule is too strict, fill with best remaining tiles.
-  for (const tile of candidates) {
-    if (!selected.some((node) => sameTile(node, tile))) {
-      selected.push(tile);
-    }
-    if (selected.length >= target) break;
-  }
-
-  return selected;
-}
-
-function bfsPath(start, end, { preferStraightTiebreak = 0 } = {}) {
-  const startKey = keyOf(start);
-  const endKey = keyOf(end);
-
-  const queue = [start];
-  let cursor = 0;
-
-  const visited = new Set([startKey]);
-  const parent = new Map();
-  const direction = new Map();
-
-  while (cursor < queue.length) {
-    const current = queue[cursor++];
-    const currentKey = keyOf(current);
-
-    if (currentKey === endKey) break;
-
-    const prevDir = direction.get(currentKey);
-    let neighbors = shuffle(getNeighbors(current));
-
-    if (prevDir && preferStraightTiebreak > 0) {
-      neighbors.sort((a, b) => {
-        const score = (tile) => {
-          const dx = tile.x - current.x;
-          const dy = tile.y - current.y;
-          return dx === prevDir.x && dy === prevDir.y ? -preferStraightTiebreak : 0;
-        };
-        return score(a) - score(b);
-      });
-    }
-
-    for (const next of neighbors) {
-      const nextKey = keyOf(next);
-      if (visited.has(nextKey)) continue;
-
-      visited.add(nextKey);
-      parent.set(nextKey, current);
-      direction.set(nextKey, {
-        x: next.x - current.x,
-        y: next.y - current.y,
-      });
-      queue.push(next);
-    }
-  }
-
-  if (!visited.has(endKey)) return null;
-
-  const path = [];
-  let current = end;
-
-  while (current) {
-    path.unshift(current);
-    if (sameTile(current, start)) break;
-    current = parent.get(keyOf(current));
-  }
-
-  return path;
-}
-
-function createRoutePoints(path) {
-  return path.map((tile) => tileCenter(tile, CONFIG.routes.floorOffset));
-}
-
-function createRoute(nodes, index) {
-  const start = pick(nodes);
-  if (!start) return null;
-
-  const candidates = shuffle(
-    nodes
-      .filter((node) => !sameTile(node, start))
-      .sort((a, b) => tileDistance(b, start) - tileDistance(a, start))
-  );
-
-  for (const end of candidates) {
-    const segment = bfsPath(start, end, { preferStraightTiebreak: 0.85 });
-    if (segment && segment.length >= CONFIG.routes.minLength) {
-      return {
-        id: `route-${index}`,
-        start,
-        end,
-        path: segment,
-        points: createRoutePoints(segment),
-      };
-    }
-  }
-
-  return null;
-}
-
-function createRoutes(nodes) {
-  const routes = [];
-  const maxAttempts = CONFIG.routes.count * 8;
-
-  for (
-    let attempt = 0;
-    routes.length < CONFIG.routes.count && attempt < maxAttempts;
-    attempt += 1
-  ) {
-    const route = createRoute(nodes, routes.length);
-    if (route) routes.push(route);
-  }
-
-  return routes;
-}
-
-function createScene() {
-  const nodeSource = INNER_TILES.length ? INNER_TILES : PLANE_TILES;
-  const nodes = chooseSparseNodes(nodeSource);
-  const blueNode = nodes[0] ?? null;
-
-  return {
-    nodes,
-    blueNode,
-    routes: createRoutes(nodes),
-  };
-}
-
-function samplePolyline(points, progress) {
-  if (!points.length) return { x: 0, y: 0 };
-  if (points.length === 1) return points[0];
-
-  const total = points.length - 1;
-  // Clamp progress defensively. HMR / strict-mode re-runs can momentarily
-  // hand us a stale or out-of-range value; an unguarded NaN here would index
-  // points[NaN] = undefined and crash the whole tree.
-  const safeProgress = Number.isFinite(progress)
-    ? Math.max(0, Math.min(progress, 1))
-    : 0;
-  const scaled = safeProgress * total;
-  const index = Math.max(0, Math.min(Math.floor(scaled), total - 1));
-  const local = scaled - index;
-
-  const a = points[index] ?? points[0];
-  const b = points[index + 1] ?? points[points.length - 1];
-
-  return {
-    x: a.x + (b.x - a.x) * local,
-    y: a.y + (b.y - a.y) * local,
-  };
-}
-
-function isInsideBlocker(point, blocker) {
-  if (!blocker) return false;
-  return (
-    Math.hypot(blocker.x - point.x, blocker.y - point.y) <=
-    CONFIG.blocker.radius
-  );
-}
-
-function createParticle(routes, idRef) {
-  if (!routes.length) return null;
-
-  const id = `particle-${idRef.current++}`;
-
-  return {
-    id,
-    routeIndex: Math.floor(Math.random() * routes.length),
-    progress: 0,
-    speed: rand(CONFIG.particles.minSpeed, CONFIG.particles.maxSpeed),
-    radius: rand(CONFIG.particles.radiusMin, CONFIG.particles.radiusMax),
-    stopped: false,
-  };
-}
-
-// Mutates particle in place. Returns true if the particle should remain alive.
-function advanceParticle(particle, routes, blocker, deltaSeconds) {
-  const route = routes[particle.routeIndex];
-
-  if (!route) return false;
-
-  const point = samplePolyline(route.points, particle.progress);
-
-  if (isInsideBlocker(point, blocker)) {
-    particle.stopped = true;
-    return true;
-  }
-
-  const step = particle.stopped
-    ? CONFIG.particles.releaseStep
-    : CONFIG.particles.baseStep;
-
-  const progress = particle.progress + particle.speed * step * deltaSeconds;
-
-  if (progress >= 1) return false;
-
-  particle.progress = progress;
-  particle.stopped = false;
-  return true;
-}
-
-const CubeTile = memo(function CubeTile({ tile, isBlue }) {
+const CubeTile = memo(function CubeTile({ tile, isBlue, nodeFill, nodeStroke, nodeCore }) {
   if (!tile) return null;
 
   const z = CONFIG.grid.floatHeight + CONFIG.grid.cubeHeight * 0.6;
@@ -388,8 +39,8 @@ const CubeTile = memo(function CubeTile({ tile, isBlue }) {
   const ground = tileCenter(tile, 0);
 
   const r = 10;
-  const fill = isBlue ? CONFIG.colors.blueCube.right : '#ffffff';
-  const stroke = isBlue ? CONFIG.colors.blueCube.left : '#cbd5e1';
+  const fill = isBlue ? CONFIG.colors.blueCube.right : nodeFill;
+  const stroke = isBlue ? CONFIG.colors.blueCube.left : nodeStroke;
 
   return (
     <g>
@@ -422,13 +73,13 @@ const CubeTile = memo(function CubeTile({ tile, isBlue }) {
         cx={center.x}
         cy={center.y}
         r={r * 0.45}
-        fill={isBlue ? '#dbeafe' : '#f1f5f9'}
+        fill={isBlue ? '#dbeafe' : nodeCore}
       />
     </g>
   );
 });
 
-const GridLayer = memo(function GridLayer() {
+const GridLayer = memo(function GridLayer({ fill, stroke }) {
   return (
     <>
       {Array.from({ length: CONFIG.grid.size }, (_, y) =>
@@ -440,8 +91,8 @@ const GridLayer = memo(function GridLayer() {
             <polygon
               key={`tile-${x}-${y}`}
               points={svgPoints(corners)}
-              fill={exists ? '#f1f5f9' : 'transparent'}
-              stroke="rgba(15,23,42,0.06)"
+              fill={exists ? fill : 'transparent'}
+              stroke={stroke}
               strokeWidth="1"
             />
           );
@@ -451,7 +102,7 @@ const GridLayer = memo(function GridLayer() {
   );
 });
 
-const NodeLayer = memo(function NodeLayer({ nodes, blueNode }) {
+const NodeLayer = memo(function NodeLayer({ nodes, blueNode, nodeFill, nodeStroke, nodeCore }) {
   const sortedNodes = useMemo(
     () => nodes.slice().sort((a, b) => a.x + a.y - (b.x + b.y)),
     [nodes]
@@ -464,14 +115,18 @@ const NodeLayer = memo(function NodeLayer({ nodes, blueNode }) {
           key={`${tile.x}-${tile.y}`}
           tile={tile}
           isBlue={Boolean(blueNode && sameTile(tile, blueNode))}
+          nodeFill={nodeFill}
+          nodeStroke={nodeStroke}
+          nodeCore={nodeCore}
         />
       ))}
     </>
   );
 });
 
-function RouteLayer({ routes }) {
+function RouteLayer({ routes, color, width, style }) {
   if (!routes || !routes.length) return null;
+  const dashArray = style === 'dashed' ? `${width * 3} ${width * 2}` : undefined;
   return (
     <g>
       {routes.map((route) => {
@@ -482,8 +137,9 @@ function RouteLayer({ routes }) {
             key={route.id}
             points={svgPoints(route.points)}
             fill="none"
-            stroke="#bfdbfe"
-            strokeWidth={2}
+            stroke={color}
+            strokeWidth={width}
+            strokeDasharray={dashArray}
             strokeLinecap="round"
             strokeLinejoin="round"
           />
@@ -493,12 +149,14 @@ function RouteLayer({ routes }) {
   );
 }
 
-function ParticleLayer({ routes, blocker, onAllStopped }) {
+function ParticleLayer({ routes, blocker, onAllStopped, onStoppedCountChange }) {
   const particlesRef = useRef([]);
   const blockerRef = useRef(blocker);
   const routesRef = useRef(routes);
   const wasAllStoppedRef = useRef(false);
   const onAllStoppedRef = useRef(onAllStopped);
+  const onStoppedCountChangeRef = useRef(onStoppedCountChange);
+  const lastStoppedCountRef = useRef(0);
   const particleIdRef = useRef(0);
   const slotsRef = useRef(null);
   if (slotsRef.current === null) {
@@ -515,6 +173,10 @@ function ParticleLayer({ routes, blocker, onAllStopped }) {
   useEffect(() => {
     onAllStoppedRef.current = onAllStopped;
   }, [onAllStopped]);
+
+  useEffect(() => {
+    onStoppedCountChangeRef.current = onStoppedCountChange;
+  }, [onStoppedCountChange]);
 
   useEffect(() => {
     routesRef.current = routes;
@@ -606,20 +268,31 @@ function ParticleLayer({ routes, blocker, onAllStopped }) {
         if (particle) particlesRef.current.push(particle);
       }
 
-      // Hidden achievement: every active dot is currently frozen by the
-      // blocker. Requires a non-trivial population so a single freshly-spawned
-      // particle near the cursor doesn't trip it.
+      // Hidden achievement: enough dots are simultaneously frozen by the
+      // blocker to hit the win threshold. The threshold is the same number
+      // shown as the denominator in the on-stage counter, so "N/N" lines up
+      // exactly with the confetti trigger.
       const active = particlesRef.current;
-      const allStopped =
-        active.length >= CONFIG.particles.winThreshold &&
-        active.every((particle) => particle.stopped);
+      let stoppedCount = 0;
+      for (let i = 0; i < active.length; i += 1) {
+        if (active[i].stopped) stoppedCount += 1;
+      }
+      const winReached = stoppedCount >= CONFIG.particles.maxActive;
 
-      if (allStopped !== wasAllStoppedRef.current) {
-        wasAllStoppedRef.current = allStopped;
-        onAllStoppedRef.current?.(allStopped);
+      if (winReached !== wasAllStoppedRef.current) {
+        wasAllStoppedRef.current = winReached;
+        onAllStoppedRef.current?.(winReached);
         // Clear the frozen swarm so the spawn loop starts producing again
         // alongside the confetti burst.
-        if (allStopped) particlesRef.current = [];
+        if (winReached) {
+          particlesRef.current = [];
+          stoppedCount = 0;
+        }
+      }
+
+      if (stoppedCount !== lastStoppedCountRef.current) {
+        lastStoppedCountRef.current = stoppedCount;
+        onStoppedCountChangeRef.current?.(stoppedCount);
       }
 
       paint();
@@ -821,19 +494,27 @@ function ConfettiLayer({ burst }) {
   );
 }
 
-function Blocker({ point }) {
-  if (!point) return null;
+function Blocker({ view }) {
+  if (!view) return null;
+  const { point, active } = view;
 
   return (
-    <g>
-      <circle
-        cx={point.shadowX}
-        cy={point.shadowY}
-        r={CONFIG.blocker.radius * 0.72}
-        fill="rgba(15,23,42,0.08)"
-        filter="url(#floatShadow)"
-      />
+    <g className={`hp-bg__blocker${active ? ' is-active' : ''}`}>
+      <g
+        className="hp-bg__blocker-shadow-wrap"
+        transform={`translate(${point.shadowX} ${point.shadowY})`}
+      >
+        <circle
+          className="hp-bg__blocker-shadow"
+          cx={0}
+          cy={0}
+          r={CONFIG.blocker.radius * 0.72}
+          fill="rgba(15,23,42,0.08)"
+          filter="url(#floatShadow)"
+        />
+      </g>
       <line
+        className="hp-bg__blocker-line"
         x1={point.shadowX}
         y1={point.shadowY}
         x2={point.x}
@@ -842,13 +523,19 @@ function Blocker({ point }) {
         strokeWidth="1"
         strokeDasharray="3 5"
       />
-      <circle
-        cx={point.x}
-        cy={point.y}
-        r={CONFIG.blocker.radius}
-        fill={CONFIG.colors.blockerFill}
-        stroke={CONFIG.colors.blockerStroke}
-      />
+      <g
+        className="hp-bg__blocker-orb-wrap"
+        transform={`translate(${point.x} ${point.y})`}
+      >
+        <circle
+          className="hp-bg__blocker-orb"
+          cx={0}
+          cy={0}
+          r={CONFIG.blocker.radius}
+          fill={CONFIG.colors.blockerFill}
+          stroke={CONFIG.colors.blockerStroke}
+        />
+      </g>
     </g>
   );
 }
@@ -862,11 +549,33 @@ export default function HomePageBackground() {
   // so the centered hero card sitting above the background — which has its
   // own pointer-events: auto — does not swallow movement under it.
   const [pointer, setPointer] = useState(null);
+  const [blockerView, setBlockerView] = useState(null);
   const [burst, setBurst] = useState(null);
+  const [stoppedCount, setStoppedCount] = useState(0);
   const pointerRef = useRef(null);
 
   useEffect(() => {
     pointerRef.current = pointer;
+  }, [pointer]);
+
+  // Keep the cursor-follower mounted briefly past pointer-leave so the exit
+  // animation can play. While active, position tracks pointer; on leave, the
+  // last position freezes and we only flip `active` off — CSS scales/fades it
+  // out, then a timer clears the view entirely.
+  useEffect(() => {
+    if (pointer) {
+      setBlockerView({ point: pointer, active: true });
+      return undefined;
+    }
+    let cleared = false;
+    setBlockerView((prev) => (prev ? { point: prev.point, active: false } : null));
+    const timer = setTimeout(() => {
+      if (!cleared) setBlockerView(null);
+    }, 280);
+    return () => {
+      cleared = true;
+      clearTimeout(timer);
+    };
   }, [pointer]);
 
   const handleAllStopped = useCallback((isStopped) => {
@@ -874,6 +583,10 @@ export default function HomePageBackground() {
     const at = pointerRef.current;
     if (!at) return;
     setBurst({ x: at.x, y: at.y, key: performance.now() });
+  }, []);
+
+  const handleStoppedCountChange = useCallback((count) => {
+    setStoppedCount(count);
   }, []);
 
   useEffect(() => {
@@ -947,12 +660,14 @@ export default function HomePageBackground() {
   return (
     <>
       <div className="hp-bg" aria-hidden="true">
+        <div className="hp-bg__stage">
         <svg
           ref={svgRef}
           viewBox={CONFIG.stage.viewBox}
           className="hp-bg__svg"
           preserveAspectRatio="xMidYMid meet"
         >
+
           <defs>
           <filter id="softGlow" x="-80%" y="-80%" width="260%" height="260%">
             <feGaussianBlur stdDeviation="4" result="blur" />
@@ -967,18 +682,38 @@ export default function HomePageBackground() {
         </defs>
 
           <g ref={stageRef} transform={`translate(0 ${CONFIG.stage.y})`}>
-            <GridLayer />
-            <Blocker point={pointer} />
-            <RouteLayer routes={scene.routes} />
+            <GridLayer fill={STYLE.tile.fill} stroke={STYLE.tile.edge} />
+            <Blocker view={blockerView} />
+            <RouteLayer
+              routes={scene.routes}
+              color={STYLE.route.color}
+              width={STYLE.route.width}
+              style={STYLE.route.style}
+            />
             <ParticleLayer
               routes={scene.routes}
               blocker={pointer}
               onAllStopped={handleAllStopped}
+              onStoppedCountChange={handleStoppedCountChange}
             />
-            <NodeLayer nodes={scene.nodes} blueNode={scene.blueNode} />
+            <NodeLayer
+              nodes={scene.nodes}
+              blueNode={scene.blueNode}
+              nodeFill={STYLE.node.fill}
+              nodeStroke={STYLE.node.edge}
+              nodeCore={STYLE.node.core}
+            />
             <ConfettiLayer burst={burst} />
           </g>
         </svg>
+        </div>
+        {stoppedCount >= 2 ? (
+          <div className="hp-bg__counter">
+            <span className="hp-bg__counter-num">{stoppedCount}</span>
+            <span className="hp-bg__counter-sep">/</span>
+            <span className="hp-bg__counter-max">{CONFIG.particles.maxActive}</span>
+          </div>
+        ) : null}
       </div>
       <div className="hp-grain" aria-hidden="true" />
     </>
