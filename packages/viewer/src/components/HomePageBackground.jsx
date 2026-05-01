@@ -61,20 +61,8 @@ const CubeTile = memo(function CubeTile({ tile, isBlue, nodeFill, nodeStroke, no
         strokeWidth={1}
         strokeDasharray="3 5"
       />
-      <circle
-        cx={center.x}
-        cy={center.y}
-        r={r}
-        fill={fill}
-        stroke={stroke}
-        strokeWidth={2}
-      />
-      <circle
-        cx={center.x}
-        cy={center.y}
-        r={r * 0.45}
-        fill={isBlue ? '#dbeafe' : nodeCore}
-      />
+      <circle cx={center.x} cy={center.y} r={r} fill={fill} stroke={stroke} strokeWidth={2} />
+      <circle cx={center.x} cy={center.y} r={r * 0.45} fill={isBlue ? '#dbeafe' : nodeCore} />
     </g>
   );
 });
@@ -103,10 +91,7 @@ const GridLayer = memo(function GridLayer({ fill, stroke }) {
 });
 
 const NodeLayer = memo(function NodeLayer({ nodes, blueNode, nodeFill, nodeStroke, nodeCore }) {
-  const sortedNodes = useMemo(
-    () => nodes.slice().sort((a, b) => a.x + a.y - (b.x + b.y)),
-    [nodes]
-  );
+  const sortedNodes = useMemo(() => nodes.slice().sort((a, b) => a.x + a.y - (b.x + b.y)), [nodes]);
 
   return (
     <>
@@ -160,10 +145,11 @@ function ParticleLayer({ routes, blocker, onAllStopped, onStoppedCountChange }) 
   const particleIdRef = useRef(0);
   const slotsRef = useRef(null);
   if (slotsRef.current === null) {
-    slotsRef.current = Array.from(
-      { length: CONFIG.particles.maxActive },
-      () => ({ g: null, ellipse: null, circle: null })
-    );
+    slotsRef.current = Array.from({ length: CONFIG.particles.maxActive }, () => ({
+      g: null,
+      ellipse: null,
+      circle: null,
+    }));
   }
 
   useEffect(() => {
@@ -244,12 +230,7 @@ function ParticleLayer({ routes, blocker, onAllStopped, onStoppedCountChange }) 
       let writeIdx = 0;
       for (let i = 0; i < particles.length; i += 1) {
         const particle = particles[i];
-        const alive = advanceParticle(
-          particle,
-          currentRoutes,
-          blockerRef.current,
-          deltaSeconds
-        );
+        const alive = advanceParticle(particle, currentRoutes, blockerRef.current, deltaSeconds);
         if (alive) {
           if (writeIdx !== i) particles[writeIdx] = particle;
           writeIdx += 1;
@@ -259,10 +240,7 @@ function ParticleLayer({ routes, blocker, onAllStopped, onStoppedCountChange }) 
 
       spawnAccumulator += deltaSeconds * CONFIG.particles.spawnRatePerSecond;
 
-      while (
-        spawnAccumulator >= 1 &&
-        particlesRef.current.length < CONFIG.particles.maxActive
-      ) {
+      while (spawnAccumulator >= 1 && particlesRef.current.length < CONFIG.particles.maxActive) {
         spawnAccumulator -= 1;
         const particle = createParticle(currentRoutes, particleIdRef);
         if (particle) particlesRef.current.push(particle);
@@ -347,16 +325,10 @@ function ConfettiLayer({ burst }) {
   const lastTimeRef = useRef(0);
 
   if (piecesRef.current === null) {
-    piecesRef.current = Array.from(
-      { length: CONFETTI_POOL_SIZE },
-      () => ({ active: false })
-    );
+    piecesRef.current = Array.from({ length: CONFETTI_POOL_SIZE }, () => ({ active: false }));
   }
   if (slotsRef.current === null) {
-    slotsRef.current = Array.from(
-      { length: CONFETTI_POOL_SIZE },
-      () => ({ rect: null })
-    );
+    slotsRef.current = Array.from({ length: CONFETTI_POOL_SIZE }, () => ({ rect: null }));
   }
 
   // Stop the RAF loop when no pieces remain; restart when a new burst arrives.
@@ -416,8 +388,20 @@ function ConfettiLayer({ burst }) {
   useEffect(() => {
     if (!burst) return;
 
-    const { pieces, angleJitter, speedMin, speedMax, upwardBias, spinMin,
-      spinMax, lifeMin, lifeMax, sizeMin, sizeMax, palette } = CONFIG.confetti;
+    const {
+      pieces,
+      angleJitter,
+      speedMin,
+      speedMax,
+      upwardBias,
+      spinMin,
+      spinMax,
+      lifeMin,
+      lifeMax,
+      sizeMin,
+      sizeMax,
+      palette,
+    } = CONFIG.confetti;
 
     const pool = piecesRef.current;
     const slots = slotsRef.current;
@@ -429,9 +413,7 @@ function ConfettiLayer({ burst }) {
       const piece = pool[s];
       if (piece.active) continue;
 
-      const angle =
-        (inserted / pieces) * Math.PI * 2 +
-        (Math.random() - 0.5) * angleJitter;
+      const angle = (inserted / pieces) * Math.PI * 2 + (Math.random() - 0.5) * angleJitter;
       const speed = rand(speedMin, speedMax);
       const size = rand(sizeMin, sizeMax);
       const color = palette[inserted % palette.length];
@@ -457,10 +439,7 @@ function ConfettiLayer({ burst }) {
         rect.setAttribute('height', size * 1.4);
         rect.setAttribute('fill', color);
         rect.setAttribute('opacity', 1);
-        rect.setAttribute(
-          'transform',
-          `translate(${burst.x} ${burst.y}) rotate(${rotation})`
-        );
+        rect.setAttribute('transform', `translate(${burst.x} ${burst.y}) rotate(${rotation})`);
         rect.style.display = '';
       }
 
@@ -523,10 +502,7 @@ function Blocker({ view }) {
         strokeWidth="1"
         strokeDasharray="3 5"
       />
-      <g
-        className="hp-bg__blocker-orb-wrap"
-        transform={`translate(${point.x} ${point.y})`}
-      >
+      <g className="hp-bg__blocker-orb-wrap" transform={`translate(${point.x} ${point.y})`}>
         <circle
           className="hp-bg__blocker-orb"
           cx={0}
@@ -661,51 +637,50 @@ export default function HomePageBackground() {
     <>
       <div className="hp-bg" aria-hidden="true">
         <div className="hp-bg__stage">
-        <svg
-          ref={svgRef}
-          viewBox={CONFIG.stage.viewBox}
-          className="hp-bg__svg"
-          preserveAspectRatio="xMidYMid meet"
-        >
+          <svg
+            ref={svgRef}
+            viewBox={CONFIG.stage.viewBox}
+            className="hp-bg__svg"
+            preserveAspectRatio="xMidYMid meet"
+          >
+            <defs>
+              <filter id="softGlow" x="-80%" y="-80%" width="260%" height="260%">
+                <feGaussianBlur stdDeviation="4" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <filter id="floatShadow" x="-80%" y="-80%" width="260%" height="260%">
+                <feGaussianBlur stdDeviation="7" />
+              </filter>
+            </defs>
 
-          <defs>
-          <filter id="softGlow" x="-80%" y="-80%" width="260%" height="260%">
-            <feGaussianBlur stdDeviation="4" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-          <filter id="floatShadow" x="-80%" y="-80%" width="260%" height="260%">
-            <feGaussianBlur stdDeviation="7" />
-          </filter>
-        </defs>
-
-          <g ref={stageRef} transform={`translate(0 ${CONFIG.stage.y})`}>
-            <GridLayer fill={STYLE.tile.fill} stroke={STYLE.tile.edge} />
-            <Blocker view={blockerView} />
-            <RouteLayer
-              routes={scene.routes}
-              color={STYLE.route.color}
-              width={STYLE.route.width}
-              style={STYLE.route.style}
-            />
-            <ParticleLayer
-              routes={scene.routes}
-              blocker={pointer}
-              onAllStopped={handleAllStopped}
-              onStoppedCountChange={handleStoppedCountChange}
-            />
-            <NodeLayer
-              nodes={scene.nodes}
-              blueNode={scene.blueNode}
-              nodeFill={STYLE.node.fill}
-              nodeStroke={STYLE.node.edge}
-              nodeCore={STYLE.node.core}
-            />
-            <ConfettiLayer burst={burst} />
-          </g>
-        </svg>
+            <g ref={stageRef} transform={`translate(0 ${CONFIG.stage.y})`}>
+              <GridLayer fill={STYLE.tile.fill} stroke={STYLE.tile.edge} />
+              <Blocker view={blockerView} />
+              <RouteLayer
+                routes={scene.routes}
+                color={STYLE.route.color}
+                width={STYLE.route.width}
+                style={STYLE.route.style}
+              />
+              <ParticleLayer
+                routes={scene.routes}
+                blocker={pointer}
+                onAllStopped={handleAllStopped}
+                onStoppedCountChange={handleStoppedCountChange}
+              />
+              <NodeLayer
+                nodes={scene.nodes}
+                blueNode={scene.blueNode}
+                nodeFill={STYLE.node.fill}
+                nodeStroke={STYLE.node.edge}
+                nodeCore={STYLE.node.core}
+              />
+              <ConfettiLayer burst={burst} />
+            </g>
+          </svg>
         </div>
         {stoppedCount >= 2 ? (
           <div className="hp-bg__counter">

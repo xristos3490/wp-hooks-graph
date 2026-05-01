@@ -68,10 +68,10 @@ export const CONFIG = {
     },
     // Brand-tinted shades derived from WPDS brand tokens.
     blueCube: {
-      left: '#2337c8',  // --wpds-color-stroke-interactive-brand-active
+      left: '#2337c8', // --wpds-color-stroke-interactive-brand-active
       right: '#3858e9', // --wpds-color-fg-interactive-brand
       front: '#2e49d9', // --wpds-color-bg-interactive-brand-strong-active
-      top: '#a3b1d4',   // --wpds-color-stroke-surface-brand
+      top: '#a3b1d4', // --wpds-color-stroke-surface-brand
     },
   },
   stage: {
@@ -124,12 +124,7 @@ export function tileCenter(tile, z = 0) {
 }
 
 export function tileCorners(x, y, z = 0) {
-  return [
-    iso(x, y, z),
-    iso(x + 1, y, z),
-    iso(x + 1, y + 1, z),
-    iso(x, y + 1, z),
-  ];
+  return [iso(x, y, z), iso(x + 1, y, z), iso(x + 1, y + 1, z), iso(x, y + 1, z)];
 }
 
 export function svgPoints(points) {
@@ -143,11 +138,7 @@ export const PLANE_TILES = TILE_MAP.flatMap((row, y) =>
 export const WALKABLE = new Set(PLANE_TILES.map(keyOf));
 
 export const INNER_TILES = PLANE_TILES.filter(
-  ({ x, y }) =>
-    x > 0 &&
-    y > 0 &&
-    x < CONFIG.grid.size - 1 &&
-    y < CONFIG.grid.size - 1
+  ({ x, y }) => x > 0 && y > 0 && x < CONFIG.grid.size - 1 && y < CONFIG.grid.size - 1
 );
 
 export function getNeighbors(tile) {
@@ -161,10 +152,7 @@ export function getNeighbors(tile) {
 }
 
 export function chooseSparseNodes(tiles) {
-  const target = Math.max(
-    CONFIG.grid.minNodes,
-    Math.round(tiles.length * CONFIG.grid.nodeRatio)
-  );
+  const target = Math.max(CONFIG.grid.minNodes, Math.round(tiles.length * CONFIG.grid.nodeRatio));
   const candidates = shuffle(tiles);
   const selected = [];
 
@@ -312,9 +300,7 @@ export function samplePolyline(points, progress) {
   // Clamp progress defensively. HMR / strict-mode re-runs can momentarily
   // hand us a stale or out-of-range value; an unguarded NaN here would index
   // points[NaN] = undefined and crash the whole tree.
-  const safeProgress = Number.isFinite(progress)
-    ? Math.max(0, Math.min(progress, 1))
-    : 0;
+  const safeProgress = Number.isFinite(progress) ? Math.max(0, Math.min(progress, 1)) : 0;
   const scaled = safeProgress * total;
   const index = Math.max(0, Math.min(Math.floor(scaled), total - 1));
   const local = scaled - index;
@@ -330,10 +316,7 @@ export function samplePolyline(points, progress) {
 
 export function isInsideBlocker(point, blocker) {
   if (!blocker) return false;
-  return (
-    Math.hypot(blocker.x - point.x, blocker.y - point.y) <=
-    CONFIG.blocker.radius
-  );
+  return Math.hypot(blocker.x - point.x, blocker.y - point.y) <= CONFIG.blocker.radius;
 }
 
 export function createParticle(routes, idRef) {
@@ -364,9 +347,7 @@ export function advanceParticle(particle, routes, blocker, deltaSeconds) {
     return true;
   }
 
-  const step = particle.stopped
-    ? CONFIG.particles.releaseStep
-    : CONFIG.particles.baseStep;
+  const step = particle.stopped ? CONFIG.particles.releaseStep : CONFIG.particles.baseStep;
 
   const progress = particle.progress + particle.speed * step * deltaSeconds;
 

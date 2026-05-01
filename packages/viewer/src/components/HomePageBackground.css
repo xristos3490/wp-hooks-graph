@@ -36,10 +36,7 @@
      half the SVG height = (width / 1.5) / 2 = width / 3. Subtracting that
      from --hp-bg-anchor lands the cluster's center on the anchor line at
      every viewport size, instead of the SVG's top edge drifting around. */
-  margin-top: max(
-    var(--hp-bg-anchor-min),
-    calc(var(--hp-bg-anchor) - min(48rem, 96vw) / 3)
-  );
+  margin-top: max(var(--hp-bg-anchor-min), calc(var(--hp-bg-anchor) - min(48rem, 96vw) / 3));
 
   animation: hp-bg-in 0.75s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
@@ -63,17 +60,18 @@
      cubes; add a touch more to float comfortably above them. The 0.5rem
      floor keeps the chip on-screen on short viewports where the anchor
      calc would otherwise go negative. */
-  top: max(
-    0.5rem,
-    calc(var(--hp-bg-anchor) - min(48rem, 96vw) * 0.235)
-  );
+  top: max(0.5rem, calc(var(--hp-bg-anchor) - min(48rem, 96vw) * 0.235));
   left: 50%;
   z-index: 2;
   display: flex;
   align-items: baseline;
   gap: 0.15em;
   padding: 0.3rem 0.65rem;
-  font: 500 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font:
+    500 11px/1 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
   letter-spacing: 0.04em;
   color: #0f172a;
   background: rgba(255, 255, 255, 0.85);
@@ -119,8 +117,14 @@
 }
 
 @keyframes hp-bg-in {
-  from { opacity: 0; transform: translateY(18px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Risograph grain overlay — fractal noise rendered into a single tile and
@@ -181,8 +185,12 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hp-bg__stage { animation: none; }
-  .hp-bg__counter { animation: none; }
+  .hp-bg__stage {
+    animation: none;
+  }
+  .hp-bg__counter {
+    animation: none;
+  }
   .hp-bg__blocker-orb,
   .hp-bg__blocker-shadow,
   .hp-bg__blocker-line {

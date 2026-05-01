@@ -29,7 +29,9 @@
   pointer-events: none;
 }
 
-.hp-hero > * { pointer-events: auto; }
+.hp-hero > * {
+  pointer-events: auto;
+}
 
 @keyframes hp-hero-in {
   from {
