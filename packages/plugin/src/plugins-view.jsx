@@ -148,41 +148,65 @@ export default function PluginsView() {
 	}, [] );
 
 	const actions = useMemo(
-		() => [
-			{
-				id: 'schedule-parse',
-				label: __( 'Schedule parse', 'hooksgraph' ),
-				isPrimary: true,
-				supportsBulk: false,
-				isEligible: ( item ) => item.parse_status !== 'scheduled',
-				callback: ( items ) => {
-					const item = items[ 0 ];
-					if ( ! item ) return;
-					setScheduleError( null );
-					setScheduleTarget( item );
+		() => {
+			const runDownload = async ( items ) => {
+				const item = items[ 0 ];
+				if ( ! item ) return;
+				try {
+					await downloadParse( item );
+				} catch ( err ) {
+					// eslint-disable-next-line no-console
+					console.error( 'HooksGraph: download failed', err );
+				}
+			};
+
+			return [
+				{
+					id: 'download-parse-primary',
+					label: __( 'Download', 'hooksgraph' ),
+					isPrimary: true,
+					supportsBulk: false,
+					isEligible: ( item ) => item.parse_status === 'parsed',
+					callback: runDownload,
 				},
-			},
-			{
-				id: 'download-parse',
-				label: __( 'Download JSON', 'hooksgraph' ),
-				supportsBulk: false,
-				isEligible: ( item ) =>
-					DOWNLOADABLE_STATUSES.has( item.parse_status ),
-				callback: async ( items ) => {
-					const item = items[ 0 ];
-					if ( ! item ) return;
-					try {
-						await downloadParse( item );
-					} catch ( err ) {
-						// eslint-disable-next-line no-console
-						console.error(
-							'HooksGraph: download failed',
-							err
-						);
-					}
+				{
+					id: 'schedule-parse',
+					label: __( 'Schedule parse', 'hooksgraph' ),
+					isPrimary: true,
+					supportsBulk: false,
+					isEligible: ( item ) =>
+						item.parse_status !== 'scheduled' &&
+						item.parse_status !== 'parsed',
+					callback: ( items ) => {
+						const item = items[ 0 ];
+						if ( ! item ) return;
+						setScheduleError( null );
+						setScheduleTarget( item );
+					},
 				},
-			},
-		],
+				{
+					id: 'reschedule-parse',
+					label: __( 'Re-schedule parse', 'hooksgraph' ),
+					supportsBulk: false,
+					isEligible: ( item ) => item.parse_status === 'parsed',
+					callback: ( items ) => {
+						const item = items[ 0 ];
+						if ( ! item ) return;
+						setScheduleError( null );
+						setScheduleTarget( item );
+					},
+				},
+				{
+					id: 'download-parse',
+					label: __( 'Download', 'hooksgraph' ),
+					supportsBulk: false,
+					isEligible: ( item ) =>
+						DOWNLOADABLE_STATUSES.has( item.parse_status ) &&
+						item.parse_status !== 'parsed',
+					callback: runDownload,
+				},
+			];
+		},
 		[ downloadParse ]
 	);
 
