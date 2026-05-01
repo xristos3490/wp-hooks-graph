@@ -44,10 +44,10 @@ Run `hooksgraph --help` for the top-level command list, or `hooksgraph parse --h
 
 `hooksgraph` keeps two on-disk directories under `~/.hooksgraph/`, each with its own job:
 
-| Directory                  | Written by                         | Read by         | Override                       |
-| -------------------------- | ---------------------------------- | --------------- | ------------------------------ |
-| `~/.hooksgraph/parsed/`    | `hooksgraph parse`, `hooksgraph <dir>` | `hooksgraph serve` (viewer) | `$HOOKSGRAPH_PARSED_DIR`     |
-| `~/.hooksgraph/codebases/` | `hooksgraph parse-codebase`        | the MCP server  | `$HOOKSGRAPH_CODEBASES_DIR` (or `--storage` on the MCP shim) |
+| Directory                  | Written by                             | Read by                     | Override                                                     |
+| -------------------------- | -------------------------------------- | --------------------------- | ------------------------------------------------------------ |
+| `~/.hooksgraph/parsed/`    | `hooksgraph parse`, `hooksgraph <dir>` | `hooksgraph serve` (viewer) | `$HOOKSGRAPH_PARSED_DIR`                                     |
+| `~/.hooksgraph/codebases/` | `hooksgraph parse-codebase`            | the MCP server              | `$HOOKSGRAPH_CODEBASES_DIR` (or `--storage` on the MCP shim) |
 
 Use **`parse`** for ad-hoc, viewer-bound runs (only the latest matters). Use **`parse-codebase`** to add a stable entry to your MCP corpus — the JSON's filename becomes the codebase id that LLMs query.
 
@@ -66,15 +66,15 @@ Use **`parse`** for ad-hoc, viewer-bound runs (only the latest matters). Use **`
 
 ### Run
 
-| Command                                                        | Description                                                           |
-| -------------------------------------------------------------- | --------------------------------------------------------------------- |
-| `hooksgraph <dirs...>` _(or `packages/cli/bin/hooksgraph.js`)_ | Parse + serve + open browser in one step                                            |
-| `hooksgraph parse <dirs...>`                                   | Parse into `~/.hooksgraph/parsed/`; output path printed at the end                  |
-| `hooksgraph parse-codebase <dirs...>`                          | Parse into `~/.hooksgraph/codebases/` for the MCP server (no viewer)                |
-| `hooksgraph parse --help`                                      | Show full parser help (all flags + examples)                                        |
-| `hooksgraph serve [json]`                                      | Serve the viewer with a JSON (defaults to latest in `~/.hooksgraph/parsed/`)        |
-| `hooksgraph --help`                                            | Top-level command list                                                              |
-| `HOOKSGRAPH_JSON=<path> pnpm dev`                              | Vite dev server with hot reload, bound to a specific JSON                           |
+| Command                                                        | Description                                                                  |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `hooksgraph <dirs...>` _(or `packages/cli/bin/hooksgraph.js`)_ | Parse + serve + open browser in one step                                     |
+| `hooksgraph parse <dirs...>`                                   | Parse into `~/.hooksgraph/parsed/`; output path printed at the end           |
+| `hooksgraph parse-codebase <dirs...>`                          | Parse into `~/.hooksgraph/codebases/` for the MCP server (no viewer)         |
+| `hooksgraph parse --help`                                      | Show full parser help (all flags + examples)                                 |
+| `hooksgraph serve [json]`                                      | Serve the viewer with a JSON (defaults to latest in `~/.hooksgraph/parsed/`) |
+| `hooksgraph --help`                                            | Top-level command list                                                       |
+| `HOOKSGRAPH_JSON=<path> pnpm dev`                              | Vite dev server with hot reload, bound to a specific JSON                    |
 
 ### Test
 

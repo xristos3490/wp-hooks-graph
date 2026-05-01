@@ -47,15 +47,15 @@ export default function McpInstructionsDialog({ disabled = false }) {
           <Text>
             Expose every codebase parsed via{' '}
             <code style={inlineCodeStyle}>hooksgraph parse-codebase</code> (which writes to{' '}
-            <code style={inlineCodeStyle}>~/.hooksgraph/codebases/</code>) to Claude Code as a
-            local MCP server — so agents can query the graph without loading JSON into context.
+            <code style={inlineCodeStyle}>~/.hooksgraph/codebases/</code>) to Claude Code as a local
+            MCP server — so agents can query the graph without loading JSON into context.
           </Text>
           <Stack direction="column" gap="xs">
             <Text variant="heading-sm">1. Register with Claude Code</Text>
             <Text variant="body-sm" style={mutedStyle}>
-              Replace the path with the absolute path to this repo on your machine. The server
-              reads <code style={inlineCodeStyle}>~/.hooksgraph/codebases/</code> by default;
-              override with <code style={inlineCodeStyle}>--storage</code> or{' '}
+              Replace the path with the absolute path to this repo on your machine. The server reads{' '}
+              <code style={inlineCodeStyle}>~/.hooksgraph/codebases/</code> by default; override
+              with <code style={inlineCodeStyle}>--storage</code> or{' '}
               <code style={inlineCodeStyle}>$HOOKSGRAPH_CODEBASES_DIR</code>.
             </Text>
             <pre style={codeBlockStyle}>{REGISTER_COMMAND}</pre>
