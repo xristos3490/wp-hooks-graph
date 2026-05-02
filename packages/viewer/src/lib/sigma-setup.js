@@ -29,15 +29,18 @@ export function buildSigmaGraph(data, sourceLabels, repoPalettes, mode) {
     const classNodes = {};
     const fileEdgeCounts = {};
     const fileLookup = {};
+    const remappedSources = new Array(data.edges.length);
 
     for (const node of data.nodes) {
       if (node.type === 'file') fileLookup[node.id] = node;
     }
 
+    // Pass 1: classify edges to discover class nodes and remap file→class
+    // source ids. No graph mutation here — graphology's addEdgeWithKey
+    // requires both endpoints to exist, so edges have to wait until pass 3.
     for (let i = 0; i < data.edges.length; i++) {
       const edge = data.edges[i];
       const scopeClass = edge.scope_class;
-      let sourceId;
 
       if (scopeClass) {
         const fileNode = fileLookup[edge.source];
@@ -56,14 +59,14 @@ export function buildSigmaGraph(data, sourceLabels, repoPalettes, mode) {
         }
         classNodes[classId].hook_count++;
         if (fileNode) classNodes[classId].files.add(fileNode.path);
-        sourceId = classId;
+        remappedSources[i] = classId;
       } else {
         fileEdgeCounts[edge.source] = (fileEdgeCounts[edge.source] || 0) + 1;
-        sourceId = edge.source;
+        remappedSources[i] = edge.source;
       }
-      addEdge(graph, edge, i, sourceId, sourceIndexMap, repoPalettes, sourceLabels);
     }
 
+    // Pass 2: add all nodes (class, file, hook).
     for (const cid in classNodes) {
       const cn = classNodes[cid];
       addNode(graph, {
@@ -93,6 +96,11 @@ export function buildSigmaGraph(data, sourceLabels, repoPalettes, mode) {
         }, repoPalettes, sourceLabels);
       }
     }
+
+    // Pass 3: add edges now that endpoints exist.
+    for (let i = 0; i < data.edges.length; i++) {
+      addEdge(graph, data.edges[i], i, remappedSources[i], sourceIndexMap, repoPalettes, sourceLabels);
+    }
   } else {
     for (const node of data.nodes) {
       const enriched =
@@ -119,13 +127,70 @@ export function buildSigmaGraph(data, sourceLabels, repoPalettes, mode) {
   return graph;
 }
 
+// Return sigma-space pixel radius (screen px). Degree → size on a sqrt curve
+// with a low floor so leaves naturally fall under labelRenderedSizeThreshold
+// at default zoom and only hubs auto-label. The wide dynamic range
+// (≈3 → ≈28) creates a clear visual hierarchy on huge graphs.
 function nodeSizeFor(node) {
   if (node.type === 'hook') {
-    const totalConn = (node.fire_count || 0) + (node.listen_count || 0);
-    const baseSize = Math.max(15, Math.min(60, 10 + Math.sqrt(totalConn) * 5));
-    return node.overlap ? baseSize * 1.2 : baseSize;
+    const deg = (node.fire_count || 0) + (node.listen_count || 0);
+    const base = 3 + Math.sqrt(deg) * 3;
+    return Math.min(28, node.overlap ? base * 1.2 : base);
   }
-  return Math.max(12, Math.min(50, 10 + Math.sqrt(node.hook_count || 0) * 5));
+  const deg = node.hook_count || 0;
+  return Math.min(24, 3 + Math.sqrt(deg) * 2.5);
+}
+
+// Live size used by the sigma node reducer. Reads raw signals stored on the
+// graphology node (degree, overlap, nodeType) and applies the user-tunable
+// sizing controls plus the camera-driven reveal-on-zoom boost. Kept pure so
+// it can run inside the reducer on every frame without allocations.
+//
+// `sizing` fields are integer percent (100 = 1.0×); `density` is a precomputed
+// multiplier from the canvas (1.0 when disabled).
+export function computeNodeSize(attrs, sizing, cameraRatio, density) {
+  const hubFactor = sizing.hubEmphasis / 100;
+  let base;
+  if (attrs.nodeType === 'hook') {
+    const deg = (attrs.fire_count || 0) + (attrs.listen_count || 0);
+    base = 3 + Math.sqrt(deg) * 3 * hubFactor;
+    if (attrs.overlap) base *= 1.2;
+    base = Math.min(28, base);
+  } else {
+    const deg = attrs.hook_count || 0;
+    base = 3 + Math.sqrt(deg) * 2.5 * hubFactor;
+    base = Math.min(24, base);
+  }
+
+  const typeScale =
+    attrs.nodeType === 'hook'
+      ? sizing.hookScale
+      : attrs.nodeType === 'class'
+        ? sizing.classScale
+        : sizing.fileScale;
+
+  let size = base * (typeScale / 100) * density;
+
+  // Reveal-on-zoom: leaves grow as the camera zooms in (ratio < 1); already
+  // prominent hubs barely move, so the visual hierarchy is preserved at any
+  // zoom level. Attenuation is by current size, not raw degree, so hub
+  // emphasis and per-type scaling participate naturally.
+  if (sizing.zoomResponse && cameraRatio < 1) {
+    const zoomFactor = Math.min(3, 1 / Math.max(cameraRatio, 0.05));
+    const attenuation = Math.max(0, 1 - size / 30);
+    size *= 1 + (zoomFactor - 1) * attenuation;
+  }
+
+  return Math.max(3, size);
+}
+
+// Density compensation: shrink (or grow) sizes inversely to node count so a
+// 5k-node graph and a 200-node graph both read at default zoom. Returns a
+// multiplier in [0.5, 1.5] anchored at ~1000 nodes = 1.0×.
+export function computeDensityFactor(nodeCount, enabled) {
+  if (!enabled || nodeCount <= 0) return 1;
+  const factor = Math.sqrt(1000 / nodeCount);
+  return Math.max(0.5, Math.min(1.5, factor));
 }
 
 function nodeColorFor(node, repoPalettes, sourceLabels) {
@@ -145,17 +210,12 @@ function nodeColorFor(node, repoPalettes, sourceLabels) {
 
 function addNode(graph, node, repoPalettes, sourceLabels) {
   if (graph.hasNode(node.id)) return;
-  const size = nodeSizeFor(node);
+  const sigmaSize = Math.max(3, nodeSizeFor(node));
   const color = nodeColorFor(node, repoPalettes, sourceLabels);
   // Sigma uses `type` as the registered renderer program, so we cannot store
   // the app's hook/file/class type under that key. Stash it as `nodeType` and
   // surface it back via the cy-adapter's data() method below.
   const { type: appType, ...rest } = node;
-  // Sigma node `size` is screen-space pixels (radius). Cytoscape's nodeSize is
-  // a diameter in graph-px. Halve, then floor at 4px so small nodes remain
-  // visible. Without this floor (we previously divided by 6), 15px hooks
-  // collapsed to 2.5px circles which were sub-pixel after camera scaling.
-  const sigmaSize = Math.max(4, size / 3);
   graph.addNode(node.id, {
     ...rest,
     nodeType: appType,
@@ -194,8 +254,12 @@ function addEdge(graph, edge, i, sourceId, sourceIndexMap, repoPalettes, sourceL
     size: 1,
     color: color || '#aaa',
     baseColor: color || '#aaa',
-    type: isFires ? 'arrow' : 'line', // listens rendered as plain line (sigma has no dashed by default)
+    type: 'arrow',
     hidden: false,
+    // Seed at 0 so sigma's zIndex sort has an attribute to compare against
+    // when applyEdgeElevation lifts highlighted edges to 1 in
+    // SigmaGraphCanvas.
+    zIndex: 0,
   });
 }
 

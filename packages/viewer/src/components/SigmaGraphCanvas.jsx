@@ -1,8 +1,10 @@
 import { useRef, useEffect, useState } from 'react';
 import Sigma from 'sigma';
 import { useGraphContext } from '../context/GraphContext';
-import { buildSigmaGraph, buildCyAdapter } from '../lib/sigma-setup';
-import { applyLayout, LAYOUT_OPTIONS } from '../lib/sigma-layouts';
+import { buildSigmaGraph, buildCyAdapter, computeNodeSize, computeDensityFactor } from '../lib/sigma-setup';
+import { applyLayout } from '../lib/sigma-layouts';
+import { SIGMA_SIZING_DEFAULTS } from '../lib/constants';
+import SigmaSizingControls from './SigmaSizingControls';
 
 function yieldToMain() {
   return new Promise((resolve) => requestAnimationFrame(() => resolve()));
@@ -27,21 +29,58 @@ export default function SigmaGraphCanvas() {
     setIsComputing,
   } = useGraphContext();
 
+  // Sizing controls — local to the canvas. The floating <SigmaSizingControls>
+  // panel mutates this; the reducer reads via sizingRef on every frame so
+  // changes apply without rebuilding the graph or layout.
+  const [sizing, setSizing] = useState(SIGMA_SIZING_DEFAULTS);
+  const sizingRef = useRef(sizing);
+  sizingRef.current = sizing;
+
+  // Density factor depends only on node count + the densityCompensation
+  // toggle, so recompute when either changes (cheap; we still write through
+  // a ref so the reducer can read it without a closure rebuild).
+  const densityFactor = computeDensityFactor(
+    data ? data.nodes.length : 0,
+    sizing.densityCompensation
+  );
+  const densityRef = useRef(densityFactor);
+  densityRef.current = densityFactor;
+
   const [progress, setProgress] = useState(null);
   const [graphReady, setGraphReady] = useState(false);
-  const [layoutMode, setLayoutMode] = useState('force-noverlap');
-  const [spread, setSpread] = useState(2);
 
-  // Highlight state — mutated by hover/selection/search and read by reducers.
+  // Tight spread — clusters render compact and close together so first-look
+  // doesn't feel zoomed-out. Was previously a slider; now hardcoded.
+  const spread = 0.3;
+
+  // Highlight state — three independent slices so each interaction owns its
+  // own neighborhood. Reducers union them; effects only touch their slice.
+  // - matchedNodes: search matches (subset of searchNeighborhood; kept so the
+  //   reducer can tell "search active" apart from "no search").
+  // - searchNeighborhood: matches + their direct neighbors.
+  // - selectedNeighborhood: selected node + its direct neighbors.
+  // - hoveredNeighborhood: hovered node + its direct neighbors.
   const highlightStateRef = useRef({
     hoveredNode: null,
     selectedNodeId: null,
-    matchedNodes: null, // Set | null
-    neighborhoods: null, // Set | null
+    matchedNodes: null,
+    searchNeighborhood: null,
+    selectedNeighborhood: null,
+    hoveredNeighborhood: null,
   });
 
   // Snapshot of previously visible ids; mirrors GraphCanvas's diff approach.
   const prevVisibleRef = useRef(null);
+
+  // Edges currently elevated to zIndex 1 because both endpoints are in the
+  // active highlight neighborhood. Sigma sorts edges by graph-attribute
+  // zIndex at index time (reducer zIndex is read but doesn't reorder), so we
+  // mutate the graph itself and let refresh() re-index.
+  const elevatedEdgesRef = useRef(new Set());
+
+  // Latest camera ratio, kept in a ref so the node reducer can suppress
+  // labels when zoomed out without forcing a React re-render on every pan.
+  const cameraRatioRef = useRef(1);
 
   // --- Init effect ---
   useEffect(() => {
@@ -66,7 +105,7 @@ export default function SigmaGraphCanvas() {
       await yieldToMain();
       if (destroyed) return;
 
-      applyLayout(graph, layoutMode, { isLargeGraph, spread });
+      applyLayout(graph, 'communities', { isLargeGraph, spread });
 
       if (destroyed) return;
 
@@ -81,24 +120,55 @@ export default function SigmaGraphCanvas() {
         enableEdgeEvents: false,
         minCameraRatio: 0.05,
         maxCameraRatio: 20,
+        // Required for per-element `zIndex` from the reducers to take effect —
+        // without it sigma renders in insertion order.
+        zIndex: true,
         nodeReducer: (node, attrs) => {
           const h = highlightStateRef.current;
           const r = { ...attrs };
+          // Live size: recomputed every frame from raw signals on the node so
+          // the user-tunable sizing controls + camera-driven reveal-on-zoom
+          // boost apply without rebuilding the graph.
+          r.size = computeNodeSize(
+            attrs,
+            sizingRef.current,
+            cameraRatioRef.current,
+            densityRef.current
+          );
           if (attrs.hidden) {
             r.hidden = true;
             return r;
           }
-          const hasHl = h.neighborhoods || h.matchedNodes;
-          const inHl =
-            (h.neighborhoods && h.neighborhoods.has(node)) ||
-            (h.matchedNodes && h.matchedNodes.has(node));
-          if (hasHl && !inHl) {
+          const isZoomedOut = cameraRatioRef.current > ZOOMED_OUT_LABEL_CUTOFF;
+          const inSearch = h.searchNeighborhood && h.searchNeighborhood.has(node);
+          const inSelected = h.selectedNeighborhood && h.selectedNeighborhood.has(node);
+          const inHovered = h.hoveredNeighborhood && h.hoveredNeighborhood.has(node);
+          const anyActive =
+            h.searchNeighborhood || h.selectedNeighborhood || h.hoveredNeighborhood;
+          const inAny = inSearch || inSelected || inHovered;
+          if (anyActive && !inAny) {
             r.color = FADE_COLOR;
+            r.label = '';
+            r.zIndex = 0;
+          } else if (inAny) {
+            // Selection and hover always force labels — user has explicitly
+            // pointed at this neighborhood. Search-only nodes follow the
+            // zoom-based cutoff so a wide match set doesn't blanket the
+            // canvas with labels at low zoom.
+            if (inSelected || inHovered) {
+              r.forceLabel = true;
+            } else if (isZoomedOut) {
+              r.label = '';
+            }
+            r.zIndex = 1;
+          } else if (isZoomedOut) {
             r.label = '';
           }
           if (h.selectedNodeId === node) {
             r.color = attrs.baseColor || attrs.color;
-            r.size = (attrs.baseSize || attrs.size) * 1.4;
+            r.size = r.size * 1.4;
+            r.forceLabel = true;
+            r.zIndex = 2;
           }
           return r;
         },
@@ -109,14 +179,38 @@ export default function SigmaGraphCanvas() {
             r.hidden = true;
             return r;
           }
-          if (h.neighborhoods) {
+          // Default per-direction program — overridden below if this edge is
+          // inside an active highlight.
+          r.type =
+            attrs.edgeType === 'fires'
+              ? sizingRef.current.fireEdgeType
+              : sizingRef.current.listenEdgeType;
+          const anyActive =
+            h.searchNeighborhood || h.selectedNeighborhood || h.hoveredNeighborhood;
+          if (anyActive) {
             const src = graph.source(edge);
             const tgt = graph.target(edge);
-            if (h.neighborhoods.has(src) && h.neighborhoods.has(tgt)) {
-              r.size = 2.5;
+            const inSearch =
+              h.searchNeighborhood && h.searchNeighborhood.has(src) && h.searchNeighborhood.has(tgt);
+            const inSelected =
+              h.selectedNeighborhood &&
+              h.selectedNeighborhood.has(src) &&
+              h.selectedNeighborhood.has(tgt);
+            const inHovered =
+              h.hoveredNeighborhood &&
+              h.hoveredNeighborhood.has(src) &&
+              h.hoveredNeighborhood.has(tgt);
+            if (inSearch || inSelected || inHovered) {
+              r.size = sizingRef.current.focusedEdgeSize;
+              r.type =
+                attrs.edgeType === 'fires'
+                  ? sizingRef.current.focusedFireEdgeType
+                  : sizingRef.current.focusedListenEdgeType;
               r.color = attrs.baseColor || attrs.color;
+              r.zIndex = h.selectedNodeId === src || h.selectedNodeId === tgt ? 2 : 1;
             } else {
               r.color = FADE_COLOR;
+              r.zIndex = 0;
             }
           }
           return r;
@@ -134,35 +228,50 @@ export default function SigmaGraphCanvas() {
       sigma.on('clickNode', ({ node }) => selectNode(node));
       sigma.on('clickStage', () => clearSelection());
 
+      // Track camera zoom: `camera.updated` fires every pan/zoom frame. We
+      // refresh on the label-cutoff crossing (binary state) and additionally
+      // throttle a refresh while zoomed in past the reveal-on-zoom threshold
+      // so node sizes recompute as the user zooms — sigma re-runs the
+      // reducer on each refresh, which is what feeds the new size in.
+      const camera = sigma.getCamera();
+      cameraRatioRef.current = camera.ratio;
+      let wasZoomedOut = camera.ratio > ZOOMED_OUT_LABEL_CUTOFF;
+      let lastZoomRefresh = camera.ratio;
+      camera.on('updated', (state) => {
+        cameraRatioRef.current = state.ratio;
+        const isZoomedOut = state.ratio > ZOOMED_OUT_LABEL_CUTOFF;
+        if (isZoomedOut !== wasZoomedOut) {
+          wasZoomedOut = isZoomedOut;
+          sigma.refresh();
+          lastZoomRefresh = state.ratio;
+          return;
+        }
+        // While reveal-on-zoom is in play (ratio < 1), refresh whenever the
+        // ratio changes by more than ~10% so the size curve tracks zoom
+        // without burning a render on every micro-pan.
+        if (state.ratio < 1 && Math.abs(state.ratio - lastZoomRefresh) / lastZoomRefresh > 0.1) {
+          sigma.refresh();
+          lastZoomRefresh = state.ratio;
+        }
+      });
+
       sigma.on('enterNode', ({ node }) => {
-        const searchInput = document.getElementById('graph-search');
-        if (searchInput && searchInput.value.trim().length > 0) return;
         const neighborhood = new Set([node, ...graph.neighbors(node)]);
         highlightStateRef.current = {
           ...highlightStateRef.current,
           hoveredNode: node,
-          neighborhoods: neighborhood,
+          hoveredNeighborhood: neighborhood,
         };
+        refreshElevation(graph, highlightStateRef.current, elevatedEdgesRef);
         sigma.refresh();
       });
       sigma.on('leaveNode', () => {
-        const searchInput = document.getElementById('graph-search');
-        if (searchInput && searchInput.value.trim().length > 0) return;
-        const sel = highlightStateRef.current.selectedNodeId;
-        if (sel && graph.hasNode(sel)) {
-          const neighborhood = new Set([sel, ...graph.neighbors(sel)]);
-          highlightStateRef.current = {
-            ...highlightStateRef.current,
-            hoveredNode: null,
-            neighborhoods: neighborhood,
-          };
-        } else {
-          highlightStateRef.current = {
-            ...highlightStateRef.current,
-            hoveredNode: null,
-            neighborhoods: null,
-          };
-        }
+        highlightStateRef.current = {
+          ...highlightStateRef.current,
+          hoveredNode: null,
+          hoveredNeighborhood: null,
+        };
+        refreshElevation(graph, highlightStateRef.current, elevatedEdgesRef);
         sigma.refresh();
       });
 
@@ -195,26 +304,20 @@ export default function SigmaGraphCanvas() {
       graphRef.current = null;
       cyRef.current = null;
       prevVisibleRef.current = null;
+      elevatedEdgesRef.current = new Set();
       setIsComputing(false);
     };
   }, [data, sourceLabels, repoPalettes, isLargeGraph, groupBy]);
 
-  // --- Layout change effect — re-run the picked layout on the existing
-  //     graphology graph without rebuilding sigma. ---
+  // --- Sizing effect ---
+  // Sliders/toggles in the Sidebar mutate `sizing` in context; the reducer
+  // already reads via sizingRef on every frame, so we just need to nudge
+  // sigma to re-render once per change.
   useEffect(() => {
     const sigma = sigmaRef.current;
-    const graph = graphRef.current;
-    if (!sigma || !graph || !graphReady) return;
-    setIsComputing(true);
-    // Defer to next frame so the spinner can paint before layout blocks.
-    const id = requestAnimationFrame(() => {
-      applyLayout(graph, layoutMode, { isLargeGraph, spread });
-      sigma.refresh();
-      sigma.getCamera().setState({ x: 0.5, y: 0.5, ratio: 1, angle: 0 });
-      setIsComputing(false);
-    });
-    return () => cancelAnimationFrame(id);
-  }, [layoutMode, spread]);
+    if (!sigma || !graphReady) return;
+    sigma.refresh();
+  }, [sizing, densityFactor, graphReady]);
 
   // --- Filter effect ---
   useEffect(() => {
@@ -251,14 +354,12 @@ export default function SigmaGraphCanvas() {
     if (!sigma || !graph || !graphReady) return;
     const query = searchQuery.toLowerCase().trim();
     if (!query) {
-      // fall back to selected-node highlight (handled by selected-node effect)
-      const sel = highlightStateRef.current.selectedNodeId;
-      if (sel && graph.hasNode(sel)) {
-        const nb = new Set([sel, ...graph.neighbors(sel)]);
-        highlightStateRef.current = { ...highlightStateRef.current, matchedNodes: null, neighborhoods: nb };
-      } else {
-        highlightStateRef.current = { ...highlightStateRef.current, matchedNodes: null, neighborhoods: null };
-      }
+      highlightStateRef.current = {
+        ...highlightStateRef.current,
+        matchedNodes: null,
+        searchNeighborhood: null,
+      };
+      refreshElevation(graph, highlightStateRef.current, elevatedEdgesRef);
       sigma.refresh();
       return;
     }
@@ -276,8 +377,9 @@ export default function SigmaGraphCanvas() {
     highlightStateRef.current = {
       ...highlightStateRef.current,
       matchedNodes: matched,
-      neighborhoods: nb,
+      searchNeighborhood: nb,
     };
+    refreshElevation(graph, highlightStateRef.current, elevatedEdgesRef);
     sigma.refresh();
   }, [searchQuery, graphReady]);
 
@@ -288,7 +390,12 @@ export default function SigmaGraphCanvas() {
     if (!sigma || !graph || !graphReady) return;
 
     if (!selectedNode || !graph.hasNode(selectedNode)) {
-      highlightStateRef.current = { ...highlightStateRef.current, selectedNodeId: null };
+      highlightStateRef.current = {
+        ...highlightStateRef.current,
+        selectedNodeId: null,
+        selectedNeighborhood: null,
+      };
+      refreshElevation(graph, highlightStateRef.current, elevatedEdgesRef);
       sigma.refresh();
       return;
     }
@@ -296,8 +403,9 @@ export default function SigmaGraphCanvas() {
     highlightStateRef.current = {
       ...highlightStateRef.current,
       selectedNodeId: selectedNode,
-      neighborhoods: nb,
+      selectedNeighborhood: nb,
     };
+    refreshElevation(graph, highlightStateRef.current, elevatedEdgesRef);
     sigma.refresh();
 
     // Sigma's camera coords are normalized across the framed graph bbox,
@@ -306,60 +414,18 @@ export default function SigmaGraphCanvas() {
     // straight to it.
     const display = sigma.getNodeDisplayData(selectedNode);
     if (display) {
-      sigma.getCamera().animate({ x: display.x, y: display.y }, { duration: 300 });
+      const camera = sigma.getCamera();
+      // Smaller ratio = more zoomed in. Only zoom in (Math.min) so users who
+      // are already deeper than the focus target keep their zoom.
+      const ratio = Math.min(camera.ratio, 0.4);
+      camera.animate({ x: display.x, y: display.y, ratio }, { duration: 350 });
     }
   }, [selectedNode, graphReady]);
 
   return (
     <>
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
-      <div
-        style={{
-          position: 'absolute',
-          bottom: 16,
-          left: 220,
-          zIndex: 40,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          padding: '6px 10px',
-          fontSize: 11,
-          fontFamily: 'var(--wpds-typography-font-family-mono, monospace)',
-          background: 'rgba(255,255,255,0.92)',
-          border: '1px solid #d0d0d0',
-          borderRadius: 6,
-          boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
-        }}
-      >
-        <select
-          value={layoutMode}
-          onChange={(e) => setLayoutMode(e.target.value)}
-          style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}
-          title="Layout / projection"
-        >
-          {LAYOUT_OPTIONS.map((o) => (
-            <option key={o.id} value={o.id}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-        {(layoutMode === 'force' || layoutMode === 'force-noverlap') && (
-          <>
-            <span style={{ opacity: 0.6 }}>spread</span>
-            <input
-              type="range"
-              min={0.5}
-              max={4}
-              step={0.5}
-              value={spread}
-              onChange={(e) => setSpread(parseFloat(e.target.value))}
-              style={{ width: 80 }}
-              title="Spread multiplier"
-            />
-            <span style={{ opacity: 0.6, minWidth: 24 }}>{spread}×</span>
-          </>
-        )}
-      </div>
+      {graphReady && <SigmaSizingControls sizing={sizing} onChange={setSizing} />}
       {progress && (
         <div
           style={{
@@ -402,6 +468,35 @@ function diffApplyNode(graph, prevSet, currSet) {
   });
 }
 
+// Lift edges in any active highlight neighborhood above the rest by writing
+// `zIndex: 1` directly on the graphology edge (sigma reads zIndex at index
+// time, not from the reducer). Walks each neighborhood independently — an
+// edge counts as elevated if both endpoints are in the same neighborhood.
+function refreshElevation(graph, state, elevatedRef) {
+  const next = new Set();
+  collectInternalEdges(graph, state.searchNeighborhood, next);
+  collectInternalEdges(graph, state.selectedNeighborhood, next);
+  collectInternalEdges(graph, state.hoveredNeighborhood, next);
+  const prev = elevatedRef.current;
+  prev.forEach((eid) => {
+    if (!next.has(eid) && graph.hasEdge(eid)) graph.setEdgeAttribute(eid, 'zIndex', 0);
+  });
+  next.forEach((eid) => {
+    if (!prev.has(eid) && graph.hasEdge(eid)) graph.setEdgeAttribute(eid, 'zIndex', 1);
+  });
+  elevatedRef.current = next;
+}
+
+function collectInternalEdges(graph, neighborhood, out) {
+  if (!neighborhood) return;
+  neighborhood.forEach((nodeId) => {
+    if (!graph.hasNode(nodeId)) return;
+    graph.forEachEdge(nodeId, (eid, _attrs, src, tgt) => {
+      if (neighborhood.has(src) && neighborhood.has(tgt)) out.add(eid);
+    });
+  });
+}
+
 function diffApplyEdge(graph, prevSet, currSet) {
   prevSet.forEach((id) => {
     if (!currSet.has(id) && graph.hasEdge(id)) graph.setEdgeAttribute(id, 'hidden', true);
@@ -415,3 +510,9 @@ function diffApplyEdge(graph, prevSet, currSet) {
 // rgba() strings break the color buffer and cause the entire canvas to fail
 // to render. Use a hex grey for the faded state.
 const FADE_COLOR = '#dcdcdc';
+
+// Camera ratio above which all non-highlighted labels are suppressed. Sigma
+// frames the graph at ratio ≈ 1.0; anything past 1.5 means the user has
+// pulled the camera back beyond the natural fit, where label noise stops
+// being readable anyway.
+const ZOOMED_OUT_LABEL_CUTOFF = 1.5;

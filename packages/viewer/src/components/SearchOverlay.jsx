@@ -34,9 +34,7 @@ export default function SearchOverlay() {
   }
 
   function handleToggleGroupBy() {
-    const next = groupBy === 'file' ? 'class' : 'file';
-    if (!confirm('Switch to ' + next + ' view?\n\nThis rebuilds the entire graph layout.')) return;
-    setGroupBy(next);
+    setGroupBy(groupBy === 'file' ? 'class' : 'file');
   }
 
   const overlayStyle = {

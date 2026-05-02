@@ -166,7 +166,6 @@ export default function App() {
           <Canvas key={renderer} />
           <DetailPanel />
           <Legend />
-          <RendererToggle current={renderer} />
         </div>
       </div>
     </GraphContext.Provider>
@@ -178,36 +177,4 @@ function getRenderer() {
   const fromUrl = params.get('renderer');
   if (fromUrl === 'sigma' || fromUrl === 'cytoscape') return fromUrl;
   return 'cytoscape';
-}
-
-function RendererToggle({ current }) {
-  function flip() {
-    const next = current === 'sigma' ? 'cytoscape' : 'sigma';
-    const url = new URL(window.location.href);
-    url.searchParams.set('renderer', next);
-    window.location.href = url.toString();
-  }
-  return (
-    <button
-      type="button"
-      onClick={flip}
-      style={{
-        position: 'absolute',
-        bottom: 16,
-        left: 16,
-        zIndex: 40,
-        padding: '6px 10px',
-        fontSize: 11,
-        fontFamily: 'var(--wpds-typography-font-family-mono, monospace)',
-        background: 'rgba(255,255,255,0.92)',
-        border: '1px solid #d0d0d0',
-        borderRadius: 6,
-        cursor: 'pointer',
-        boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
-      }}
-      title="Toggle graph renderer"
-    >
-      renderer: <strong>{current}</strong> · click to swap
-    </button>
-  );
 }

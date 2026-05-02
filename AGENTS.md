@@ -104,9 +104,38 @@ PHP files → HooksGraph\Cli\Runner (discover → FileParser tokenize/extract �
 - `packages/parser/src/Cli/Runner.php` — CLI orchestration: argument parsing, file discovery, per-file parse loop, summary rendering, output write.
 - `packages/parser/server.php` — Minimal router; any path other than `/hooks.json` falls through to the static file server rooted at the viewer dist dir.
 - `packages/cli/bin/hooksgraph.js` — Node shim. Primary entry point — the shell alias installed by `scripts/setup-profile.sh` points directly at this file (shebang-executable). Dev-aware path resolution: falls back to `../parser/hooksgraph.php` and `../viewer/dist/` when tarball-local `php/` and `dist/` are absent. Spawns `php` with `stdio: 'inherit'`.
-- `packages/viewer/src/App.jsx` — Top-level React component; orchestrates sidebar, graph canvas, and detail panel.
+- `packages/viewer/src/App.jsx` — Top-level React component; orchestrates sidebar, graph canvas, and detail panel. Picks `<GraphCanvas>` (Cytoscape, default) or `<SigmaGraphCanvas>` (WebGL spike) based on `?renderer=sigma` URL param. No in-app toggle — switching renderers requires editing the URL.
+- `packages/viewer/src/components/GraphCanvas.jsx` — Cytoscape renderer. Owns the `cy` instance via `cyRef` shared through `GraphContext`.
+- `packages/viewer/src/components/SigmaGraphCanvas.jsx` — Sigma/graphology renderer (spike). Mirrors `GraphCanvas`'s effects (init, filter, search, selected-node) but against a graphology `Graph` and a Sigma WebGL instance. Populates `cyRef` with a small adapter so `DetailPanel.jsx` works unchanged. Layout is hardcoded to `communities` — no dropdown.
+- `packages/viewer/src/lib/sigma-setup.js` — Graphology graph builder + cy-API adapter. `buildSigmaGraph(data, …)` mirrors `buildElements` from the cytoscape side; `buildCyAdapter(graph)` exposes the narrow `cy.getElementById` / `cy.edges('[target="X"][edgeType="Y"]')` surface that DetailPanel calls.
+- `packages/viewer/src/lib/sigma-layouts.js` — Layout module for the sigma spike. `applyLayout(graph, mode, { isLargeGraph, spread })` mutates `x`/`y` in place. Only `communities` is wired up in the UI; the other modes (`directory`, `force`, `force-noverlap`, `circular`, `source-clusters`, `hook-type-split`, `bipartite`, `random`) remain as callable strategies for future re-exposure. Cluster layouts (`communities`, `directory`) are two-stage: per-cluster FA2 → normalize to a target radius → super-graph FA2 + noverlap to keep cluster bounding circles separated.
 - `packages/mcp/bin/hooksgraph-mcp.js` — Node entry point for the MCP server. Parses `--storage` / `-h`, resolves the storage dir, and hands off to `runStdioServer()` in `packages/mcp/src/server.js`.
 - `scripts/build-cli.js` — Builds the CLI tarball contents: viewer build → `packages/cli/dist/`, parser (src + composer no-dev vendor + shims) → `packages/cli/php/`.
+
+## Sigma renderer (spike)
+
+A second WebGL renderer (Sigma + graphology) lives alongside the Cytoscape one as an exploration spike. It's gated behind `?renderer=sigma` (default is `cytoscape`); there is no in-app toggle — switching renderers means editing the URL.
+
+**Why it exists.** To compare WebGL rendering perf and to support a layout that emphasises *bounded contexts* — visually separated clusters per Louvain community, rather than one tight FA2 blob.
+
+**Wiring.** `App.jsx` reads the URL param and mounts either `<GraphCanvas>` (cytoscape) or `<SigmaGraphCanvas>` (sigma). Both populate `cyRef` so the rest of the app (`DetailPanel`, mainly) can read graph data through a single API. For sigma, `cyRef.current` is a tiny adapter built by `buildCyAdapter(graph)` in `lib/sigma-setup.js` — it implements only the surface DetailPanel touches (`getElementById(id) → { length, data() }` and `edges('[target|source="X"][edgeType="…"]') → { length, toArray() }`). If we ever adopt sigma, the right move is to refactor DetailPanel to read raw data from context and drop the adapter.
+
+**Layout.** Hardcoded to `communities` (Louvain) with `spread = 0.3` — no dropdown, no UI. `applyLayout` in `lib/sigma-layouts.js` still exposes other strategies (`directory`, `force`, `force-noverlap`, etc.) as callable code for future re-exposure, but only `communities` is wired into the canvas. The cluster layouts (`communities`, `directory`) are two-stage:
+
+1. Bucket nodes into clusters (by directory prefix or Louvain community).
+2. Run FA2 on each cluster's *internal* subgraph for an organic shape.
+3. Normalize each cluster to a target radius (`15 + sqrt(n)*4`) so the next stage has consistent geometry to work with.
+4. Build a super-graph with one node per cluster sized to that radius, run FA2 with `adjustSizes: true` and a `noverlap` pass — this guarantees cluster bounding circles never touch.
+5. Translate each member position by its cluster's super-position.
+
+**Visual gaps vs cytoscape.** Sigma 3 default programs only ship: circle nodes, line + arrow edges, hex colors. So:
+- File/class nodes render as circles (cytoscape uses round-rectangle).
+- Both fires and listens use the stock straight `arrow` program. Cytoscape distinguishes them via dashing (listens) which sigma 3 has no built-in for; the only differentiator currently is edge color from the palette.
+- No dashed border on `[?dynamic]` hooks.
+- No 3px stroke ring on selected node — size bump only.
+- No `text-background` pill behind highlighted hook labels.
+
+Each gap is fixable by registering custom WebGL programs (`@sigma/node-square` etc.); none are blockers for the spike.
 
 ## Code Style
 
@@ -135,6 +164,11 @@ PHP files → HooksGraph\Cli\Runner (discover → FileParser tokenize/extract �
 - MCP tools receive `{ registry, index }` via a shared ctx from `createServer()`. `UnknownCodebaseError` / `CodebaseLoadError` / `MissingStorageError` are converted to `isError` tool results; anything else bubbles up and crashes the transport.
 - Two composer scopes exist: root (dev umbrella — phpunit + parser via path repo) and `packages/parser/` (self-contained autoloader bundled into the CLI tarball). `packages/parser/hooksgraph.php` requires the package-local vendor; tests run against the root vendor. Don't conflate them.
 - pnpm workspace. Each package only resolves dependencies it declares; phantom deps fail loudly. `.npmrc` public-hoists react/webpack/@wordpress/\* for wp-scripts compatibility (needed once the plugin pipeline is built).
+- Sigma renderer: node `type` attribute selects the Sigma rendering program (e.g. `'circle'`), so the app's hook/file/class type is stored as `nodeType` on the graphology node and surfaced back through the cy-adapter's `data().type`. Same for edges: `type: 'arrow' | 'line'` is the program, not the hook semantic.
+- Sigma renderer: default WebGL programs only parse `#RRGGBB(AA)` colors. The repo palette emits `rgba(...)` strings for `fireEdgeAlpha` / `listenEdgeAlpha` / `*Highlight` — the sigma builder uses the hex variants (`fireEdge`, `listenEdge`) instead. Passing rgba silently zeroes the color buffer and the entire canvas goes blank.
+- Sigma renderer: `camera.animate({ x, y })` uses **camera-space** (normalized across the framed graph bbox), not graph-space. To pan to a node, use `sigma.getNodeDisplayData(id)` which returns the right coords. Passing graph-space xy will fly the camera off-screen.
+- Sigma renderer: node `size` is in **screen pixels** (radius), not graph-px diameter. `nodeSizeFor` in `sigma-setup.js` returns sigma-space directly on a degree-driven sqrt curve (≈3 → ≈28), with a 3px floor in `addNode`. Leaves intentionally fall under `labelRenderedSizeThreshold` at default zoom — the threshold is the hub/leaf importance filter, so don't reintroduce a flat minimum (was previously `Math.max(15, …)`) or it collapses the hierarchy. The reducer in `SigmaGraphCanvas.jsx` sets `forceLabel: true` for hovered/searched/selected neighborhoods to bypass the throttle.
+- Sigma renderer: cluster layouts mutate `x`/`y` on the graph in place. The current canvas runs `applyLayout` once at init and never again, but the in-place contract still matters if you re-introduce a layout switcher — rebuilding sigma is expensive and resets the camera.
 
 ## Supported Hook Functions
 
