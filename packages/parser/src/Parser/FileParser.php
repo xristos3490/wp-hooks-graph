@@ -64,6 +64,46 @@ final class FileParser
 
             [$id, $text, $line] = $token;
 
+            if ($id === T_NAMESPACE) {
+                $j = self::skipWhitespace($tokens, $i + 1, $count);
+                $nsName = '';
+                while ($j < $count) {
+                    $t = $tokens[$j];
+                    if (!is_array($t)) {
+                        break;
+                    }
+                    $tid = $t[0];
+                    if ($tid === T_STRING || $tid === T_NS_SEPARATOR
+                        || (defined('T_NAME_QUALIFIED') && $tid === T_NAME_QUALIFIED)
+                    ) {
+                        $nsName .= $t[1];
+                        $j++;
+                        continue;
+                    }
+                    if ($tid === T_WHITESPACE) {
+                        $j++;
+                        continue;
+                    }
+                    break;
+                }
+                if ($j < $count) {
+                    $term = $tokens[$j];
+                    if ($term === '{') {
+                        $scope->pushNamespace($nsName, true);
+                        // Resume so the next iteration sees `{` and calls openBrace().
+                        $i = $j - 1;
+                        continue;
+                    }
+                    if ($term === ';') {
+                        $scope->pushNamespace($nsName, false);
+                        $i = $j;
+                        continue;
+                    }
+                }
+                // Not a declaration (e.g. `namespace\foo()` relative call) — fall through.
+                continue;
+            }
+
             if ($id === T_CLASS) {
                 $j = self::skipWhitespace($tokens, $i + 1, $count);
                 if ($j < $count && is_array($tokens[$j]) && $tokens[$j][0] === T_STRING) {

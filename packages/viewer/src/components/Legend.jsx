@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ColorIndicator } from '@wordpress/components';
-import { Stack, Text } from '@wordpress/ui';
+import { Text } from '@wordpress/ui';
 import { useGraphContext } from '../context/GraphContext';
 import { OVERLAP_ACTION, OVERLAP_FILTER } from '../lib/constants';
 
@@ -15,8 +15,7 @@ export default function Legend() {
 
   if (!data) return null;
 
-  const hookNodes = data.nodes.filter((n) => n.type === 'hook');
-  const hasOverlap = hookNodes.some((n) => n.overlap);
+  const hasOverlap = data.nodes.some((n) => n.type === 'hook' && n.overlap);
 
   return (
     <div
@@ -25,88 +24,125 @@ export default function Legend() {
         bottom: 16,
         left: '50%',
         transform: 'translateX(-50%)',
+        background: 'var(--wpds-color-bg-surface-neutral-weak)',
+        border: '1px solid var(--wpds-color-stroke-surface-neutral)',
         borderRadius: 'var(--wpds-border-radius-lg)',
         padding: 'var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-md)',
         fontSize: 'var(--wpds-typography-font-size-xs)',
         zIndex: 5,
-        display: 'flex',
-        gap: 'var(--wpds-dimension-gap-lg)',
-        alignItems: 'center',
         opacity: visible ? 1 : 0,
         transition: 'opacity 400ms ease',
+        display: 'grid',
+        gridTemplateColumns: 'auto repeat(4, auto)',
+        columnGap: 'var(--wpds-dimension-gap-md)',
+        rowGap: 'var(--wpds-dimension-gap-xs)',
+        alignItems: 'center',
       }}
     >
-      {/* Source dots */}
-      {sourceLabels.map((label) => (
-        <Stack key={label} direction="row" gap="xs" align="center">
-          <ColorIndicator colorValue={repoPalettes[label].action} />
-          <Text variant="body-sm" style={{ fontSize: 'inherit' }}>
-            {label}
-          </Text>
-        </Stack>
-      ))}
+      <span />
+      <HeaderCell>action</HeaderCell>
+      <HeaderCell>filter</HeaderCell>
+      <HeaderCell>fires</HeaderCell>
+      <HeaderCell>listens</HeaderCell>
 
-      <Separator />
+      {sourceLabels.map((label) => {
+        const palette = repoPalettes[label];
+        return (
+          <Row
+            key={label}
+            label={label}
+            actionColor={palette.action}
+            filterColor={palette.filter}
+            fireColor={palette.fireEdge}
+            listenColor={palette.listenEdge}
+          />
+        );
+      })}
 
-      {/* Edge types */}
-      <Stack direction="row" gap="xs" align="center">
-        <span
-          style={{
-            display: 'inline-block',
-            width: 22,
-            borderTop: '2px solid currentColor',
-            flexShrink: 0,
-          }}
-        />
-        <Text variant="body-sm" style={{ fontSize: 'inherit' }}>
-          fires
-        </Text>
-      </Stack>
-      <Stack direction="row" gap="xs" align="center">
-        <span
-          style={{
-            display: 'inline-block',
-            width: 22,
-            borderTop: '2px dashed currentColor',
-            flexShrink: 0,
-          }}
-        />
-        <Text variant="body-sm" style={{ fontSize: 'inherit' }}>
-          listens
-        </Text>
-      </Stack>
-
-      {/* Overlap dots */}
       {hasOverlap && (
         <>
-          <Separator />
-          <Stack direction="row" gap="xs" align="center">
+          <Text variant="muted" style={{ fontSize: 'inherit' }}>
+            overlap
+          </Text>
+          <SwatchCell>
             <ColorIndicator colorValue={OVERLAP_ACTION} />
-            <Text variant="body-sm" style={{ fontSize: 'inherit' }}>
-              overlap action
-            </Text>
-          </Stack>
-          <Stack direction="row" gap="xs" align="center">
+          </SwatchCell>
+          <SwatchCell>
             <ColorIndicator colorValue={OVERLAP_FILTER} />
-            <Text variant="body-sm" style={{ fontSize: 'inherit' }}>
-              overlap filter
-            </Text>
-          </Stack>
+          </SwatchCell>
+          <span />
+          <span />
         </>
       )}
     </div>
   );
 }
 
-function Separator() {
+function HeaderCell({ children }) {
+  return (
+    <Text variant="muted" style={{ fontSize: 'inherit', textAlign: 'center' }}>
+      {children}
+    </Text>
+  );
+}
+
+function Row({ label, actionColor, filterColor, fireColor, listenColor }) {
+  return (
+    <>
+      <Text style={{ fontSize: 'inherit' }}>{label}</Text>
+      <SwatchCell>
+        <ColorIndicator colorValue={actionColor} />
+      </SwatchCell>
+      <SwatchCell>
+        <ColorIndicator colorValue={filterColor} />
+      </SwatchCell>
+      <SwatchCell>
+        <CurveSwatch color={fireColor} direction="fires" />
+      </SwatchCell>
+      <SwatchCell>
+        <CurveSwatch color={listenColor} direction="listens" />
+      </SwatchCell>
+    </>
+  );
+}
+
+function SwatchCell({ children }) {
   return (
     <span
       style={{
-        width: 1,
-        height: 14,
-        background: '#e0e0e0',
-        flexShrink: 0,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 'var(--wpds-dimension-gap-xs)',
+        justifyContent: 'center',
       }}
-    />
+    >
+      {children}
+    </span>
+  );
+}
+
+// Inline SVG that mirrors how sigma's curvedArrow program draws edges:
+// fires arc above the source→target axis, listens arc below. Arrowhead at
+// the target end. Single stroke, current per-source color.
+function CurveSwatch({ color, direction }) {
+  const apexY = direction === 'fires' ? 4 : 14;
+  return (
+    <svg width="32" height="14" viewBox="0 0 32 18" aria-hidden="true">
+      <path
+        d={`M 2 9 Q 16 ${apexY} 28 9`}
+        fill="none"
+        stroke={color}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M 25 6 L 28 9 L 25 12"
+        fill="none"
+        stroke={color}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }

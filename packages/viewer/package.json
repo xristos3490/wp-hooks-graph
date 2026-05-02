@@ -9,6 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@sigma/edge-curve": "^3.1.0",
+    "@sigma/node-square": "^3.0.0",
     "@wordpress/components": "^32.6.0",
     "@wordpress/dataviews": "^14.1.0",
     "@wordpress/icons": "^12.2.0",

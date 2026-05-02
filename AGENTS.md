@@ -129,13 +129,13 @@ A second WebGL renderer (Sigma + graphology) lives alongside the Cytoscape one a
 5. Translate each member position by its cluster's super-position.
 
 **Visual gaps vs cytoscape.** Sigma 3 default programs only ship: circle nodes, line + arrow edges, hex colors. So:
-- File/class nodes render as circles (cytoscape uses round-rectangle).
+- Hook nodes render as circles; file/class nodes render as squares via `@sigma/node-square` (registered in `SigmaGraphCanvas.jsx`). Cytoscape uses round-rectangle for files/classes — sigma's square program is 1:1 with a single radius, not a true text-width rectangle.
 - Both fires and listens use the stock straight `arrow` program. Cytoscape distinguishes them via dashing (listens) which sigma 3 has no built-in for; the only differentiator currently is edge color from the palette.
 - No dashed border on `[?dynamic]` hooks.
 - No 3px stroke ring on selected node — size bump only.
 - No `text-background` pill behind highlighted hook labels.
 
-Each gap is fixable by registering custom WebGL programs (`@sigma/node-square` etc.); none are blockers for the spike.
+Remaining gaps are fixable by registering more custom WebGL programs; none are blockers for the spike.
 
 ## Code Style
 

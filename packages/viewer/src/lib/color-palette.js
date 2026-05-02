@@ -20,9 +20,13 @@ const TONES = {
   listen: { L: 65, C: 0.13 }, // ~filter, used for "listens" edges
 };
 
-// Start hue at 264° (WPDS brand blue) so a single-repo graph matches WP's
-// accent color exactly. Additional repos fan out evenly around the wheel.
-const BRAND_HUE = 264;
+// Curated hues for the first sources, then fan out evenly for any extras.
+// 1st: 264° = WPDS brand blue (single-repo graphs match WP's accent exactly).
+// 2nd: 293° = the #873EFF violet family.
+// 3rd: 148° = a balanced green.
+// Beyond that, additional sources fan around the wheel offset from the last
+// curated hue so they don't collide with the curated set.
+const CURATED_HUES = [264, 293, 148];
 
 // Gamma-encode a linear-sRGB channel (0..1) to an 8-bit sRGB value.
 function linearToSrgb(x) {
@@ -68,8 +72,17 @@ const toRgba = ({ L, C }, h, a) => {
 export function generateRepoPalette(sourceLabels) {
   const n = sourceLabels.length;
   const palettes = {};
+  const extras = Math.max(0, n - CURATED_HUES.length);
   for (let i = 0; i < n; i++) {
-    const h = (BRAND_HUE + (360 / n) * i) % 360;
+    let h;
+    if (i < CURATED_HUES.length) {
+      h = CURATED_HUES[i];
+    } else {
+      // Fan the remainder evenly, starting halfway between the last curated
+      // hue and itself + 360° so we land in unused arcs of the wheel.
+      const step = 360 / (extras + 1);
+      h = (CURATED_HUES[CURATED_HUES.length - 1] + step * (i - CURATED_HUES.length + 1)) % 360;
+    }
     palettes[sourceLabels[i]] = {
       action: toHex(TONES.action, h),
       filter: toHex(TONES.filter, h),

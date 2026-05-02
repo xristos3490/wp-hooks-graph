@@ -1,5 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
 import Sigma from 'sigma';
+import { EdgeCurvedArrowProgram } from '@sigma/edge-curve';
+import { NodeSquareProgram } from '@sigma/node-square';
 import { useGraphContext } from '../context/GraphContext';
 import { buildSigmaGraph, buildCyAdapter, computeNodeSize, computeDensityFactor } from '../lib/sigma-setup';
 import { applyLayout } from '../lib/sigma-layouts';
@@ -110,9 +112,20 @@ export default function SigmaGraphCanvas() {
       if (destroyed) return;
 
       const sigma = new Sigma(graph, containerRef.current, {
-        renderEdgeLabels: false,
+        renderEdgeLabels: true,
         defaultNodeColor: '#999',
         defaultEdgeColor: '#aaa',
+        edgeLabelColor: { color: '#6b6378' },
+        edgeLabelSize: 11,
+        // Register edge-curve program alongside the stock 'arrow' so the
+        // reducer can opt edges into curved rendering. Curvature direction is
+        // read from each edge's `curvature` attribute (set in sigma-setup).
+        edgeProgramClasses: {
+          curvedArrow: EdgeCurvedArrowProgram,
+        },
+        nodeProgramClasses: {
+          square: NodeSquareProgram,
+        },
         labelColor: { color: '#4a4258' },
         labelDensity: isLargeGraph ? 0.07 : 1,
         labelGridCellSize: isLargeGraph ? 200 : 60,
@@ -120,6 +133,14 @@ export default function SigmaGraphCanvas() {
         enableEdgeEvents: false,
         minCameraRatio: 0.05,
         maxCameraRatio: 20,
+        // Stock sigma defaults are 1.7x per wheel tick / 2.2x per double-click,
+        // which overshoots constantly on a trackpad and trips the >10% reveal-
+        // on-zoom refresh on every notch. Finer steps + shorter animations
+        // feel snappier and refresh less often (the throttle is relative).
+        zoomingRatio: 1.4,
+        mouseZoomDuration: 80,
+        doubleClickZoomingRatio: 1.7,
+        doubleClickZoomingDuration: 80,
         // Required for per-element `zIndex` from the reducers to take effect —
         // without it sigma renders in insertion order.
         zIndex: true,
@@ -185,6 +206,10 @@ export default function SigmaGraphCanvas() {
             attrs.edgeType === 'fires'
               ? sizingRef.current.fireEdgeType
               : sizingRef.current.listenEdgeType;
+          // Labels are stored on the edge ("fires" / "listens") but only
+          // surfaced when the edge is inside an active highlight; at idle
+          // we'd flood the canvas otherwise.
+          r.label = '';
           const anyActive =
             h.searchNeighborhood || h.selectedNeighborhood || h.hoveredNeighborhood;
           if (anyActive) {
@@ -207,6 +232,13 @@ export default function SigmaGraphCanvas() {
                   ? sizingRef.current.focusedFireEdgeType
                   : sizingRef.current.focusedListenEdgeType;
               r.color = attrs.baseColor || attrs.color;
+              // Edge labels are noisy on broad search matches, so only
+              // surface them on explicit pointer interactions (selection
+              // or hover). Search keeps the highlight visuals unlabeled.
+              if (inSelected || inHovered) {
+                r.label = attrs.baseLabel || '';
+                r.forceLabel = true;
+              }
               r.zIndex = h.selectedNodeId === src || h.selectedNodeId === tgt ? 2 : 1;
             } else {
               r.color = FADE_COLOR;

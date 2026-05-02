@@ -356,6 +356,51 @@ final class FileParserTest extends TestCase
         $this->assertNull($r[1]['scope_function']);
     }
 
+    public function test_scope_class_qualified_with_file_level_namespace(): void
+    {
+        $code = '<?php namespace App\\Orders; class Order { public function reg() { do_action("init"); } }';
+        $r    = $this->parseSource($code);
+        $this->assertSame('App\\Orders\\Order', $r[0]['scope_class']);
+    }
+
+    public function test_scope_class_qualified_with_block_scoped_namespace(): void
+    {
+        $code = '<?php namespace App\\A { class Order { public function r() { do_action("a"); } } } '
+            . 'namespace App\\B { class Order { public function r() { do_action("b"); } } }';
+        $r    = $this->parseSource($code);
+        $this->assertCount(2, $r);
+        $this->assertSame('App\\A\\Order', $r[0]['scope_class']);
+        $this->assertSame('App\\B\\Order', $r[1]['scope_class']);
+    }
+
+    public function test_scope_class_global_block_namespace_stays_unqualified(): void
+    {
+        $code = '<?php namespace { class Foo { public function r() { do_action("init"); } } }';
+        $r    = $this->parseSource($code);
+        $this->assertSame('Foo', $r[0]['scope_class']);
+    }
+
+    public function test_namespace_does_not_persist_after_block_close(): void
+    {
+        $code = '<?php namespace App\\A { class Foo { public function r() { do_action("a"); } } } '
+            . 'class Bar { public function r() { do_action("b"); } }';
+        $r    = $this->parseSource($code);
+        $this->assertCount(2, $r);
+        $this->assertSame('App\\A\\Foo', $r[0]['scope_class']);
+        $this->assertSame('Bar', $r[1]['scope_class']);
+    }
+
+    public function test_file_level_namespace_does_not_swallow_following_hook(): void
+    {
+        // Regression: ensure the T_NAMESPACE handler stops at the `;` and
+        // doesn't consume tokens belonging to the next statement.
+        $code = '<?php namespace App; do_action("init");';
+        $r    = $this->parseSource($code);
+        $this->assertCount(1, $r);
+        $this->assertSame('init', $r[0]['hook_name']);
+        $this->assertNull($r[0]['scope_class']);
+    }
+
     // ── Doc comments ────────────────────────────────────────────
 
     public function test_doc_comment_adjacent_block_comment_is_captured(): void

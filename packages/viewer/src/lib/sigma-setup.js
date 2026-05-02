@@ -219,7 +219,10 @@ function addNode(graph, node, repoPalettes, sourceLabels) {
   graph.addNode(node.id, {
     ...rest,
     nodeType: appType,
-    type: 'circle', // default registered sigma program
+    // Hooks render as circles; files/classes render as squares to mirror
+    // the round-rectangle treatment in the cytoscape renderer. Both
+    // programs are registered in SigmaGraphCanvas.
+    type: appType === 'hook' ? 'circle' : 'square',
     size: sigmaSize,
     baseSize: sigmaSize,
     color,
@@ -255,6 +258,15 @@ function addEdge(graph, edge, i, sourceId, sourceIndexMap, repoPalettes, sourceL
     color: color || '#aaa',
     baseColor: color || '#aaa',
     type: 'arrow',
+    // Curvature sign distinguishes fires (arc one way) from listens (arc the
+    // other way) when the curvedArrow program is selected. Read by
+    // @sigma/edge-curve. Magnitude kept modest so dense graphs don't get
+    // tangled. The 'arrow' program ignores this attribute.
+    curvature: isFires ? 0.25 : -0.25,
+    // Stored on the edge but blanked out by the reducer at idle — only
+    // surfaced when the edge is inside an active highlight neighborhood.
+    label: edge.type,
+    baseLabel: edge.type,
     hidden: false,
     // Seed at 0 so sigma's zIndex sort has an attribute to compare against
     // when applyEdgeElevation lifts highlighted edges to 1 in
