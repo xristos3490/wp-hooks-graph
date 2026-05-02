@@ -6,7 +6,6 @@ import { generateRepoPalette } from './lib/color-palette';
 import { LARGE_GRAPH_THRESHOLD } from './lib/constants';
 import HomePage from './components/HomePage';
 import Sidebar from './components/Sidebar';
-import GraphCanvas from './components/GraphCanvas';
 import SigmaGraphCanvas from './components/SigmaGraphCanvas';
 import SearchOverlay from './components/SearchOverlay';
 import DetailPanel from './components/DetailPanel';
@@ -151,30 +150,17 @@ export default function App() {
     return <HomePage onFileLoad={loadFile} isLoading={isLoading} />;
   }
 
-  // Renderer toggle — ?renderer=sigma swaps the WebGL spike in. Persisted to
-  // sessionStorage so the floating toggle button can flip without a reload
-  // logic change. Default = cytoscape.
-  const renderer = getRenderer();
-  const Canvas = renderer === 'sigma' ? SigmaGraphCanvas : GraphCanvas;
-
   return (
     <GraphContext.Provider value={contextValue}>
       <div className="app-shell">
         <Sidebar />
         <div className="graph-area">
           <SearchOverlay />
-          <Canvas key={renderer} />
+          <SigmaGraphCanvas />
           <DetailPanel />
           <Legend />
         </div>
       </div>
     </GraphContext.Provider>
   );
-}
-
-function getRenderer() {
-  const params = new URLSearchParams(window.location.search);
-  const fromUrl = params.get('renderer');
-  if (fromUrl === 'sigma' || fromUrl === 'cytoscape') return fromUrl;
-  return 'cytoscape';
 }

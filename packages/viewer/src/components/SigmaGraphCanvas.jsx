@@ -8,8 +8,14 @@ import { applyLayout } from '../lib/sigma-layouts';
 import { SIGMA_SIZING_DEFAULTS } from '../lib/constants';
 import SigmaSizingControls from './SigmaSizingControls';
 
+// rAF callbacks fire BEFORE paint, so a single rAF doesn't let the browser
+// commit the loader to screen before the next chunk of work runs. Double rAF
+// resolves in the frame *after* paint, guaranteeing the spinner is visible
+// before we kick off buildSigmaGraph/applyLayout.
 function yieldToMain() {
-  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+  return new Promise((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(resolve))
+  );
 }
 
 export default function SigmaGraphCanvas() {

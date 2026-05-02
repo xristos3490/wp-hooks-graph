@@ -9,23 +9,64 @@
 
 import Graph from 'graphology';
 import forceAtlas2 from 'graphology-layout-forceatlas2';
-import { circular, random } from 'graphology-layout';
+import { circular } from 'graphology-layout';
 import noverlap from 'graphology-layout-noverlap';
 import louvain from 'graphology-communities-louvain';
 
-export function applyLayout(graph, mode, { isLargeGraph, spread = 1 } = {}) {
+// Deterministic PRNG — seeded from the graph itself so the same JSON always
+// produces the same layout. FA2 and noverlap are deterministic given starting
+// positions; Louvain accepts an `rng` option. Replacing every `Math.random()`
+// call site with this RNG makes the whole pipeline reproducible.
+function mulberry32(seed) {
+  let s = seed >>> 0;
+  return function () {
+    s = (s + 0x6d2b79f5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// FNV-1a 32-bit. Cheap, non-cryptographic, fine for seeding.
+function hashString(str) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+
+// Stable seed: hash of sorted node ids. Same graph → same seed regardless of
+// insertion order; different graphs → different seed.
+function seedFromGraph(graph) {
+  return hashString(graph.nodes().sort().join('|'));
+}
+
+// Drop-in replacement for `graphology-layout`'s `random.assign`, but using a
+// seeded RNG instead of `Math.random`.
+function seededRandomAssign(graph, scale, rng) {
+  graph.forEachNode((id) => {
+    graph.setNodeAttribute(id, 'x', rng() * scale);
+    graph.setNodeAttribute(id, 'y', rng() * scale);
+  });
+}
+
+export function applyLayout(graph, mode, { isLargeGraph, spread = 1, seed } = {}) {
+  const rng = mulberry32(seed ?? seedFromGraph(graph));
   switch (mode) {
     case 'random':
-      random.assign(graph, { scale: 200 });
+      seededRandomAssign(graph, 200, rng);
       return;
     case 'circular':
       circular.assign(graph, { scale: 100 });
       return;
     case 'force':
-      runForce(graph, isLargeGraph, spread);
+      runForce(graph, isLargeGraph, spread, rng);
       return;
     case 'force-noverlap':
-      runForce(graph, isLargeGraph, spread);
+      runForce(graph, isLargeGraph, spread, rng);
       // Margin scales with spread so the slider also widens label gaps.
       noverlap.assign(graph, {
         maxIterations: 500,
@@ -33,22 +74,22 @@ export function applyLayout(graph, mode, { isLargeGraph, spread = 1 } = {}) {
       });
       return;
     case 'source-clusters':
-      sourceClusters(graph);
+      sourceClusters(graph, rng);
       return;
     case 'hook-type-split':
-      hookTypeSplit(graph);
+      hookTypeSplit(graph, rng);
       return;
     case 'bipartite':
       bipartite(graph);
       return;
     case 'communities':
-      communitiesLayout(graph, spread);
+      communitiesLayout(graph, spread, rng);
       return;
     case 'directory':
-      directoryLayout(graph, spread);
+      directoryLayout(graph, spread, rng);
       return;
     default:
-      runForce(graph, isLargeGraph, spread);
+      runForce(graph, isLargeGraph, spread, rng);
   }
 }
 
@@ -63,10 +104,10 @@ export function applyLayout(graph, mode, { isLargeGraph, spread = 1 } = {}) {
 //
 // `spread` is a multiplier (1 = default, 2 = noticeably more open, 4 = very
 // sparse). It scales scalingRatio.
-function runForce(graph, isLargeGraph, spread) {
+function runForce(graph, isLargeGraph, spread, rng) {
   // Seed with random positions so successive layouts don't reuse stale state
   // from a previous projection (e.g. circular → force).
-  random.assign(graph, { scale: 1 });
+  seededRandomAssign(graph, 1, rng);
   const settings = forceAtlas2.inferSettings(graph);
   forceAtlas2.assign(graph, {
     iterations: isLargeGraph ? 200 : 400,
@@ -86,7 +127,7 @@ function runForce(graph, isLargeGraph, spread) {
 
 // Group nodes by sourceIndex; lay each cluster out as a small force-directed
 // patch then translate the patch to a slot on a master ring.
-function sourceClusters(graph) {
+function sourceClusters(graph, rng) {
   const buckets = new Map();
   graph.forEachNode((id, attrs) => {
     const key = attrs.sourceIndex ?? -1;
@@ -107,7 +148,7 @@ function sourceClusters(graph) {
     ids.forEach((id, j) => {
       const a = (2 * Math.PI * j) / ids.length;
       // Jitter the radius slightly so concentric rings don't form.
-      const rr = r * (0.6 + Math.random() * 0.4);
+      const rr = r * (0.6 + rng() * 0.4);
       graph.setNodeAttribute(id, 'x', cx + Math.cos(a) * rr);
       graph.setNodeAttribute(id, 'y', cy + Math.sin(a) * rr);
     });
@@ -116,7 +157,7 @@ function sourceClusters(graph) {
 }
 
 // Three columns: actions left, filters right, files/classes between.
-function hookTypeSplit(graph) {
+function hookTypeSplit(graph, rng) {
   const cols = { action: -100, filter: 100, fileclass: 0 };
   const groups = { action: [], filter: [], fileclass: [] };
   graph.forEachNode((id, attrs) => {
@@ -132,7 +173,7 @@ function hookTypeSplit(graph) {
     const total = ids.length;
     const stride = total > 0 ? 200 / total : 0;
     ids.forEach((id, j) => {
-      graph.setNodeAttribute(id, 'x', x + (Math.random() - 0.5) * 30);
+      graph.setNodeAttribute(id, 'x', x + (rng() - 0.5) * 30);
       graph.setNodeAttribute(id, 'y', -100 + j * stride);
     });
   }
@@ -178,8 +219,8 @@ function placeOnRing(graph, ids, radius) {
 // The result: clusters visibly separate in space, edges within a cluster
 // stay short, and inter-cluster edges become long bridges between islands.
 // ---------------------------------------------------------------------------
-function communitiesLayout(graph, spread) {
-  louvain.assign(graph);
+function communitiesLayout(graph, spread, rng) {
+  louvain.assign(graph, { rng });
 
   const buckets = new Map();
   graph.forEachNode((id, attrs) => {
@@ -196,7 +237,7 @@ function communitiesLayout(graph, spread) {
     const sub = new Graph({ multi: false, type: 'directed' });
     const idSet = new Set(ids);
     for (const id of ids) {
-      sub.addNode(id, { x: Math.random(), y: Math.random() });
+      sub.addNode(id, { x: rng(), y: rng() });
     }
     graph.forEachEdge((eid, attrs, src, tgt) => {
       if (!idSet.has(src) || !idSet.has(tgt)) return;
@@ -253,8 +294,8 @@ function communitiesLayout(graph, spread) {
   const superGraph = new Graph();
   for (const c of buckets.keys()) {
     superGraph.addNode(String(c), {
-      x: Math.random() * 100,
-      y: Math.random() * 100,
+      x: rng() * 100,
+      y: rng() * 100,
       size: communityRadius.get(c) * 2 * spread,
     });
   }
@@ -316,7 +357,7 @@ function communitiesLayout(graph, spread) {
 // "fires" or "listens" edge — whichever resolves first). If none can be
 // found the hook lands in a `__unassigned__` bucket.
 // ---------------------------------------------------------------------------
-function directoryLayout(graph, spread) {
+function directoryLayout(graph, spread, rng) {
   const buckets = new Map();
   const groupOf = new Map(); // node id -> directory key
 
@@ -367,7 +408,7 @@ function directoryLayout(graph, spread) {
   for (const [g, ids] of buckets.entries()) {
     const sub = new Graph({ multi: false, type: 'directed' });
     const idSet = new Set(ids);
-    for (const id of ids) sub.addNode(id, { x: Math.random(), y: Math.random() });
+    for (const id of ids) sub.addNode(id, { x: rng(), y: rng() });
     graph.forEachEdge((eid, attrs, src, tgt) => {
       if (!idSet.has(src) || !idSet.has(tgt) || src === tgt) return;
       if (!sub.hasEdge(src, tgt)) sub.addEdge(src, tgt);
@@ -413,8 +454,8 @@ function directoryLayout(graph, spread) {
   const groups = Array.from(buckets.keys()).sort();
   for (const g of groups) {
     superGraph.addNode(g, {
-      x: Math.random() * 100,
-      y: Math.random() * 100,
+      x: rng() * 100,
+      y: rng() * 100,
       size: groupRadius.get(g) * 2 * spread,
     });
   }

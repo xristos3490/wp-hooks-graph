@@ -7,8 +7,9 @@
  * variants) is a fixed (L, C) anchor; only the hue rotates per repo, so the
  * palette feels visually consistent with the WP design system.
  *
- * We emit hex/rgba (not native `oklch()`) because Cytoscape's internal color
- * parser only understands hex/rgb/hsl.
+ * We emit hex/rgba (not native `oklch()`) because Sigma's default WebGL color
+ * programs only parse `#RRGGBB(AA)` — and to keep CSS-side tokens in the same
+ * format. The hex variants are used on the WebGL side; rgba is fine for CSS.
  */
 
 // Shared tonal anchors. L is percent, C is OKLCH chroma (typical 0–0.4).

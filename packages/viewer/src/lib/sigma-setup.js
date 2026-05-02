@@ -1,19 +1,17 @@
-// SigmaJS / graphology spike — builds a graphology Graph from the same
-// `data` shape consumed by buildElements() in cytoscape-setup.js, and exposes
-// a thin cy-compatible adapter so DetailPanel can keep using cy.getElementById
-// and cy.edges('[target="X"][edgeType="Y"]') without changes.
-//
-// This is intentionally narrow: the adapter only implements the surface that
-// DetailPanel.jsx and the selected-node effect in SigmaGraphCanvas.jsx call.
-// Anything else returns empty collections.
+// Builds a graphology Graph from the parser's JSON output and exposes a thin
+// cy-style adapter so DetailPanel can keep its `cy.getElementById` /
+// `cy.edges('[target="X"][edgeType="Y"]')` query syntax. The adapter is a
+// historical-shape API, not a cytoscape dependency — it only implements the
+// surface that DetailPanel.jsx and the selected-node effect in
+// SigmaGraphCanvas.jsx call. Anything else returns empty collections.
 
 import Graph from 'graphology';
 import { OVERLAP_ACTION, OVERLAP_FILTER } from './constants.js';
 
 /**
- * Build a graphology MultiDirectedGraph from the same data shape used by
- * buildElements() in cytoscape-setup.js. Node attributes are stored on the
- * graphology node; the adapter exposes them as `node.data()` for DetailPanel.
+ * Build a graphology MultiDirectedGraph from the parser's JSON shape. Node
+ * attributes are stored on the graphology node; the adapter exposes them as
+ * `node.data()` for DetailPanel.
  */
 export function buildSigmaGraph(data, sourceLabels, repoPalettes, mode) {
   const graph = new Graph({ multi: true, type: 'directed', allowSelfLoops: true });
@@ -219,8 +217,7 @@ function addNode(graph, node, repoPalettes, sourceLabels) {
   graph.addNode(node.id, {
     ...rest,
     nodeType: appType,
-    // Hooks render as circles; files/classes render as squares to mirror
-    // the round-rectangle treatment in the cytoscape renderer. Both
+    // Hooks render as circles; files/classes render as squares. Both
     // programs are registered in SigmaGraphCanvas.
     type: appType === 'hook' ? 'circle' : 'square',
     size: sigmaSize,
@@ -276,15 +273,15 @@ function addEdge(graph, edge, i, sourceId, sourceIndexMap, repoPalettes, sourceL
 }
 
 /**
- * Cy-compatible adapter exposed via cyRef.current so DetailPanel.jsx works
- * unchanged. Implements only the surface DetailPanel touches:
+ * Cy-style adapter exposed via cyRef.current so DetailPanel can keep its
+ * familiar query syntax. Implements only the surface DetailPanel touches:
  *   cy.getElementById(id) → { length, data() }
  *   cy.edges('[target|source="X"][edgeType="Y"]') → { length, toArray() }
  *   each edge → { data(), source(), target() }
  *   each node-like → { data() }
  *
- * NOTE: spike-grade. If we adopt sigma we should refactor DetailPanel to read
- * from raw data via context instead of going through this shim.
+ * Follow-up: refactor DetailPanel to read from raw data via context and drop
+ * this shim — it's the last bit of cy-shaped indirection in the viewer.
  */
 export function buildCyAdapter(graph) {
   const nodeData = (id) => {
