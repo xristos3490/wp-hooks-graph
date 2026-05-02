@@ -3,9 +3,13 @@ import {
   SIGMA_SIZING_DEFAULTS,
   SIGMA_SIZING_MIN,
   SIGMA_SIZING_MAX,
+  SIGMA_VIEWPORT_SCALE_MIN,
+  SIGMA_VIEWPORT_SCALE_MAX,
   SIGMA_FOCUSED_EDGE_TYPES,
   SIGMA_FOCUSED_EDGE_SIZE_MIN,
   SIGMA_FOCUSED_EDGE_SIZE_MAX,
+  SIGMA_EDGE_OPACITY_MIN,
+  SIGMA_EDGE_OPACITY_MAX,
 } from '../lib/constants';
 
 // Lightweight in-canvas control panel for tuning sigma node sizing while
@@ -43,6 +47,17 @@ export default function SigmaSizingControls({ sizing, onChange }) {
         </button>
       </div>
 
+      <div style={sectionLabelStyle}>Viewport (test)</div>
+      <NumericSlider
+        label="Viewport %"
+        value={sizing.viewportScale}
+        min={SIGMA_VIEWPORT_SCALE_MIN}
+        max={SIGMA_VIEWPORT_SCALE_MAX}
+        step={5}
+        onChange={(v) => set({ viewportScale: v })}
+      />
+
+      <div style={sectionLabelStyle}>Nodes</div>
       <Slider label="Hooks" value={sizing.hookScale} onChange={(v) => set({ hookScale: v })} />
       <Slider label="Files" value={sizing.fileScale} onChange={(v) => set({ fileScale: v })} />
       <Slider label="Classes" value={sizing.classScale} onChange={(v) => set({ classScale: v })} />
@@ -72,14 +87,22 @@ export default function SigmaSizingControls({ sizing, onChange }) {
         options={SIGMA_FOCUSED_EDGE_TYPES}
         onChange={(v) => set({ listenEdgeType: v })}
       />
+      <NumericSlider
+        label="Opacity %"
+        value={sizing.edgeOpacity}
+        min={SIGMA_EDGE_OPACITY_MIN}
+        max={SIGMA_EDGE_OPACITY_MAX}
+        step={5}
+        onChange={(v) => set({ edgeOpacity: v })}
+      />
 
       <div style={sectionLabelStyle}>Focused edges</div>
       <NumericSlider
-        label="Width"
+        label="Width %"
         value={sizing.focusedEdgeSize}
         min={SIGMA_FOCUSED_EDGE_SIZE_MIN}
         max={SIGMA_FOCUSED_EDGE_SIZE_MAX}
-        step={0.5}
+        step={0.05}
         onChange={(v) => set({ focusedEdgeSize: v })}
       />
       <Select

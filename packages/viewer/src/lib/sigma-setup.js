@@ -6,7 +6,19 @@
 // SigmaGraphCanvas.jsx call. Anything else returns empty collections.
 
 import Graph from 'graphology';
-import { OVERLAP_ACTION, OVERLAP_FILTER } from './constants.js';
+import { OVERLAP_ACTION, OVERLAP_FILTER, SIGMA_SIZE_PCT } from './constants.js';
+
+// Reference vmin for the seed-time `nodeSizeFor` helper. The runtime reducer
+// reads the live canvas vmin via `computeNodeSize(..., vmin)`; the seed only
+// runs before sigma exists, so it falls back to a calibration constant. The
+// reducer overrides per frame, so this seed value is rarely user-visible.
+const REFERENCE_VMIN = 1000;
+
+// Convert a % of vmin to pixels. Centralized so every call site uses the
+// same formula and a 0/undefined vmin can't silently zero things out.
+function pctToPx(pct, vmin) {
+  return (pct / 100) * (vmin || REFERENCE_VMIN);
+}
 
 /**
  * Build a graphology MultiDirectedGraph from the parser's JSON shape. Node
@@ -125,18 +137,28 @@ export function buildSigmaGraph(data, sourceLabels, repoPalettes, mode) {
   return graph;
 }
 
-// Return sigma-space pixel radius (screen px). Degree → size on a sqrt curve
-// with a low floor so leaves naturally fall under labelRenderedSizeThreshold
-// at default zoom and only hubs auto-label. The wide dynamic range
-// (≈3 → ≈28) creates a clear visual hierarchy on huge graphs.
-function nodeSizeFor(node) {
-  if (node.type === 'hook') {
-    const deg = (node.fire_count || 0) + (node.listen_count || 0);
-    const base = 3 + Math.sqrt(deg) * 3;
-    return Math.min(28, node.overlap ? base * 1.2 : base);
+// Compute the size curve in % of vmin. Pure function shared between the
+// init-time seed (`nodeSizeFor`) and the per-frame reducer (`computeNodeSize`)
+// so both encode an identical curve.
+function nodeSizePct(attrs, hubFactor = 1) {
+  if ((attrs.type || attrs.nodeType) === 'hook') {
+    const deg = (attrs.fire_count || 0) + (attrs.listen_count || 0);
+    let base = SIGMA_SIZE_PCT.hookFloor + Math.sqrt(deg) * SIGMA_SIZE_PCT.hookCoef * hubFactor;
+    if (attrs.overlap) base *= 1.2;
+    return Math.min(SIGMA_SIZE_PCT.hookCap, base);
   }
-  const deg = node.hook_count || 0;
-  return Math.min(24, 3 + Math.sqrt(deg) * 2.5);
+  const deg = attrs.hook_count || 0;
+  return Math.min(
+    SIGMA_SIZE_PCT.fileCap,
+    SIGMA_SIZE_PCT.fileFloor + Math.sqrt(deg) * SIGMA_SIZE_PCT.fileCoef * hubFactor
+  );
+}
+
+// Seed-time size in pixels at the reference vmin. Stored on the graphology
+// node so any code that reads `attrs.size` directly (e.g. layout helpers)
+// has a sane value before the reducer runs.
+function nodeSizeFor(node) {
+  return pctToPx(nodeSizePct(node), REFERENCE_VMIN);
 }
 
 // Live size used by the sigma node reducer. Reads raw signals stored on the
@@ -145,20 +167,12 @@ function nodeSizeFor(node) {
 // it can run inside the reducer on every frame without allocations.
 //
 // `sizing` fields are integer percent (100 = 1.0×); `density` is a precomputed
-// multiplier from the canvas (1.0 when disabled).
-export function computeNodeSize(attrs, sizing, cameraRatio, density) {
+// multiplier from the canvas (1.0 when disabled). `vmin` is the effective
+// canvas vmin in pixels (already adjusted by the Viewport % control); sizes
+// are converted from % to pixels against it.
+export function computeNodeSize(attrs, sizing, cameraRatio, density, vmin) {
   const hubFactor = sizing.hubEmphasis / 100;
-  let base;
-  if (attrs.nodeType === 'hook') {
-    const deg = (attrs.fire_count || 0) + (attrs.listen_count || 0);
-    base = 3 + Math.sqrt(deg) * 3 * hubFactor;
-    if (attrs.overlap) base *= 1.2;
-    base = Math.min(28, base);
-  } else {
-    const deg = attrs.hook_count || 0;
-    base = 3 + Math.sqrt(deg) * 2.5 * hubFactor;
-    base = Math.min(24, base);
-  }
+  const basePct = nodeSizePct(attrs, hubFactor);
 
   const typeScale =
     attrs.nodeType === 'hook'
@@ -167,19 +181,19 @@ export function computeNodeSize(attrs, sizing, cameraRatio, density) {
         ? sizing.classScale
         : sizing.fileScale;
 
-  let size = base * (typeScale / 100) * density;
+  let sizePct = basePct * (typeScale / 100) * density;
 
   // Reveal-on-zoom: leaves grow as the camera zooms in (ratio < 1); already
   // prominent hubs barely move, so the visual hierarchy is preserved at any
-  // zoom level. Attenuation is by current size, not raw degree, so hub
-  // emphasis and per-type scaling participate naturally.
+  // zoom level. Attenuation is by current size relative to the hook cap so
+  // it stays unit-agnostic — hub emphasis and per-type scaling participate.
   if (sizing.zoomResponse && cameraRatio < 1) {
     const zoomFactor = Math.min(3, 1 / Math.max(cameraRatio, 0.05));
-    const attenuation = Math.max(0, 1 - size / 30);
-    size *= 1 + (zoomFactor - 1) * attenuation;
+    const attenuation = Math.max(0, 1 - sizePct / (SIGMA_SIZE_PCT.hookCap * 1.1));
+    sizePct *= 1 + (zoomFactor - 1) * attenuation;
   }
 
-  return Math.max(3, size);
+  return Math.max(pctToPx(SIGMA_SIZE_PCT.minSize, vmin), pctToPx(sizePct, vmin));
 }
 
 // Density compensation: shrink (or grow) sizes inversely to node count so a
@@ -251,7 +265,9 @@ function addEdge(graph, edge, i, sourceId, sourceIndexMap, repoPalettes, sourceL
     priority: edge.priority,
     line: edge.line,
     sourceIndex,
-    size: 1,
+    // Seed in pixels at the reference vmin; the edge reducer overrides per
+    // frame using the live canvas vmin so this only matters for fallback.
+    size: pctToPx(SIGMA_SIZE_PCT.edgeSize, REFERENCE_VMIN),
     color: color || '#aaa',
     baseColor: color || '#aaa',
     type: 'arrow',

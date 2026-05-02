@@ -5,7 +5,7 @@ import { NodeSquareProgram } from '@sigma/node-square';
 import { useGraphContext } from '../context/GraphContext';
 import { buildSigmaGraph, buildCyAdapter, computeNodeSize, computeDensityFactor } from '../lib/sigma-setup';
 import { applyLayout } from '../lib/sigma-layouts';
-import { SIGMA_SIZING_DEFAULTS } from '../lib/constants';
+import { SIGMA_SIZING_DEFAULTS, SIGMA_SIZE_PCT } from '../lib/constants';
 import SigmaSizingControls from './SigmaSizingControls';
 
 // rAF callbacks fire BEFORE paint, so a single rAF doesn't let the browser
@@ -90,6 +90,18 @@ export default function SigmaGraphCanvas() {
   // labels when zoomed out without forcing a React re-render on every pan.
   const cameraRatioRef = useRef(1);
 
+  // Live vmin of the rendering container, in screen pixels. Used by the
+  // node + edge reducers to convert SIGMA_SIZE_PCT values to pixels each
+  // frame. Updated on init and on every ResizeObserver tick. The Viewport %
+  // slider applies as a multiplier when read; we keep the raw vmin here.
+  const vminRef = useRef(0);
+  const resizeObserverRef = useRef(null);
+  // Closure that pushes a fresh labelRenderedSizeThreshold to sigma using
+  // the current vmin + viewport scale. Defined inside the init effect; the
+  // sizing effect calls it whenever viewportScale (or the threshold itself)
+  // changes.
+  const labelThresholdRef = useRef(null);
+
   // --- Init effect ---
   useEffect(() => {
     if (!containerRef.current || !data) return;
@@ -117,6 +129,11 @@ export default function SigmaGraphCanvas() {
 
       if (destroyed) return;
 
+      // Seed vmin from the container before sigma reads it. The
+      // ResizeObserver below keeps it current.
+      const initRect = containerRef.current.getBoundingClientRect();
+      vminRef.current = Math.min(initRect.width, initRect.height) || 1000;
+
       const sigma = new Sigma(graph, containerRef.current, {
         renderEdgeLabels: true,
         defaultNodeColor: '#999',
@@ -135,7 +152,14 @@ export default function SigmaGraphCanvas() {
         labelColor: { color: '#4a4258' },
         labelDensity: isLargeGraph ? 0.07 : 1,
         labelGridCellSize: isLargeGraph ? 200 : 60,
-        labelRenderedSizeThreshold: isLargeGraph ? 8 : 4,
+        // Seed in pixels at the current vmin; the resize / viewport-scale
+        // effects below push live updates via sigma.setSetting().
+        labelRenderedSizeThreshold:
+          ((isLargeGraph
+            ? SIGMA_SIZE_PCT.labelThresholdLarge
+            : SIGMA_SIZE_PCT.labelThreshold) /
+            100) *
+          (vminRef.current || 1000),
         enableEdgeEvents: false,
         minCameraRatio: 0.05,
         maxCameraRatio: 20,
@@ -155,12 +179,17 @@ export default function SigmaGraphCanvas() {
           const r = { ...attrs };
           // Live size: recomputed every frame from raw signals on the node so
           // the user-tunable sizing controls + camera-driven reveal-on-zoom
-          // boost apply without rebuilding the graph.
+          // boost apply without rebuilding the graph. Effective vmin folds in
+          // the Viewport % slider so dialing it down emulates a smaller
+          // canvas across every downstream consumer.
+          const effectiveVmin =
+            vminRef.current * (sizingRef.current.viewportScale / 100);
           r.size = computeNodeSize(
             attrs,
             sizingRef.current,
             cameraRatioRef.current,
-            densityRef.current
+            densityRef.current,
+            effectiveVmin
           );
           if (attrs.hidden) {
             r.hidden = true;
@@ -206,12 +235,18 @@ export default function SigmaGraphCanvas() {
             r.hidden = true;
             return r;
           }
+          // Convert vmin-% sizes to pixels using the same effective vmin as
+          // the node reducer. Sigma reads `r.size` in screen pixels.
+          const edgeVmin =
+            vminRef.current * (sizingRef.current.viewportScale / 100);
+          r.size = (SIGMA_SIZE_PCT.edgeSize / 100) * (edgeVmin || 1000);
           // Default per-direction program — overridden below if this edge is
           // inside an active highlight.
           r.type =
             attrs.edgeType === 'fires'
               ? sizingRef.current.fireEdgeType
               : sizingRef.current.listenEdgeType;
+          r.color = withAlpha(attrs.color, sizingRef.current.edgeOpacity);
           // Labels are stored on the edge ("fires" / "listens") but only
           // surfaced when the edge is inside an active highlight; at idle
           // we'd flood the canvas otherwise.
@@ -232,12 +267,16 @@ export default function SigmaGraphCanvas() {
               h.hoveredNeighborhood.has(src) &&
               h.hoveredNeighborhood.has(tgt);
             if (inSearch || inSelected || inHovered) {
-              r.size = sizingRef.current.focusedEdgeSize;
+              r.size =
+                (sizingRef.current.focusedEdgeSize / 100) * (edgeVmin || 1000);
               r.type =
                 attrs.edgeType === 'fires'
                   ? sizingRef.current.focusedFireEdgeType
                   : sizingRef.current.focusedListenEdgeType;
-              r.color = attrs.baseColor || attrs.color;
+              r.color = withAlpha(
+                attrs.baseColor || attrs.color,
+                sizingRef.current.edgeOpacity
+              );
               // Edge labels are noisy on broad search matches, so only
               // surface them on explicit pointer interactions (selection
               // or hover). Search keeps the highlight visuals unlabeled.
@@ -262,6 +301,33 @@ export default function SigmaGraphCanvas() {
         window.__sigma = sigma;
         window.__graph = graph;
       }
+
+      // Track container vmin so the responsive sizing pipeline updates when
+      // the user resizes the window (or the layout shifts the canvas). We
+      // push a fresh labelRenderedSizeThreshold via setSetting on every tick
+      // — sigma reads it each frame, so this is enough.
+      const updateLabelThreshold = () => {
+        const effectiveVmin =
+          vminRef.current * (sizingRef.current.viewportScale / 100);
+        const pct = isLargeGraph
+          ? SIGMA_SIZE_PCT.labelThresholdLarge
+          : SIGMA_SIZE_PCT.labelThreshold;
+        sigma.setSetting(
+          'labelRenderedSizeThreshold',
+          (pct / 100) * (effectiveVmin || 1000)
+        );
+      };
+      labelThresholdRef.current = updateLabelThreshold;
+      updateLabelThreshold();
+      const ro = new ResizeObserver((entries) => {
+        const rect = entries[0]?.contentRect;
+        if (!rect) return;
+        vminRef.current = Math.min(rect.width, rect.height) || vminRef.current;
+        updateLabelThreshold();
+        sigma.refresh();
+      });
+      ro.observe(containerRef.current);
+      resizeObserverRef.current = ro;
 
       sigma.on('clickNode', ({ node }) => selectNode(node));
       sigma.on('clickStage', () => clearSelection());
@@ -335,6 +401,11 @@ export default function SigmaGraphCanvas() {
 
     return () => {
       destroyed = true;
+      if (resizeObserverRef.current) {
+        resizeObserverRef.current.disconnect();
+        resizeObserverRef.current = null;
+      }
+      labelThresholdRef.current = null;
       if (sigmaRef.current) {
         sigmaRef.current.kill();
         sigmaRef.current = null;
@@ -350,10 +421,13 @@ export default function SigmaGraphCanvas() {
   // --- Sizing effect ---
   // Sliders/toggles in the Sidebar mutate `sizing` in context; the reducer
   // already reads via sizingRef on every frame, so we just need to nudge
-  // sigma to re-render once per change.
+  // sigma to re-render once per change. The label threshold lives in a
+  // sigma setting (not a reducer attribute), so push it through here too —
+  // viewportScale changes the effective vmin and therefore the threshold.
   useEffect(() => {
     const sigma = sigmaRef.current;
     if (!sigma || !graphReady) return;
+    if (labelThresholdRef.current) labelThresholdRef.current();
     sigma.refresh();
   }, [sizing, densityFactor, graphReady]);
 
@@ -548,6 +622,17 @@ function diffApplyEdge(graph, prevSet, currSet) {
 // rgba() strings break the color buffer and cause the entire canvas to fail
 // to render. Use a hex grey for the faded state.
 const FADE_COLOR = '#dcdcdc';
+
+// Apply an opacity percent (0–100) to a #RRGGBB hex color by appending the
+// matching alpha byte. Returns the input unchanged if it isn't a 7-char hex
+// (rgba/short hex/already-alpha colors all bail) so we never silently zero
+// the color buffer with an unparseable string.
+function withAlpha(color, opacity) {
+  if (opacity >= 100) return color;
+  if (typeof color !== 'string' || color.length !== 7 || color[0] !== '#') return color;
+  const a = Math.max(0, Math.min(255, Math.round((opacity / 100) * 255)));
+  return color + a.toString(16).padStart(2, '0');
+}
 
 // Camera ratio above which all non-highlighted labels are suppressed. Sigma
 // frames the graph at ratio ≈ 1.0; anything past 1.5 means the user has
