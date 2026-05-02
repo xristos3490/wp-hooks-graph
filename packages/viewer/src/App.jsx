@@ -7,6 +7,7 @@ import { LARGE_GRAPH_THRESHOLD } from './lib/constants';
 import HomePage from './components/HomePage';
 import Sidebar from './components/Sidebar';
 import GraphCanvas from './components/GraphCanvas';
+import SigmaGraphCanvas from './components/SigmaGraphCanvas';
 import SearchOverlay from './components/SearchOverlay';
 import DetailPanel from './components/DetailPanel';
 import Legend from './components/Legend';
@@ -150,17 +151,63 @@ export default function App() {
     return <HomePage onFileLoad={loadFile} isLoading={isLoading} />;
   }
 
+  // Renderer toggle — ?renderer=sigma swaps the WebGL spike in. Persisted to
+  // sessionStorage so the floating toggle button can flip without a reload
+  // logic change. Default = cytoscape.
+  const renderer = getRenderer();
+  const Canvas = renderer === 'sigma' ? SigmaGraphCanvas : GraphCanvas;
+
   return (
     <GraphContext.Provider value={contextValue}>
       <div className="app-shell">
         <Sidebar />
         <div className="graph-area">
           <SearchOverlay />
-          <GraphCanvas />
+          <Canvas key={renderer} />
           <DetailPanel />
           <Legend />
+          <RendererToggle current={renderer} />
         </div>
       </div>
     </GraphContext.Provider>
+  );
+}
+
+function getRenderer() {
+  const params = new URLSearchParams(window.location.search);
+  const fromUrl = params.get('renderer');
+  if (fromUrl === 'sigma' || fromUrl === 'cytoscape') return fromUrl;
+  return 'cytoscape';
+}
+
+function RendererToggle({ current }) {
+  function flip() {
+    const next = current === 'sigma' ? 'cytoscape' : 'sigma';
+    const url = new URL(window.location.href);
+    url.searchParams.set('renderer', next);
+    window.location.href = url.toString();
+  }
+  return (
+    <button
+      type="button"
+      onClick={flip}
+      style={{
+        position: 'absolute',
+        bottom: 16,
+        left: 16,
+        zIndex: 40,
+        padding: '6px 10px',
+        fontSize: 11,
+        fontFamily: 'var(--wpds-typography-font-family-mono, monospace)',
+        background: 'rgba(255,255,255,0.92)',
+        border: '1px solid #d0d0d0',
+        borderRadius: 6,
+        cursor: 'pointer',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+      }}
+      title="Toggle graph renderer"
+    >
+      renderer: <strong>{current}</strong> · click to swap
+    </button>
   );
 }
