@@ -34,7 +34,7 @@ export default function useGraphData() {
   // Auto-fetch from server
   useEffect(() => {
     let cancelled = false;
-    fetch('/hooks.json')
+    fetch('./hooks.json')
       .then((r) => {
         // 204 = server has no JSON bound; stay on the homepage silently.
         if (r.status === 204 || !r.ok) return null;

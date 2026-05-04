@@ -14,6 +14,12 @@ function renderMetric({ item, field }) {
   );
 }
 
+// Dataviews field ids are split on '.' to walk nested paths, so labels
+// containing dots (e.g. "wordpress-7.0-RC2") break the form. Encode dots
+// before using a label as part of a field id, decode on the way out.
+const encodeRepoLabel = (label) => label.replace(/\./g, '__DOT__');
+const decodeRepoLabel = (encoded) => encoded.replace(/__DOT__/g, '.');
+
 const REPO_STATE_ELEMENTS = [
   { value: 'off', label: 'Off' },
   { value: 'fires', label: 'Fires' },
@@ -106,7 +112,7 @@ export default function Sidebar() {
       metric_scan: scanDateFormatted,
     };
     sourceLabels.forEach((label) => {
-      flat[`repo__${label}`] = encodeRepoState(
+      flat[`repo__${encodeRepoLabel(label)}`] = encodeRepoState(
         filterState.fireRepos[label] !== false,
         filterState.listenRepos[label] !== false
       );
@@ -144,7 +150,7 @@ export default function Sidebar() {
         } else if (key === 'minConnections') {
           setHighTrafficValue(value);
         } else if (key.startsWith('repo__')) {
-          const label = key.slice('repo__'.length);
+          const label = decodeRepoLabel(key.slice('repo__'.length));
           const prev = decodeRepoState(formData[key]);
           const next = decodeRepoState(value);
           if (prev.fireOn !== next.fireOn) toggleFireRepo(label);
@@ -336,11 +342,11 @@ export default function Sidebar() {
         readOnly: true,
         getValue: ({ item }) => {
           const f = sourceLabels.filter((l) => {
-            const v = item[`repo__${l}`];
+            const v = item[`repo__${encodeRepoLabel(l)}`];
             return v === 'fires' || v === 'both';
           }).length;
           const n = sourceLabels.filter((l) => {
-            const v = item[`repo__${l}`];
+            const v = item[`repo__${encodeRepoLabel(l)}`];
             return v === 'listens' || v === 'both';
           }).length;
           return `${f}/${sourceLabels.length} fires · ${n}/${sourceLabels.length} listens`;
@@ -350,7 +356,7 @@ export default function Sidebar() {
 
     sourceLabels.forEach((label) => {
       f.push({
-        id: `repo__${label}`,
+        id: `repo__${encodeRepoLabel(label)}`,
         label,
         description: 'Show fires and/or listens from this repo',
         type: 'text',
@@ -428,7 +434,7 @@ export default function Sidebar() {
           description: 'Fire and listen sources per scanned repo',
           layout: { type: 'card', summary: 'sources_summary' },
           children: [
-            ...sourceLabels.map((label) => `repo__${label}`),
+            ...sourceLabels.map((label) => `repo__${encodeRepoLabel(label)}`),
             {
               id: 'sources-orphans',
               label: 'One-sided hooks',
