@@ -1,9 +1,10 @@
 import { useRef, useEffect, useState } from 'react';
 import Sigma from 'sigma';
+import { NodePointProgram } from 'sigma/rendering';
 import { EdgeCurvedArrowProgram } from '@sigma/edge-curve';
 import { NodeSquareProgram } from '@sigma/node-square';
 import { useGraphContext } from '../context/GraphContext';
-import { buildSigmaGraph, buildCyAdapter, computeNodeSize, computeDensityFactor } from '../lib/sigma-setup';
+import { buildSigmaGraph, buildCyAdapter, computeNodeSize, computeDensityFactor, recolorGraph } from '../lib/sigma-setup';
 import { applyLayout } from '../lib/sigma-layouts';
 import { SIGMA_SIZING_DEFAULTS, SIGMA_SIZE_PCT } from '../lib/constants';
 import SigmaSizingControls from './SigmaSizingControls';
@@ -25,8 +26,10 @@ export default function SigmaGraphCanvas() {
   const {
     data,
     cyRef,
+    sigmaRef: sharedSigmaRef,
     sourceLabels,
     repoPalettes,
+    setPaletteHueOverrides,
     isLargeGraph,
     filterResult,
     selectedNode,
@@ -43,6 +46,15 @@ export default function SigmaGraphCanvas() {
   const [sizing, setSizing] = useState(SIGMA_SIZING_DEFAULTS);
   const sizingRef = useRef(sizing);
   sizingRef.current = sizing;
+
+  // Latest palette/source-labels mirrored into refs so the init effect can
+  // read them without listing them as deps — a hue tweak alone must not tear
+  // down sigma + relayout. The recolor effect below handles palette updates
+  // post-init by mutating the existing graphology graph in place.
+  const repoPalettesRef = useRef(repoPalettes);
+  repoPalettesRef.current = repoPalettes;
+  const sourceLabelsRef = useRef(sourceLabels);
+  sourceLabelsRef.current = sourceLabels;
 
   // Density factor depends only on node count + the densityCompensation
   // toggle, so recompute when either changes (cheap; we still write through
@@ -118,7 +130,7 @@ export default function SigmaGraphCanvas() {
       await yieldToMain();
       if (destroyed) return;
 
-      const graph = buildSigmaGraph(data, sourceLabels, repoPalettes, groupBy);
+      const graph = buildSigmaGraph(data, sourceLabelsRef.current, repoPalettesRef.current, groupBy);
       graphRef.current = graph;
 
       setProgress({ label: 'Computing layout…', detail: isLargeGraph ? 'This may take a moment.' : '' });
@@ -147,6 +159,16 @@ export default function SigmaGraphCanvas() {
           curvedArrow: EdgeCurvedArrowProgram,
         },
         nodeProgramClasses: {
+          // Sigma's default `circle` is a quad-based SDF program whose AA
+          // border is fixed in clip-space (`u_correctionRatio * 2.0`). That
+          // means the band's pixel width grows with pixelRatio — circles
+          // soften visibly at 2× export. NodePointProgram uses gl.POINTS
+          // with the AA band measured in gl_PointCoord (pixel-space), so
+          // edges stay at ~½ px regardless of DPR. The trade-off is the
+          // hardware ALIASED_POINT_SIZE_RANGE cap, but our largest hub
+          // size (~28 CSS px) × pixelRatio 4 = 224 sits well under typical
+          // desktop limits (511+).
+          circle: NodePointProgram,
           square: NodeSquareProgram,
         },
         labelColor: { color: '#4a4258' },
@@ -246,7 +268,7 @@ export default function SigmaGraphCanvas() {
             attrs.edgeType === 'fires'
               ? sizingRef.current.fireEdgeType
               : sizingRef.current.listenEdgeType;
-          r.color = withAlpha(attrs.color, sizingRef.current.edgeOpacity);
+          r.color = fadeColor(attrs.color, sizingRef.current.edgeOpacity);
           // Labels are stored on the edge ("fires" / "listens") but only
           // surfaced when the edge is inside an active highlight; at idle
           // we'd flood the canvas otherwise.
@@ -273,10 +295,12 @@ export default function SigmaGraphCanvas() {
                 attrs.edgeType === 'fires'
                   ? sizingRef.current.focusedFireEdgeType
                   : sizingRef.current.focusedListenEdgeType;
-              r.color = withAlpha(
-                attrs.baseColor || attrs.color,
-                sizingRef.current.edgeOpacity
-              );
+              const touchesSelected =
+                h.selectedNodeId === src || h.selectedNodeId === tgt;
+              const baseColor = attrs.baseColor || attrs.color;
+              r.color = touchesSelected
+                ? baseColor
+                : fadeColor(baseColor, sizingRef.current.edgeOpacity);
               // Edge labels are noisy on broad search matches, so only
               // surface them on explicit pointer interactions (selection
               // or hover). Search keeps the highlight visuals unlabeled.
@@ -295,6 +319,7 @@ export default function SigmaGraphCanvas() {
       });
 
       sigmaRef.current = sigma;
+      if (sharedSigmaRef) sharedSigmaRef.current = sigma;
       cyRef.current = buildCyAdapter(graph);
       // DEBUG: expose for browser console inspection during the spike.
       if (typeof window !== 'undefined') {
@@ -410,13 +435,14 @@ export default function SigmaGraphCanvas() {
         sigmaRef.current.kill();
         sigmaRef.current = null;
       }
+      if (sharedSigmaRef) sharedSigmaRef.current = null;
       graphRef.current = null;
       cyRef.current = null;
       prevVisibleRef.current = null;
       elevatedEdgesRef.current = new Set();
       setIsComputing(false);
     };
-  }, [data, sourceLabels, repoPalettes, isLargeGraph, groupBy]);
+  }, [data, sourceLabels, isLargeGraph, groupBy]);
 
   // --- Sizing effect ---
   // Sliders/toggles in the Sidebar mutate `sizing` in context; the reducer
@@ -430,6 +456,18 @@ export default function SigmaGraphCanvas() {
     if (labelThresholdRef.current) labelThresholdRef.current();
     sigma.refresh();
   }, [sizing, densityFactor, graphReady]);
+
+  // --- Recolor effect ---
+  // Hue tweaks from the picker change `repoPalettes` identity but don't
+  // affect topology or layout. Mutate node/edge color attributes in place
+  // and refresh, instead of rebuilding the graph + rerunning Louvain/FA2.
+  useEffect(() => {
+    const sigma = sigmaRef.current;
+    const graph = graphRef.current;
+    if (!sigma || !graph || !graphReady) return;
+    recolorGraph(graph, repoPalettes, sourceLabels);
+    sigma.refresh();
+  }, [repoPalettes, sourceLabels, graphReady]);
 
   // --- Filter effect ---
   useEffect(() => {
@@ -537,7 +575,15 @@ export default function SigmaGraphCanvas() {
   return (
     <>
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
-      {graphReady && <SigmaSizingControls sizing={sizing} onChange={setSizing} />}
+      {graphReady && (
+        <SigmaSizingControls
+          sizing={sizing}
+          onChange={setSizing}
+          sourceLabels={sourceLabels}
+          repoPalettes={repoPalettes}
+          setPaletteHueOverrides={setPaletteHueOverrides}
+        />
+      )}
       {progress && (
         <div
           style={{
@@ -622,16 +668,24 @@ function diffApplyEdge(graph, prevSet, currSet) {
 // rgba() strings break the color buffer and cause the entire canvas to fail
 // to render. Use a hex grey for the faded state.
 const FADE_COLOR = '#dcdcdc';
+const FADE_RGB = [0xdc, 0xdc, 0xdc];
 
-// Apply an opacity percent (0–100) to a #RRGGBB hex color by appending the
-// matching alpha byte. Returns the input unchanged if it isn't a 7-char hex
-// (rgba/short hex/already-alpha colors all bail) so we never silently zero
-// the color buffer with an unparseable string.
-function withAlpha(color, opacity) {
+// Mix a #RRGGBB hex color toward FADE_COLOR by (1 - opacity/100) and return
+// a fully opaque hex. We pre-mix in JS instead of relying on WebGL alpha
+// blending against the canvas bg so the perceived hue stays stable as the
+// slider drops — alpha blending in sRGB against a non-neutral surface
+// otherwise pulls warm hues off-axis. Bails on any non-7-char-hex input so
+// we never silently zero the color buffer.
+function fadeColor(color, opacity) {
   if (opacity >= 100) return color;
   if (typeof color !== 'string' || color.length !== 7 || color[0] !== '#') return color;
-  const a = Math.max(0, Math.min(255, Math.round((opacity / 100) * 255)));
-  return color + a.toString(16).padStart(2, '0');
+  const t = Math.max(0, Math.min(1, opacity / 100));
+  const r = parseInt(color.slice(1, 3), 16);
+  const g = parseInt(color.slice(3, 5), 16);
+  const b = parseInt(color.slice(5, 7), 16);
+  const mix = (c, f) => Math.round(t * c + (1 - t) * f);
+  const hex = (n) => n.toString(16).padStart(2, '0');
+  return '#' + hex(mix(r, FADE_RGB[0])) + hex(mix(g, FADE_RGB[1])) + hex(mix(b, FADE_RGB[2]));
 }
 
 // Camera ratio above which all non-highlighted labels are suppressed. Sigma

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   SIGMA_SIZING_DEFAULTS,
   SIGMA_SIZING_MIN,
@@ -11,19 +11,35 @@ import {
   SIGMA_EDGE_OPACITY_MIN,
   SIGMA_EDGE_OPACITY_MAX,
 } from '../lib/constants';
+import { hexToHue } from '../lib/color-palette';
 
 // Lightweight in-canvas control panel for tuning sigma node sizing while
 // you eyeball the graph. Lives next to the canvas (not in the sidebar) on
 // purpose — once we settle on values, those become defaults in
 // SIGMA_SIZING_DEFAULTS and this whole component goes away.
-export default function SigmaSizingControls({ sizing, onChange }) {
+export default function SigmaSizingControls({
+  sizing,
+  onChange,
+  sourceLabels = [],
+  repoPalettes = {},
+  setPaletteHueOverrides,
+}) {
   const [open, setOpen] = useState(true);
 
   const set = (patch) => onChange({ ...sizing, ...patch });
-  const reset = () => onChange(SIGMA_SIZING_DEFAULTS);
+  const reset = () => {
+    onChange(SIGMA_SIZING_DEFAULTS);
+    if (setPaletteHueOverrides) setPaletteHueOverrides({});
+  };
   const logCurrent = () => {
     // eslint-disable-next-line no-console
     console.log('[sigma-sizing]', JSON.stringify(sizing, null, 2));
+  };
+
+  const onPickColor = (label, hex) => {
+    if (!setPaletteHueOverrides) return;
+    const h = hexToHue(hex);
+    setPaletteHueOverrides((prev) => ({ ...prev, [label]: h }));
   };
 
   if (!open) {
@@ -118,6 +134,24 @@ export default function SigmaSizingControls({ sizing, onChange }) {
         onChange={(v) => set({ focusedListenEdgeType: v })}
       />
 
+      {sourceLabels.length > 0 && setPaletteHueOverrides && (
+        <>
+          <div style={sectionLabelStyle}>Source colors</div>
+          {sourceLabels.map((label) => {
+            const palette = repoPalettes[label];
+            const swatch = palette ? palette.action : '#888888';
+            return (
+              <SourceColorRow
+                key={label}
+                label={label}
+                color={swatch}
+                onCommit={(hex) => onPickColor(label, hex)}
+              />
+            );
+          })}
+        </>
+      )}
+
       <div style={footerStyle}>
         <button type="button" style={buttonStyle} onClick={reset}>
           Reset
@@ -187,6 +221,45 @@ function Select({ label, value, options, onChange }) {
           </option>
         ))}
       </select>
+    </label>
+  );
+}
+
+// React's synthetic onChange on <input type="color"> maps to the native
+// `input` event, which fires continuously while the user drags in the picker
+// — that would re-render the whole graph on every pixel. We attach a native
+// `change` listener instead, which only fires when the picker dialog closes
+// (i.e. on commit). defaultValue (not value) lets the input track its own
+// state during the drag, and we sync from the upstream `color` prop via a
+// ref-driven effect when it changes from outside.
+function SourceColorRow({ label, color, onCommit }) {
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    const handler = (e) => onCommit(e.target.value);
+    el.addEventListener('change', handler);
+    return () => el.removeEventListener('change', handler);
+  }, [onCommit]);
+
+  useEffect(() => {
+    if (inputRef.current && inputRef.current.value !== color) {
+      inputRef.current.value = color;
+    }
+  }, [color]);
+
+  return (
+    <label style={colorRowStyle}>
+      <span style={colorLabelStyle} title={label}>
+        {label}
+      </span>
+      <input
+        ref={inputRef}
+        type="color"
+        defaultValue={color}
+        style={colorInputStyle}
+      />
     </label>
   );
 }
@@ -271,6 +344,31 @@ const selectStyle = {
   border: '1px solid #ccc',
   borderRadius: 4,
   background: '#fff',
+};
+
+const colorRowStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 6,
+  marginBottom: 4,
+};
+
+const colorLabelStyle = {
+  flex: 1,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+  fontSize: 11,
+};
+
+const colorInputStyle = {
+  width: 28,
+  height: 20,
+  padding: 0,
+  border: '1px solid #ccc',
+  borderRadius: 4,
+  background: '#fff',
+  cursor: 'pointer',
 };
 
 const buttonStyle = {

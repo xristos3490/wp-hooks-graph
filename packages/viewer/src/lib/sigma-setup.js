@@ -205,25 +205,54 @@ export function computeDensityFactor(nodeCount, enabled) {
   return Math.max(0.5, Math.min(1.5, factor));
 }
 
-function nodeColorFor(node, repoPalettes, sourceLabels) {
-  if (node.type === 'hook') {
-    if (node.overlap) {
-      return node.hook_type === 'action' ? OVERLAP_ACTION : OVERLAP_FILTER;
+// Resolve a node's color from either the parser's input shape (`type`) or the
+// graphology node attributes (`nodeType` — the rename happens in addNode so
+// `type` can carry the sigma program). Shared by build-time addNode and
+// runtime recolorGraph so a hue tweak doesn't have to rebuild the graph.
+export function colorForNode(attrs, repoPalettes, sourceLabels) {
+  const appType = attrs.nodeType || attrs.type;
+  if (appType === 'hook') {
+    if (attrs.overlap) {
+      return attrs.hook_type === 'action' ? OVERLAP_ACTION : OVERLAP_FILTER;
     }
-    const label = sourceLabels[node.sourceIndex] || sourceLabels[0];
+    const label = sourceLabels[attrs.sourceIndex] || sourceLabels[0];
     const palette = repoPalettes[label];
     if (!palette) return '#888';
-    return node.hook_type === 'action' ? palette.action : palette.filter;
+    return attrs.hook_type === 'action' ? palette.action : palette.filter;
   }
   // file / class
-  const label = node.source && repoPalettes[node.source] ? node.source : sourceLabels[node.sourceIndex] || sourceLabels[0];
+  const label = attrs.source && repoPalettes[attrs.source] ? attrs.source : sourceLabels[attrs.sourceIndex] || sourceLabels[0];
   return (repoPalettes[label] && repoPalettes[label].file) || '#bbb';
+}
+
+export function colorForEdge(attrs, repoPalettes, sourceLabels) {
+  const label = sourceLabels[attrs.sourceIndex] || sourceLabels[0];
+  const palette = repoPalettes[label] || {};
+  return attrs.edgeType === 'fires'
+    ? (palette.fireEdge || '#aaa')
+    : (palette.listenEdge || '#aaa');
+}
+
+// Recompute color/baseColor for every node and edge in place. Cheap enough
+// to run on a hue change — no layout, no Sigma teardown — then the caller
+// just needs sigma.refresh().
+export function recolorGraph(graph, repoPalettes, sourceLabels) {
+  graph.forEachNode((id, attrs) => {
+    const color = colorForNode(attrs, repoPalettes, sourceLabels);
+    if (attrs.color !== color) graph.setNodeAttribute(id, 'color', color);
+    if (attrs.baseColor !== color) graph.setNodeAttribute(id, 'baseColor', color);
+  });
+  graph.forEachEdge((id, attrs) => {
+    const color = colorForEdge(attrs, repoPalettes, sourceLabels);
+    if (attrs.color !== color) graph.setEdgeAttribute(id, 'color', color);
+    if (attrs.baseColor !== color) graph.setEdgeAttribute(id, 'baseColor', color);
+  });
 }
 
 function addNode(graph, node, repoPalettes, sourceLabels) {
   if (graph.hasNode(node.id)) return;
   const sigmaSize = Math.max(3, nodeSizeFor(node));
-  const color = nodeColorFor(node, repoPalettes, sourceLabels);
+  const color = colorForNode(node, repoPalettes, sourceLabels);
   // Sigma uses `type` as the registered renderer program, so we cannot store
   // the app's hook/file/class type under that key. Stash it as `nodeType` and
   // surface it back via the cy-adapter's data() method below.
@@ -252,7 +281,7 @@ function addEdge(graph, edge, i, sourceId, sourceIndexMap, repoPalettes, sourceL
   // Use hex variants (not the rgba *Alpha keys) — sigma's default WebGL
   // programs only parse #RRGGBB(AA). Translucency is faked with a fixed
   // hex shade; highlight switches to the darker hex.
-  const color = isFires ? palette.fireEdge : palette.listenEdge;
+  const color = colorForEdge({ edgeType: edge.type, sourceIndex }, repoPalettes, sourceLabels);
   graph.addEdgeWithKey(id, sourceId, edge.target, {
     edgeType: edge.type,
     callback: edge.callback || '',
@@ -268,8 +297,8 @@ function addEdge(graph, edge, i, sourceId, sourceIndexMap, repoPalettes, sourceL
     // Seed in pixels at the reference vmin; the edge reducer overrides per
     // frame using the live canvas vmin so this only matters for fallback.
     size: pctToPx(SIGMA_SIZE_PCT.edgeSize, REFERENCE_VMIN),
-    color: color || '#aaa',
-    baseColor: color || '#aaa',
+    color,
+    baseColor: color,
     type: 'arrow',
     // Curvature sign distinguishes fires (arc one way) from listens (arc the
     // other way) when the curvedArrow program is selected. Read by

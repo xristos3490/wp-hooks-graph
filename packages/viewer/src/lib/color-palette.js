@@ -70,31 +70,75 @@ const toRgba = ({ L, C }, h, a) => {
   return `rgba(${r}, ${g}, ${b}, ${a})`;
 };
 
-export function generateRepoPalette(sourceLabels) {
-  const n = sourceLabels.length;
+// sRGB → linear-sRGB inverse companding.
+function srgbToLinear(v) {
+  const c = v / 255;
+  return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+}
+
+// sRGB (0..255) → OKLCH using Björn Ottosson's matrices. Returned hue is
+// in degrees [0, 360). Used to extract a hue family from a user-picked hex
+// so we can recompute all tonal variants from the same anchor table.
+function rgbToOklch(r, g, b) {
+  const lr = srgbToLinear(r);
+  const lg = srgbToLinear(g);
+  const lb = srgbToLinear(b);
+
+  const l = 0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb;
+  const m = 0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb;
+  const s = 0.0883024619 * lr + 0.2817188376 * lg + 0.6299787005 * lb;
+
+  const lC = Math.cbrt(l);
+  const mC = Math.cbrt(m);
+  const sC = Math.cbrt(s);
+
+  const a = 1.9779984951 * lC - 2.428592205 * mC + 0.4505937099 * sC;
+  const bb = 0.0259040371 * lC + 0.7827717662 * mC - 0.808675766 * sC;
+
+  let h = (Math.atan2(bb, a) * 180) / Math.PI;
+  if (h < 0) h += 360;
+  return h;
+}
+
+export function hexToHue(hex) {
+  const s = (hex || '').replace('#', '');
+  if (s.length < 6) return 0;
+  const r = parseInt(s.slice(0, 2), 16);
+  const g = parseInt(s.slice(2, 4), 16);
+  const b = parseInt(s.slice(4, 6), 16);
+  return rgbToOklch(r, g, b);
+}
+
+function paletteFromHue(h) {
+  return {
+    action: toHex(TONES.action, h),
+    filter: toHex(TONES.filter, h),
+    file: toHex(TONES.file, h),
+    fireEdge: toHex(TONES.fire, h),
+    listenEdge: toHex(TONES.listen, h),
+    fireEdgeAlpha: toRgba(TONES.fire, h, 0.4),
+    listenEdgeAlpha: toRgba(TONES.listen, h, 0.3),
+    fireEdgeHighlight: toRgba(TONES.fire, h, 0.8),
+    listenEdgeHighlight: toRgba(TONES.listen, h, 0.8),
+  };
+}
+
+export function defaultHueFor(sourceLabels, index) {
+  if (index < CURATED_HUES.length) return CURATED_HUES[index];
+  const extras = Math.max(0, sourceLabels.length - CURATED_HUES.length);
+  const step = 360 / (extras + 1);
+  return (
+    (CURATED_HUES[CURATED_HUES.length - 1] + step * (index - CURATED_HUES.length + 1)) % 360
+  );
+}
+
+export function generateRepoPalette(sourceLabels, hueOverrides = {}) {
   const palettes = {};
-  const extras = Math.max(0, n - CURATED_HUES.length);
-  for (let i = 0; i < n; i++) {
-    let h;
-    if (i < CURATED_HUES.length) {
-      h = CURATED_HUES[i];
-    } else {
-      // Fan the remainder evenly, starting halfway between the last curated
-      // hue and itself + 360° so we land in unused arcs of the wheel.
-      const step = 360 / (extras + 1);
-      h = (CURATED_HUES[CURATED_HUES.length - 1] + step * (i - CURATED_HUES.length + 1)) % 360;
-    }
-    palettes[sourceLabels[i]] = {
-      action: toHex(TONES.action, h),
-      filter: toHex(TONES.filter, h),
-      file: toHex(TONES.file, h),
-      fireEdge: toHex(TONES.fire, h),
-      listenEdge: toHex(TONES.listen, h),
-      fireEdgeAlpha: toRgba(TONES.fire, h, 0.4),
-      listenEdgeAlpha: toRgba(TONES.listen, h, 0.3),
-      fireEdgeHighlight: toRgba(TONES.fire, h, 0.8),
-      listenEdgeHighlight: toRgba(TONES.listen, h, 0.8),
-    };
+  for (let i = 0; i < sourceLabels.length; i++) {
+    const label = sourceLabels[i];
+    const h =
+      hueOverrides[label] !== undefined ? hueOverrides[label] : defaultHueFor(sourceLabels, i);
+    palettes[label] = paletteFromHue(h);
   }
   return palettes;
 }
