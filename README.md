@@ -178,7 +178,7 @@ packages/
     server.php          Router for `php -S`
     src/                Parser, Graph, Discovery, Cli classes
     tests/              PHPUnit
-  viewer/             Vite + React app (Cytoscape); bundled into the CLI tarball
+  viewer/             Vite + React app (Sigma WebGL + graphology); bundled into the CLI tarball
   cli/                @hooksgraph/hooksgraph (npm) — Node shim wrapping the PHP parser + viewer
     bin/hooksgraph.js
   mcp/                @hooksgraph/hooksgraph-mcp (npm) — stdio MCP server
