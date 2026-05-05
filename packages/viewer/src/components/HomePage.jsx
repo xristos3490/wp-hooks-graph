@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import { Button, EmptyState, Stack, Text, Badge } from '@wordpress/ui';
 import Logo from './Logo';
 import HomePageBackground from './HomePageBackground';
@@ -8,11 +8,19 @@ import './HomePage.css';
 export default function HomePage({ onFileLoad, isLoading, onLoadDemo, hasDemo }) {
   const inputRef = useRef(null);
   const [dragging, setDragging] = useState(false);
+  const [pending, setPending] = useState(null);
   const dragCounter = useRef(0);
+
+  useEffect(() => {
+    if (!isLoading) setPending(null);
+  }, [isLoading]);
 
   function handleChange(e) {
     const file = e.target.files[0];
-    if (file) onFileLoad(file);
+    if (file) {
+      setPending('file');
+      onFileLoad(file);
+    }
   }
 
   const handleDragEnter = useCallback((e) => {
@@ -41,7 +49,10 @@ export default function HomePage({ onFileLoad, isLoading, onLoadDemo, hasDemo })
       setDragging(false);
       dragCounter.current = 0;
       const file = e.dataTransfer.files[0];
-      if (file) onFileLoad(file);
+      if (file) {
+        setPending('file');
+        onFileLoad(file);
+      }
     },
     [onFileLoad]
   );
@@ -77,15 +88,22 @@ export default function HomePage({ onFileLoad, isLoading, onLoadDemo, hasDemo })
             <EmptyState.Actions>
               <Button
                 onClick={() => inputRef.current?.click()}
-                disabled={isLoading}
+                loading={pending === 'file'}
+                loadingAnnouncement="Loading graph"
+                disabled={isLoading && pending !== 'file'}
               >
-                {isLoading ? 'Loading…' : 'Browse files'}
+                Browse files
               </Button>
               {hasDemo && (
                 <Button
                   variant="outline"
-                  onClick={onLoadDemo}
-                  disabled={isLoading}
+                  onClick={() => {
+                    setPending('demo');
+                    onLoadDemo();
+                  }}
+                  loading={pending === 'demo'}
+                  loadingAnnouncement="Loading demo"
+                  disabled={isLoading && pending !== 'demo'}
                 >
                   Load demo
                 </Button>
