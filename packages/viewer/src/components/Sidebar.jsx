@@ -54,6 +54,7 @@ export default function Sidebar() {
     toggleHighTraffic,
     setHighTrafficValue,
     loadFile,
+    clearData,
     isBusy,
   } = useGraphContext();
 
@@ -451,7 +452,16 @@ export default function Sidebar() {
     <aside className="sidebar">
       <header className="sidebar__header">
         <Stack direction="row" align="center" gap="sm">
-          <Logo />
+          <Button
+            variant="minimal"
+            tone="neutral"
+            onClick={clearData}
+            disabled={isBusy}
+            aria-label="Return to home"
+            className="sidebar__home-btn"
+          >
+            <Logo />
+          </Button>
           <Text variant="body-sm">{metadataLine}</Text>
         </Stack>
       </header>
