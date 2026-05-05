@@ -46,13 +46,13 @@ export default function HomePage({ onFileLoad, isLoading, onLoadDemo, hasDemo })
     [onFileLoad]
   );
 
-  const description = isLoading
-    ? 'Parsing your graph…'
-    : dragging
-      ? 'Release to load this graph'
-      : hasDemo
-        ? 'Drag and drop a hooks JSON file, browse to pick one, or load the demo.'
-        : 'Drag and drop a hooks JSON file, or browse to pick one.';
+  function getDescription() {
+    if (isLoading) return 'Parsing your graph…';
+    if (dragging) return 'Release to load this graph';
+    if (hasDemo) return 'Drag and drop a hooks JSON file, browse to pick one, or load the demo.';
+    return 'Drag and drop a hooks JSON file, or browse to pick one.';
+  }
+  const description = getDescription();
 
   return (
     <div

@@ -63,26 +63,30 @@ export default function useGraphData() {
     };
   }, [parseJson]);
 
-  // Manual file upload
+  // Shared loader: parse text → set data, handle errors uniformly.
+  const loadGraphFromJson = useCallback(
+    (text, errorPrefix = '') =>
+      parseJson(text)
+        .then((parsed) => {
+          setData(parsed);
+          setIsLoading(false);
+        })
+        .catch((err) => {
+          setError(errorPrefix + err.message);
+          setIsLoading(false);
+        }),
+    [parseJson]
+  );
+
   const loadFile = useCallback(
     (file) => {
       setIsLoading(true);
       setError(null);
       const reader = new FileReader();
-      reader.onload = (e) => {
-        parseJson(e.target.result)
-          .then((parsed) => {
-            setData(parsed);
-            setIsLoading(false);
-          })
-          .catch((err) => {
-            setError('Invalid JSON file: ' + err.message);
-            setIsLoading(false);
-          });
-      };
+      reader.onload = (e) => loadGraphFromJson(e.target.result, 'Invalid JSON file: ');
       reader.readAsText(file);
     },
-    [parseJson]
+    [loadGraphFromJson]
   );
 
   const loadDemo = useCallback(() => {
@@ -95,16 +99,12 @@ export default function useGraphData() {
         }
         return r.text();
       })
-      .then((text) => parseJson(text))
-      .then((parsed) => {
-        setData(parsed);
-        setIsLoading(false);
-      })
+      .then((text) => loadGraphFromJson(text))
       .catch((err) => {
         setError(err.message);
         setIsLoading(false);
       });
-  }, [parseJson]);
+  }, [loadGraphFromJson]);
 
   const clearData = useCallback(() => {
     setData(null);
