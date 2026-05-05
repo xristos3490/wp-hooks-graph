@@ -4,6 +4,7 @@ export default function useGraphData() {
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [hasDemo, setHasDemo] = useState(false);
 
   // Parse JSON, with Web Worker for large payloads
   const parseJson = useCallback((text) => {
@@ -31,9 +32,17 @@ export default function useGraphData() {
     });
   }, []);
 
-  // Auto-fetch from server
+  // On mount: probe demo endpoint, and auto-load hooks.json if bound.
   useEffect(() => {
     let cancelled = false;
+
+    fetch('./demo.json', { method: 'HEAD' })
+      .then((r) => r.ok && r.status !== 204)
+      .catch(() => false)
+      .then((demo) => {
+        if (!cancelled) setHasDemo(demo);
+      });
+
     fetch('./hooks.json')
       .then((r) => {
         // 204 = server has no JSON bound; stay on the homepage silently.
@@ -48,6 +57,7 @@ export default function useGraphData() {
       .catch(() => {
         if (!cancelled) setIsLoading(false);
       });
+
     return () => {
       cancelled = true;
     };
@@ -75,5 +85,32 @@ export default function useGraphData() {
     [parseJson]
   );
 
-  return { data, isLoading, error, loadFile };
+  const loadDemo = useCallback(() => {
+    setIsLoading(true);
+    setError(null);
+    return fetch('./demo.json')
+      .then((r) => {
+        if (!r.ok || r.status === 204) {
+          throw new Error(`No demo available (status ${r.status})`);
+        }
+        return r.text();
+      })
+      .then((text) => parseJson(text))
+      .then((parsed) => {
+        setData(parsed);
+        setIsLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setIsLoading(false);
+      });
+  }, [parseJson]);
+
+  const clearData = useCallback(() => {
+    setData(null);
+    setError(null);
+    setIsLoading(false);
+  }, []);
+
+  return { data, isLoading, error, loadFile, loadDemo, clearData, hasDemo };
 }

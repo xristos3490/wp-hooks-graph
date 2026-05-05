@@ -197,7 +197,7 @@ async function runServe(args) {
 
   const srv = spawn('php', ['-S', `127.0.0.1:${port}`, '-t', DIST_DIR, SERVER_ENTRY], {
     stdio: 'inherit',
-    env: { ...process.env, HOOKS_JSON: path.resolve(hooksJson) },
+    env: { ...process.env, HOOKS_JSON: path.resolve(hooksJson), HOOKS_DIST_DIR: DIST_DIR },
   });
 
   const openers = ['open', 'xdg-open', 'wslview', 'start'];

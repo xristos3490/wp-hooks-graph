@@ -5,7 +5,7 @@ import HomePageBackground from './HomePageBackground';
 import GitHubLink from './GitHubLink';
 import './HomePage.css';
 
-export default function HomePage({ onFileLoad, isLoading }) {
+export default function HomePage({ onFileLoad, isLoading, onLoadDemo, hasDemo }) {
   const inputRef = useRef(null);
   const [dragging, setDragging] = useState(false);
   const dragCounter = useRef(0);
@@ -50,7 +50,9 @@ export default function HomePage({ onFileLoad, isLoading }) {
     ? 'Parsing your graph…'
     : dragging
       ? 'Release to load this graph'
-      : 'Drag and drop a hooks JSON file, or browse to pick one.';
+      : hasDemo
+        ? 'Drag and drop a hooks JSON file, browse to pick one, or load the demo.'
+        : 'Drag and drop a hooks JSON file, or browse to pick one.';
 
   return (
     <div
@@ -74,13 +76,20 @@ export default function HomePage({ onFileLoad, isLoading }) {
             <EmptyState.Description>{description}</EmptyState.Description>
             <EmptyState.Actions>
               <Button
-                variant="primary"
-                tone="accent"
                 onClick={() => inputRef.current?.click()}
                 disabled={isLoading}
               >
                 {isLoading ? 'Loading…' : 'Browse files'}
               </Button>
+              {hasDemo && (
+                <Button
+                  variant="outline"
+                  onClick={onLoadDemo}
+                  disabled={isLoading}
+                >
+                  Load demo
+                </Button>
+              )}
             </EmptyState.Actions>
           </EmptyState.Root>
 
