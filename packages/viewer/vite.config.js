@@ -1,10 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { readFileSync, existsSync, readdirSync, statSync } from 'fs';
-import { resolve, join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { readFileSync, existsSync } from 'fs';
+import { resolve } from 'path';
 import dsTokenFallbacksPostcss from '@wordpress/theme/postcss-plugins/postcss-ds-token-fallbacks';
 import dsTokenFallbacksVite from '@wordpress/theme/vite-plugins/vite-ds-token-fallbacks';
 
@@ -41,36 +38,8 @@ function hooksJsonPlugin() {
   };
 }
 
-function demoJsonPlugin() {
-  const parsedDir = resolve(__dirname, 'public/parsed');
-
-  function firstJson() {
-    if (!existsSync(parsedDir) || !statSync(parsedDir).isDirectory()) return null;
-    const files = readdirSync(parsedDir)
-      .filter((f) => f.toLowerCase().endsWith('.json'))
-      .sort();
-    return files.length ? join(parsedDir, files[0]) : null;
-  }
-
-  return {
-    name: 'demo-json',
-    configureServer(server) {
-      server.middlewares.use('/demo.json', (req, res) => {
-        const file = firstJson();
-        if (!file) {
-          res.statusCode = 204;
-          res.end();
-          return;
-        }
-        res.setHeader('Content-Type', 'application/json');
-        res.end(readFileSync(file, 'utf-8'));
-      });
-    },
-  };
-}
-
 export default defineConfig({
-  plugins: [react(), hooksJsonPlugin(), demoJsonPlugin(), dsTokenFallbacksVite()],
+  plugins: [react(), hooksJsonPlugin(), dsTokenFallbacksVite()],
   css: {
     postcss: {
       plugins: [dsTokenFallbacksPostcss()],

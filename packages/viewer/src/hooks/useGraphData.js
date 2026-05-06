@@ -37,7 +37,11 @@ export default function useGraphData() {
     let cancelled = false;
 
     fetch('./demo.json', { method: 'HEAD' })
-      .then((r) => r.ok && r.status !== 204)
+      .then((r) => {
+        if (!r.ok || r.status === 204) return false;
+        const ct = r.headers.get('content-type') || '';
+        return ct.includes('json');
+      })
       .catch(() => false)
       .then((demo) => {
         if (!cancelled) setHasDemo(demo);

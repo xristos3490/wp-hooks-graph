@@ -16,22 +16,4 @@ if ($path === '/hooks.json') {
     return true;
 }
 
-if ($path === '/demo.json') {
-    $dist = getenv('HOOKS_DIST_DIR') ?: null;
-    $dir = $dist && is_dir($dist . '/parsed') ? $dist . '/parsed' : null;
-    $first = null;
-    if ($dir) {
-        $files = glob($dir . '/*.json') ?: [];
-        sort($files);
-        if ($files) $first = $files[0];
-    }
-    if (!$first) {
-        http_response_code(204);
-        return true;
-    }
-    header('Content-Type: application/json');
-    readfile($first);
-    return true;
-}
-
 return false;
