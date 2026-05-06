@@ -82,6 +82,10 @@ body {
 .sidebar__header {
   margin-bottom: var(--wpds-dimension-padding-lg);
 }
+.sidebar__home-btn {
+  padding: var(--wpds-dimension-padding-xs);
+  height: auto;
+}
 /* Shared logo — SVG mark + handwritten wordmark */
 .hg-logo {
   display: inline-flex;

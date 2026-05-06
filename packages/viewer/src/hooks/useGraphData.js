@@ -4,6 +4,7 @@ export default function useGraphData() {
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [hasDemo, setHasDemo] = useState(false);
 
   // Parse JSON, with Web Worker for large payloads
   const parseJson = useCallback((text) => {
@@ -31,9 +32,20 @@ export default function useGraphData() {
     });
   }, []);
 
-  // Auto-fetch from server
   useEffect(() => {
     let cancelled = false;
+
+    fetch('./demo.json', { method: 'HEAD' })
+      .then((r) => {
+        if (!r.ok || r.status === 204) return false;
+        const ct = r.headers.get('content-type') || '';
+        return ct.includes('json');
+      })
+      .catch(() => false)
+      .then((demo) => {
+        if (!cancelled) setHasDemo(demo);
+      });
+
     fetch('./hooks.json')
       .then((r) => {
         // 204 = server has no JSON bound; stay on the homepage silently.
@@ -48,32 +60,60 @@ export default function useGraphData() {
       .catch(() => {
         if (!cancelled) setIsLoading(false);
       });
+
     return () => {
       cancelled = true;
     };
   }, [parseJson]);
 
-  // Manual file upload
+  // Shared loader: parse text → set data, handle errors uniformly.
+  const loadGraphFromJson = useCallback(
+    (text, errorPrefix = '') =>
+      parseJson(text)
+        .then((parsed) => {
+          setData(parsed);
+          setIsLoading(false);
+        })
+        .catch((err) => {
+          setError(errorPrefix + err.message);
+          setIsLoading(false);
+        }),
+    [parseJson]
+  );
+
   const loadFile = useCallback(
     (file) => {
       setIsLoading(true);
       setError(null);
       const reader = new FileReader();
-      reader.onload = (e) => {
-        parseJson(e.target.result)
-          .then((parsed) => {
-            setData(parsed);
-            setIsLoading(false);
-          })
-          .catch((err) => {
-            setError('Invalid JSON file: ' + err.message);
-            setIsLoading(false);
-          });
-      };
+      reader.onload = (e) => loadGraphFromJson(e.target.result, 'Invalid JSON file: ');
       reader.readAsText(file);
     },
-    [parseJson]
+    [loadGraphFromJson]
   );
 
-  return { data, isLoading, error, loadFile };
+  const loadDemo = useCallback(() => {
+    setIsLoading(true);
+    setError(null);
+    return fetch('./demo.json')
+      .then((r) => {
+        if (!r.ok || r.status === 204) {
+          throw new Error(`No demo available (status ${r.status})`);
+        }
+        return r.text();
+      })
+      .then((text) => loadGraphFromJson(text))
+      .catch((err) => {
+        setError(err.message);
+        setIsLoading(false);
+      });
+  }, [loadGraphFromJson]);
+
+  const clearData = useCallback(() => {
+    setData(null);
+    setError(null);
+    setIsLoading(false);
+  }, []);
+
+  return { data, isLoading, error, loadFile, loadDemo, clearData, hasDemo };
 }

@@ -13,7 +13,7 @@ import Legend from './components/Legend';
 import './styles/tokens.css';
 
 export default function App() {
-  const { data, isLoading, loadFile } = useGraphData();
+  const { data, isLoading, loadFile, loadDemo, clearData: clearGraphData, hasDemo } = useGraphData();
   const [selectedNode, setSelectedNode] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [groupBy, setGroupBy] = useState('file');
@@ -89,6 +89,14 @@ export default function App() {
   const selectNode = useCallback((id) => setSelectedNode(id), []);
   const clearSelection = useCallback(() => setSelectedNode(null), []);
 
+  // Reset view state alongside graph data so a returning user gets a clean slate.
+  const clearData = useCallback(() => {
+    clearGraphData();
+    setSelectedNode(null);
+    setSearchQuery('');
+    setIsComputing(false);
+  }, [clearGraphData]);
+
   const contextValue = useMemo(
     () => ({
       data,
@@ -118,6 +126,7 @@ export default function App() {
       groupBy,
       setGroupBy,
       loadFile,
+      clearData,
       isLoading,
       isComputing,
       setIsComputing,
@@ -146,6 +155,7 @@ export default function App() {
       searchQuery,
       groupBy,
       loadFile,
+      clearData,
       isLoading,
       isComputing,
     ]
@@ -153,7 +163,14 @@ export default function App() {
 
   // Show home page until a graph is loaded
   if (!data) {
-    return <HomePage onFileLoad={loadFile} isLoading={isLoading} />;
+    return (
+      <HomePage
+        onFileLoad={loadFile}
+        isLoading={isLoading}
+        onLoadDemo={loadDemo}
+        hasDemo={hasDemo}
+      />
+    );
   }
 
   return (
