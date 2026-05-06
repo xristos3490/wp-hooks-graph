@@ -32,7 +32,6 @@ export default function useGraphData() {
     });
   }, []);
 
-  // On mount: probe demo endpoint, and auto-load hooks.json if bound.
   useEffect(() => {
     let cancelled = false;
 
