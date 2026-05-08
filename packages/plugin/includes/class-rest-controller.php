@@ -109,7 +109,7 @@ final class Rest_Controller {
 			if ( '' === $item ) {
 				continue;
 			}
-			$out[] = mb_substr( $item, 0, 255 );
+			$out[] = wp_substr( $item, 0, 255 );
 		}
 		return array_values( array_unique( $out ) );
 	}
