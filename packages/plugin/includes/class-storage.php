@@ -201,6 +201,23 @@ final class Storage {
 	}
 
 	/**
+	 * Record a parse failure on the codebase meta option so the UI can show a
+	 * "Parse failed" pill. Merges into the existing record (if any) — preserves
+	 * the last successful parse fields so we still know what's on disk.
+	 */
+	public function save_codebase_failure( string $plugin_relative, string $error ): void {
+		$existing = $this->get_codebase_meta( $plugin_relative ) ?? [
+			'id'     => $this->codebase_id( $plugin_relative ),
+			'plugin' => $plugin_relative,
+		];
+
+		$existing['failed_at']    = time();
+		$existing['failed_error'] = wp_substr( $error, 0, 500 );
+
+		update_option( $this->codebase_option_name( $plugin_relative ), $existing, false );
+	}
+
+	/**
 	 * Remove older parsed files for a given plugin slug. Called after a successful
 	 * parse so we don't accumulate stale versions indefinitely.
 	 */

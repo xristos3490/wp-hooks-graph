@@ -10,6 +10,8 @@ declare(strict_types=1);
 
 namespace HooksGraph\Plugin;
 
+use Throwable;
+
 defined( 'ABSPATH' ) || exit;
 
 final class Cron {
@@ -53,20 +55,37 @@ final class Cron {
 	 * since the job was queued, and that's fine.
 	 */
 	public function run( string $plugin_relative ): void {
-		// `get_plugins()` is an admin function — load it explicitly because
-		// WP-Cron requests don't bootstrap wp-admin.
-		if ( ! function_exists( 'get_plugins' ) ) {
-			require_once ABSPATH . 'wp-admin/includes/plugin.php';
-		}
+		try {
+			// `get_plugins()` is an admin function — load it explicitly because
+			// WP-Cron requests don't bootstrap wp-admin.
+			if ( ! function_exists( 'get_plugins' ) ) {
+				require_once ABSPATH . 'wp-admin/includes/plugin.php';
+			}
 
-		$plugins = get_plugins();
-		$key     = $plugin_relative . '.php';
-		if ( ! isset( $plugins[ $key ] ) ) {
-			return;
-		}
+			$plugins = get_plugins();
+			$key     = $plugin_relative . '.php';
+			if ( ! isset( $plugins[ $key ] ) ) {
+				$this->record_failure( $plugin_relative, 'Plugin not installed.' );
+				return;
+			}
 
-		$version  = (string) ( $plugins[ $key ]['Version'] ?? '' );
-		$settings = $this->storage->get_settings( $plugin_relative );
-		$this->parser->parse( $plugin_relative, $version, $settings['exclude'] );
+			$version  = (string) ( $plugins[ $key ]['Version'] ?? '' );
+			$settings = $this->storage->get_settings( $plugin_relative );
+			$result   = $this->parser->parse( $plugin_relative, $version, $settings['exclude'] );
+
+			if ( ! ( $result['ok'] ?? false ) ) {
+				$this->record_failure( $plugin_relative, (string) ( $result['error'] ?? 'Unknown parser failure.' ) );
+			}
+		} catch ( Throwable $e ) {
+			$this->record_failure(
+				$plugin_relative,
+				sprintf( '%s: %s', $e::class, $e->getMessage() )
+			);
+		}
+	}
+
+	private function record_failure( string $plugin_relative, string $error ): void {
+		error_log( sprintf( '[hooksgraph] Parse failed for %s: %s', $plugin_relative, $error ) );
+		$this->storage->save_codebase_failure( $plugin_relative, $error );
 	}
 }

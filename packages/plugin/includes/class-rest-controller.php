@@ -129,7 +129,7 @@ final class Rest_Controller {
 	 * Return a `{ "<plugin-key>": { status, last_parsed_at, exclude } }` map
 	 * for every active plugin.
 	 *
-	 * Status values: parsed | stale | needs_parsing | scheduled.
+	 * Status values: parsed | stale | needs_parsing | scheduled | failed.
 	 */
 	public function list_status( WP_REST_Request $request ): WP_REST_Response {
 		if ( ! function_exists( 'get_plugins' ) ) {
@@ -149,13 +149,22 @@ final class Rest_Controller {
 			$key     = substr( $file, 0, -4 );
 			$version = (string) ( $all[ $file ]['Version'] ?? '' );
 
-			$status = $this->cron->is_scheduled( $key )
-				? 'scheduled'
-				: $this->storage->status_for( $key, $version );
-
 			$last     = $this->storage->last_parsed_at( $key );
 			$settings = $this->storage->get_settings( $key );
 			$meta     = $this->storage->get_codebase_meta( $key );
+
+			$failed_at = isset( $meta['failed_at'] ) ? (int) $meta['failed_at'] : null;
+			// A failure is "current" only if it's newer than the last successful
+			// parse on disk — otherwise a successful re-parse already resolved it.
+			$has_recent_failure = null !== $failed_at && ( null === $last || $failed_at > $last );
+
+			if ( $this->cron->is_scheduled( $key ) ) {
+				$status = 'scheduled';
+			} elseif ( $has_recent_failure ) {
+				$status = 'failed';
+			} else {
+				$status = $this->storage->status_for( $key, $version );
+			}
 
 			$map[ $key ] = [
 				'status'         => $status,
@@ -165,6 +174,8 @@ final class Rest_Controller {
 				'total_hooks'    => isset( $meta['total_hooks'] ) ? (int) $meta['total_hooks'] : null,
 				'total_edges'    => isset( $meta['total_edges'] ) ? (int) $meta['total_edges'] : null,
 				'dynamic_hooks'  => isset( $meta['dynamic_hooks'] ) ? (int) $meta['dynamic_hooks'] : null,
+				'failed_at'      => $has_recent_failure ? gmdate( 'c', $failed_at ) : null,
+				'failed_error'   => $has_recent_failure && isset( $meta['failed_error'] ) ? (string) $meta['failed_error'] : null,
 			];
 		}
 
