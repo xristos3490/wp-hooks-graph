@@ -5,7 +5,13 @@ import { EdgeCurvedArrowProgram } from '@sigma/edge-curve';
 import { NodeSquareProgram } from '@sigma/node-square';
 import { useGraphContext } from '../context/GraphContext';
 import { useSizing } from '../context/SizingContext';
-import { buildSigmaGraph, buildCyAdapter, computeNodeSize, computeDensityFactor, recolorGraph } from '../lib/sigma-setup';
+import {
+  buildSigmaGraph,
+  buildCyAdapter,
+  computeNodeSize,
+  computeDensityFactor,
+  recolorGraph,
+} from '../lib/sigma-setup';
 import { applyLayout } from '../lib/sigma-layouts';
 import { SIGMA_SIZE_PCT } from '../lib/constants';
 import SigmaSizingControls from './SigmaSizingControls';
@@ -15,9 +21,7 @@ import SigmaSizingControls from './SigmaSizingControls';
 // resolves in the frame *after* paint, guaranteeing the spinner is visible
 // before we kick off buildSigmaGraph/applyLayout.
 function yieldToMain() {
-  return new Promise((resolve) =>
-    requestAnimationFrame(() => requestAnimationFrame(resolve))
-  );
+  return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 }
 
 export default function SigmaGraphCanvas() {
@@ -132,10 +136,18 @@ export default function SigmaGraphCanvas() {
       await yieldToMain();
       if (destroyed) return;
 
-      const graph = buildSigmaGraph(data, sourceLabelsRef.current, repoPalettesRef.current, groupBy);
+      const graph = buildSigmaGraph(
+        data,
+        sourceLabelsRef.current,
+        repoPalettesRef.current,
+        groupBy
+      );
       graphRef.current = graph;
 
-      setProgress({ label: 'Computing layout…', detail: isLargeGraph ? 'This may take a moment.' : '' });
+      setProgress({
+        label: 'Computing layout…',
+        detail: isLargeGraph ? 'This may take a moment.' : '',
+      });
       await yieldToMain();
       if (destroyed) return;
 
@@ -179,9 +191,7 @@ export default function SigmaGraphCanvas() {
         // Seed in pixels at the current vmin; the resize / viewport-scale
         // effects below push live updates via sigma.setSetting().
         labelRenderedSizeThreshold:
-          ((isLargeGraph
-            ? SIGMA_SIZE_PCT.labelThresholdLarge
-            : SIGMA_SIZE_PCT.labelThreshold) /
+          ((isLargeGraph ? SIGMA_SIZE_PCT.labelThresholdLarge : SIGMA_SIZE_PCT.labelThreshold) /
             100) *
           (vminRef.current || 1000),
         enableEdgeEvents: false,
@@ -206,8 +216,7 @@ export default function SigmaGraphCanvas() {
           // boost apply without rebuilding the graph. Effective vmin folds in
           // the Viewport % slider so dialing it down emulates a smaller
           // canvas across every downstream consumer.
-          const effectiveVmin =
-            vminRef.current * (sizingRef.current.viewportScale / 100);
+          const effectiveVmin = vminRef.current * (sizingRef.current.viewportScale / 100);
           r.size = computeNodeSize(
             attrs,
             sizingRef.current,
@@ -223,8 +232,7 @@ export default function SigmaGraphCanvas() {
           const inSearch = h.searchNeighborhood && h.searchNeighborhood.has(node);
           const inSelected = h.selectedNeighborhood && h.selectedNeighborhood.has(node);
           const inHovered = h.hoveredNeighborhood && h.hoveredNeighborhood.has(node);
-          const anyActive =
-            h.searchNeighborhood || h.selectedNeighborhood || h.hoveredNeighborhood;
+          const anyActive = h.searchNeighborhood || h.selectedNeighborhood || h.hoveredNeighborhood;
           const inAny = inSearch || inSelected || inHovered;
           if (anyActive && !inAny) {
             r.color = fadeBgColor(sizingRef.current.canvasBg);
@@ -261,8 +269,7 @@ export default function SigmaGraphCanvas() {
           }
           // Convert vmin-% sizes to pixels using the same effective vmin as
           // the node reducer. Sigma reads `r.size` in screen pixels.
-          const edgeVmin =
-            vminRef.current * (sizingRef.current.viewportScale / 100);
+          const edgeVmin = vminRef.current * (sizingRef.current.viewportScale / 100);
           r.size = (SIGMA_SIZE_PCT.edgeSize / 100) * (edgeVmin || 1000);
           // Default per-direction program — overridden below if this edge is
           // inside an active highlight. Both directions render via the
@@ -278,13 +285,14 @@ export default function SigmaGraphCanvas() {
           // surfaced when the edge is inside an active highlight; at idle
           // we'd flood the canvas otherwise.
           r.label = '';
-          const anyActive =
-            h.searchNeighborhood || h.selectedNeighborhood || h.hoveredNeighborhood;
+          const anyActive = h.searchNeighborhood || h.selectedNeighborhood || h.hoveredNeighborhood;
           if (anyActive) {
             const src = graph.source(edge);
             const tgt = graph.target(edge);
             const inSearch =
-              h.searchNeighborhood && h.searchNeighborhood.has(src) && h.searchNeighborhood.has(tgt);
+              h.searchNeighborhood &&
+              h.searchNeighborhood.has(src) &&
+              h.searchNeighborhood.has(tgt);
             const inSelected =
               h.selectedNeighborhood &&
               h.selectedNeighborhood.has(src) &&
@@ -296,16 +304,11 @@ export default function SigmaGraphCanvas() {
             if (inSearch || inSelected || inHovered) {
               r.size = (FOCUSED_EDGE_SIZE_PCT / 100) * (edgeVmin || 1000);
               r.type = EDGE_PROGRAM;
-              const touchesSelected =
-                h.selectedNodeId === src || h.selectedNodeId === tgt;
+              const touchesSelected = h.selectedNodeId === src || h.selectedNodeId === tgt;
               const baseColor = attrs.baseColor || attrs.color;
               r.color = touchesSelected
                 ? baseColor
-                : fadeColor(
-                    baseColor,
-                    sizingRef.current.edgeOpacity,
-                    sizingRef.current.canvasBg
-                  );
+                : fadeColor(baseColor, sizingRef.current.edgeOpacity, sizingRef.current.canvasBg);
               // Edge labels are noisy on broad search matches, so only
               // surface them on explicit pointer interactions (selection
               // or hover). Search keeps the highlight visuals unlabeled.
@@ -337,15 +340,11 @@ export default function SigmaGraphCanvas() {
       // push a fresh labelRenderedSizeThreshold via setSetting on every tick
       // — sigma reads it each frame, so this is enough.
       const updateLabelThreshold = () => {
-        const effectiveVmin =
-          vminRef.current * (sizingRef.current.viewportScale / 100);
+        const effectiveVmin = vminRef.current * (sizingRef.current.viewportScale / 100);
         const pct = isLargeGraph
           ? SIGMA_SIZE_PCT.labelThresholdLarge
           : SIGMA_SIZE_PCT.labelThreshold;
-        sigma.setSetting(
-          'labelRenderedSizeThreshold',
-          (pct / 100) * (effectiveVmin || 1000)
-        );
+        sigma.setSetting('labelRenderedSizeThreshold', (pct / 100) * (effectiveVmin || 1000));
       };
       labelThresholdRef.current = updateLabelThreshold;
       updateLabelThreshold();
@@ -415,7 +414,8 @@ export default function SigmaGraphCanvas() {
       const initialEdgeIds = new Set();
       graph.forEachNode((id, attrs) => {
         if (attrs.nodeType === 'hook') initialHookIds.add(id);
-        else if (attrs.nodeType === 'file' || attrs.nodeType === 'class') initialFileClassIds.add(id);
+        else if (attrs.nodeType === 'file' || attrs.nodeType === 'class')
+          initialFileClassIds.add(id);
       });
       graph.forEachEdge((id) => initialEdgeIds.add(id));
       prevVisibleRef.current = {
