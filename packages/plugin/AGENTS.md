@@ -59,7 +59,7 @@ Run from the **monorepo root** (workspace-aware) unless noted otherwise.
 - **Status classifier** in `Storage::status_for()` is filename-based: exact `<basename>-<version>.json` → `parsed`; any other `<basename>-*.json` → `stale`; nothing → `needs_parsing`. The REST layer overlays a fourth value `scheduled` when a Cron event is pending.
 - **Parsing in-process** uses `FileParser::parse()` per file with `array_merge` of the call records, then `Builder::build()` produces the graph. Per-file failures are logged via `error_log()` and skipped — they don't abort the run.
 - **REST permission** is uniformly `current_user_can( 'manage_options' )`. `sanitize_plugin()` enforces `^[a-zA-Z0-9._-]+(?:/[a-zA-Z0-9._-]+)?$`; anything else is rejected.
-- **Schedule semantics**: `Cron::schedule()` returns `true` only when it newly queues an event; an already-pending job returns `false`. The REST response distinguishes via `scheduled` (always `true` once accepted) and `newly` (one-shot indicator).
+- **Schedule semantics**: `Cron::schedule()` returns one of `Cron::SCHEDULE_NEW` / `SCHEDULE_EXISTING` / `SCHEDULE_FAILED`. The REST endpoint maps `SCHEDULE_FAILED` to a 500 `WP_Error` and otherwise responds 202 with `scheduled => true` plus `newly` distinguishing new vs already-pending.
 - **Cron callback re-reads version** from `get_plugins()` — the queued job carries only the plugin key, so a plugin update between schedule and run is fine.
 - **React UI** is mounted at `#hooksgraph-admin-root` on the Tools → HooksGraph screen. Data layer is `apiFetch` against `/wp/v2/plugins?context=view&per_page=100` (active plugins) joined with `/hooksgraph/v1/parse-status` (parse state).
 

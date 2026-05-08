@@ -25,16 +25,23 @@ final class Cron {
 		add_action( self::HOOK, [ $this, 'run' ], 10, 1 );
 	}
 
+	public const SCHEDULE_NEW      = 'new';
+	public const SCHEDULE_EXISTING = 'existing';
+	public const SCHEDULE_FAILED   = 'failed';
+
 	/**
 	 * Schedule a parse for a plugin if one isn't already queued.
 	 *
-	 * @return bool True if newly scheduled, false if a job already exists or scheduling failed.
+	 * @return string One of SCHEDULE_NEW (newly queued), SCHEDULE_EXISTING (a job
+	 *                was already pending), or SCHEDULE_FAILED (wp_schedule_single_event
+	 *                rejected the request).
 	 */
-	public function schedule( string $plugin_relative ): bool {
+	public function schedule( string $plugin_relative ): string {
 		if ( $this->is_scheduled( $plugin_relative ) ) {
-			return false;
+			return self::SCHEDULE_EXISTING;
 		}
-		return false !== wp_schedule_single_event( time() + 5, self::HOOK, [ $plugin_relative ] );
+		$queued = wp_schedule_single_event( time() + 5, self::HOOK, [ $plugin_relative ] );
+		return false === $queued ? self::SCHEDULE_FAILED : self::SCHEDULE_NEW;
 	}
 
 	public function is_scheduled( string $plugin_relative ): bool {

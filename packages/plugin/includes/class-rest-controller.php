@@ -247,12 +247,20 @@ final class Rest_Controller {
 		$exclude = (array) $request->get_param( 'exclude' );
 		$this->storage->save_settings( $plugin, $exclude );
 
-		$scheduled = $this->cron->schedule( $plugin );
+		$result = $this->cron->schedule( $plugin );
+		if ( Cron::SCHEDULE_FAILED === $result ) {
+			return new WP_Error(
+				'hooksgraph_schedule_failed',
+				__( 'Failed to schedule parse.', 'hooksgraph' ),
+				[ 'status' => 500 ]
+			);
+		}
+
 		return new WP_REST_Response(
 			[
 				'plugin'    => $plugin,
-				'scheduled' => true, // Either we just queued it or one was already pending.
-				'newly'     => $scheduled,
+				'scheduled' => true,
+				'newly'     => Cron::SCHEDULE_NEW === $result,
 				'exclude'   => $exclude,
 			],
 			202
