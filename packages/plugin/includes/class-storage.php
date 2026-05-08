@@ -37,7 +37,9 @@ final class Storage {
 		// JSON files even though they only contain public hook metadata.
 		$index = $dir . '/index.php';
 		if ( ! file_exists( $index ) ) {
-			file_put_contents( $index, "<?php\n// Silence is golden.\n" );
+			if ( false === @file_put_contents( $index, "<?php\n// Silence is golden.\n" ) ) {
+				return false;
+			}
 		}
 
 		return true;
