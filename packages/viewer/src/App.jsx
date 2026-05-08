@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import GraphContext from './context/GraphContext';
+import { SizingProvider } from './context/SizingContext';
 import useGraphData from './hooks/useGraphData';
 import useFilterState from './hooks/useFilterState';
 import { generateRepoPalette } from './lib/color-palette';
@@ -182,15 +183,17 @@ export default function App() {
 
   return (
     <GraphContext.Provider value={contextValue}>
-      <div className="app-shell">
-        <Sidebar />
-        <div className="graph-area">
-          <SearchOverlay />
-          <SigmaGraphCanvas />
-          <DetailPanel />
-          <Legend />
+      <SizingProvider>
+        <div className="app-shell">
+          <Sidebar />
+          <div className="graph-area">
+            <SearchOverlay />
+            <SigmaGraphCanvas />
+            <DetailPanel />
+            <Legend />
+          </div>
         </div>
-      </div>
+      </SizingProvider>
     </GraphContext.Provider>
   );
 }

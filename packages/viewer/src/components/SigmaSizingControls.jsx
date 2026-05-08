@@ -5,9 +5,6 @@ import {
   SIGMA_SIZING_MAX,
   SIGMA_VIEWPORT_SCALE_MIN,
   SIGMA_VIEWPORT_SCALE_MAX,
-  SIGMA_FOCUSED_EDGE_TYPES,
-  SIGMA_FOCUSED_EDGE_SIZE_MIN,
-  SIGMA_FOCUSED_EDGE_SIZE_MAX,
   SIGMA_EDGE_OPACITY_MIN,
   SIGMA_EDGE_OPACITY_MAX,
 } from '../lib/constants';
@@ -44,7 +41,11 @@ export default function SigmaSizingControls({
 
   if (!open) {
     return (
-      <button type="button" style={{ ...buttonStyle, ...togglePos }} onClick={() => setOpen(true)}>
+      <button
+        type="button"
+        style={{ ...buttonStyle, ...togglePos }}
+        onClick={() => setOpen(true)}
+      >
         Sizing
       </button>
     );
@@ -68,16 +69,17 @@ export default function SigmaSizingControls({
         step={5}
         onChange={(v) => set({ viewportScale: v })}
       />
+      <ColorRow
+        label="Canvas bg"
+        color={sizing.canvasBg}
+        onCommit={(hex) => set({ canvasBg: hex })}
+      />
 
       <div style={sectionLabelStyle}>Nodes</div>
       <Slider label="Hooks" value={sizing.hookScale} onChange={(v) => set({ hookScale: v })} />
       <Slider label="Files" value={sizing.fileScale} onChange={(v) => set({ fileScale: v })} />
       <Slider label="Classes" value={sizing.classScale} onChange={(v) => set({ classScale: v })} />
-      <Slider
-        label="Hub emphasis"
-        value={sizing.hubEmphasis}
-        onChange={(v) => set({ hubEmphasis: v })}
-      />
+      <Slider label="Hub emphasis" value={sizing.hubEmphasis} onChange={(v) => set({ hubEmphasis: v })} />
 
       <Toggle
         label="Reveal on zoom"
@@ -91,18 +93,6 @@ export default function SigmaSizingControls({
       />
 
       <div style={sectionLabelStyle}>Edges</div>
-      <Select
-        label="Fires type"
-        value={sizing.fireEdgeType}
-        options={SIGMA_FOCUSED_EDGE_TYPES}
-        onChange={(v) => set({ fireEdgeType: v })}
-      />
-      <Select
-        label="Listens type"
-        value={sizing.listenEdgeType}
-        options={SIGMA_FOCUSED_EDGE_TYPES}
-        onChange={(v) => set({ listenEdgeType: v })}
-      />
       <NumericSlider
         label="Opacity %"
         value={sizing.edgeOpacity}
@@ -112,28 +102,6 @@ export default function SigmaSizingControls({
         onChange={(v) => set({ edgeOpacity: v })}
       />
 
-      <div style={sectionLabelStyle}>Focused edges</div>
-      <NumericSlider
-        label="Width %"
-        value={sizing.focusedEdgeSize}
-        min={SIGMA_FOCUSED_EDGE_SIZE_MIN}
-        max={SIGMA_FOCUSED_EDGE_SIZE_MAX}
-        step={0.05}
-        onChange={(v) => set({ focusedEdgeSize: v })}
-      />
-      <Select
-        label="Fires type"
-        value={sizing.focusedFireEdgeType}
-        options={SIGMA_FOCUSED_EDGE_TYPES}
-        onChange={(v) => set({ focusedFireEdgeType: v })}
-      />
-      <Select
-        label="Listens type"
-        value={sizing.focusedListenEdgeType}
-        options={SIGMA_FOCUSED_EDGE_TYPES}
-        onChange={(v) => set({ focusedListenEdgeType: v })}
-      />
-
       {sourceLabels.length > 0 && setPaletteHueOverrides && (
         <>
           <div style={sectionLabelStyle}>Source colors</div>
@@ -141,7 +109,7 @@ export default function SigmaSizingControls({
             const palette = repoPalettes[label];
             const swatch = palette ? palette.action : '#888888';
             return (
-              <SourceColorRow
+              <ColorRow
                 key={label}
                 label={label}
                 color={swatch}
@@ -204,23 +172,6 @@ function NumericSlider({ label, value, min, max, step, onChange }) {
   );
 }
 
-function Select({ label, value, options, onChange }) {
-  return (
-    <label style={rowStyle}>
-      <div style={rowLabelStyle}>
-        <span>{label}</span>
-      </div>
-      <select value={value} onChange={(e) => onChange(e.target.value)} style={selectStyle}>
-        {options.map((opt) => (
-          <option key={opt} value={opt}>
-            {opt}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
 // React's synthetic onChange on <input type="color"> maps to the native
 // `input` event, which fires continuously while the user drags in the picker
 // — that would re-render the whole graph on every pixel. We attach a native
@@ -228,7 +179,7 @@ function Select({ label, value, options, onChange }) {
 // (i.e. on commit). defaultValue (not value) lets the input track its own
 // state during the drag, and we sync from the upstream `color` prop via a
 // ref-driven effect when it changes from outside.
-function SourceColorRow({ label, color, onCommit }) {
+function ColorRow({ label, color, onCommit }) {
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -250,7 +201,12 @@ function SourceColorRow({ label, color, onCommit }) {
       <span style={colorLabelStyle} title={label}>
         {label}
       </span>
-      <input ref={inputRef} type="color" defaultValue={color} style={colorInputStyle} />
+      <input
+        ref={inputRef}
+        type="color"
+        defaultValue={color}
+        style={colorInputStyle}
+      />
     </label>
   );
 }
@@ -258,7 +214,11 @@ function SourceColorRow({ label, color, onCommit }) {
 function Toggle({ label, checked, onChange }) {
   return (
     <label style={toggleRowStyle}>
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+      />
       <span>{label}</span>
     </label>
   );
@@ -268,7 +228,7 @@ const panelStyle = {
   position: 'absolute',
   top: 12,
   right: 12,
-  zIndex: 10,
+  zIndex: 1000,
   width: 220,
   padding: 12,
   background: 'rgba(255, 255, 255, 0.95)',
@@ -280,7 +240,7 @@ const panelStyle = {
   color: '#1e1a24',
 };
 
-const togglePos = { position: 'absolute', top: 12, right: 12, zIndex: 10 };
+const togglePos = { position: 'absolute', top: 12, right: 12, zIndex: 1000 };
 
 const headerStyle = {
   display: 'flex',
@@ -324,14 +284,6 @@ const sectionLabelStyle = {
   marginBottom: 4,
 };
 
-const selectStyle = {
-  width: '100%',
-  padding: '3px 6px',
-  fontSize: 12,
-  border: '1px solid #ccc',
-  borderRadius: 4,
-  background: '#fff',
-};
 
 const colorRowStyle = {
   display: 'flex',

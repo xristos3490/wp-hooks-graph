@@ -30,22 +30,15 @@ export const SIGMA_SIZING_DEFAULTS = {
   // sizing pipeline behaves as if the canvas were smaller. Lets the user
   // verify small-screen behavior without resizing the browser.
   viewportScale: 70,
-  // Default edge programs per direction. Sigma 3 ships 'arrow' and 'line';
-  // 'curvedArrow' comes from @sigma/edge-curve and uses the per-edge
-  // `curvature` attribute (positive for fires, negative for listens) to
-  // bow the two directions opposite ways.
-  fireEdgeType: 'curvedArrow',
-  listenEdgeType: 'curvedArrow',
-  // Focused-edge styling (search/selection/hover neighborhoods). The reducer
-  // reads these every frame, so changes apply on the next sigma refresh.
-  // Stored as % of vmin (0.15 = 0.15% of canvas vmin).
-  focusedEdgeSize: 0.15,
-  focusedFireEdgeType: 'curvedArrow',
-  focusedListenEdgeType: 'curvedArrow',
-  // Edge opacity as integer percent (0–100). Applied as an alpha-hex suffix
-  // on the base edge color in the reducer; sigma's default WebGL programs
-  // parse #RRGGBBAA, so this is just a string concat at apply time.
+  // Edge opacity as integer percent (0–100). The reducer pre-mixes the base
+  // edge color toward the canvas background via fadeColor() so sigma's
+  // default WebGL programs (which parse #RRGGBB only) still render correctly
+  // — alpha-hex suffixes are not used.
   edgeOpacity: 100,
+  // Canvas background. Applied as an inline style on the sigma container
+  // div — sigma's WebGL canvas renders transparent on top of it, so this is
+  // the surface color edges/nodes blend against.
+  canvasBg: '#ffffff',
 };
 
 export const SIGMA_SIZING_MIN = 25;
@@ -53,12 +46,6 @@ export const SIGMA_SIZING_MAX = 300;
 
 export const SIGMA_VIEWPORT_SCALE_MIN = 25;
 export const SIGMA_VIEWPORT_SCALE_MAX = 100;
-
-export const SIGMA_FOCUSED_EDGE_TYPES = ['arrow', 'line', 'curvedArrow'];
-// Focused-edge size bounds, in % of vmin. Calibrated so the visual range
-// matches the previous 1–10 pixel range at a ~1000px canvas.
-export const SIGMA_FOCUSED_EDGE_SIZE_MIN = 0.1;
-export const SIGMA_FOCUSED_EDGE_SIZE_MAX = 1.0;
 
 export const SIGMA_EDGE_OPACITY_MIN = 0;
 export const SIGMA_EDGE_OPACITY_MAX = 100;
