@@ -2,10 +2,11 @@
 /**
  * Storage layout for parsed hook graphs.
  *
- * Files live at `wp-content/hooksgraph/<basename>-<version>.json`. The basename
- * is the plugin's main entry filename without `.php` (matching the user-visible
- * naming convention requested by the spec); the version comes from the plugin
- * header and gives us a coarse stale/parsed/needs-parsing classifier.
+ * Files live at `wp-content/hooksgraph/<slug>-<version>.json`. The slug is the
+ * plugin's directory name for foldered plugins (`akismet/akismet` → `akismet`,
+ * `wordpress-seo/wp-seo` → `wordpress-seo`) and the filename stem for single-
+ * file plugins (`hello` → `hello`). The version comes from the plugin header
+ * and gives us a coarse stale/parsed/needs-parsing classifier.
  */
 
 declare(strict_types=1);
@@ -46,14 +47,28 @@ final class Storage {
 	}
 
 	/**
+	 * Stable, collision-free slug for a plugin key. Foldered plugins use the
+	 * directory part (`wordpress-seo/wp-seo` → `wordpress-seo`) since WP enforces
+	 * unique plugin directories; single-file plugins fall back to the filename
+	 * stem (`hello` → `hello`), which is already unique within `plugins/`.
+	 * `basename( $plugin_relative )` alone is not safe — two foldered plugins
+	 * can share a main-file basename (e.g. `foo/wp-seo` vs `bar/wp-seo`).
+	 */
+	public function slug( string $plugin_relative ): string {
+		$slash = strpos( $plugin_relative, '/' );
+		$slug  = false === $slash ? $plugin_relative : substr( $plugin_relative, 0, $slash );
+		return sanitize_file_name( $slug );
+	}
+
+	/**
 	 * Filename for a given plugin + version pair.
 	 *
 	 * @param string $plugin_relative e.g. `akismet/akismet` or `hello`.
 	 */
 	public function filename( string $plugin_relative, string $version ): string {
-		$basename = sanitize_file_name( basename( $plugin_relative ) );
-		$version  = sanitize_file_name( $version !== '' ? $version : 'unversioned' );
-		return "{$basename}-{$version}.json";
+		$slug    = $this->slug( $plugin_relative );
+		$version = sanitize_file_name( $version !== '' ? $version : 'unversioned' );
+		return "{$slug}-{$version}.json";
 	}
 
 	public function path_for( string $plugin_relative, string $version ): string {
@@ -61,10 +76,10 @@ final class Storage {
 	}
 
 	/**
-	 * Classify the parse state of `<basename>` against the current `$version`.
+	 * Classify the parse state of `<slug>` against the current `$version`.
 	 *
-	 * - parsed:        exact `<basename>-<version>.json` exists
-	 * - stale:         a `<basename>-*.json` exists but not for the current version
+	 * - parsed:        exact `<slug>-<version>.json` exists
+	 * - stale:         a `<slug>-*.json` exists but not for the current version
 	 * - needs_parsing: nothing on disk
 	 */
 	public function status_for( string $plugin_relative, string $version ): string {
@@ -73,18 +88,18 @@ final class Storage {
 			return self::STATUS_PARSED;
 		}
 
-		$basename = sanitize_file_name( basename( $plugin_relative ) );
-		$matches  = glob( $this->dir() . '/' . $basename . '-*.json' ) ?: [];
+		$slug    = $this->slug( $plugin_relative );
+		$matches = glob( $this->dir() . '/' . $slug . '-*.json' ) ?: [];
 		return $matches ? self::STATUS_STALE : self::STATUS_NEEDS_PARSING;
 	}
 
 	/**
-	 * Latest mtime among any `<basename>-*.json` files, or null when nothing
+	 * Latest mtime among any `<slug>-*.json` files, or null when nothing
 	 * has been parsed yet. Returned as a Unix timestamp.
 	 */
 	public function last_parsed_at( string $plugin_relative ): ?int {
-		$basename = sanitize_file_name( basename( $plugin_relative ) );
-		$matches  = glob( $this->dir() . '/' . $basename . '-*.json' ) ?: [];
+		$slug    = $this->slug( $plugin_relative );
+		$matches = glob( $this->dir() . '/' . $slug . '-*.json' ) ?: [];
 		$latest   = null;
 		foreach ( $matches as $file ) {
 			$mtime = @filemtime( $file );
@@ -128,11 +143,11 @@ final class Storage {
 	}
 
 	/**
-	 * Stable id for a parsed codebase. Matches the file basename used for JSON
-	 * output, lower-cased and sanitized to be safe in an option name.
+	 * Stable id for a parsed codebase. Matches the slug used for JSON output,
+	 * lower-cased and sanitized to be safe in an option name.
 	 */
 	public function codebase_id( string $plugin_relative ): string {
-		return sanitize_key( basename( $plugin_relative ) );
+		return sanitize_key( $this->slug( $plugin_relative ) );
 	}
 
 	public function codebase_option_name( string $plugin_relative ): string {
@@ -186,12 +201,12 @@ final class Storage {
 	}
 
 	/**
-	 * Remove older parsed files for a given basename. Called after a successful
+	 * Remove older parsed files for a given plugin slug. Called after a successful
 	 * parse so we don't accumulate stale versions indefinitely.
 	 */
 	public function prune_older( string $plugin_relative, string $current_filename ): void {
-		$basename = sanitize_file_name( basename( $plugin_relative ) );
-		$matches  = glob( $this->dir() . '/' . $basename . '-*.json' ) ?: [];
+		$slug    = $this->slug( $plugin_relative );
+		$matches = glob( $this->dir() . '/' . $slug . '-*.json' ) ?: [];
 		foreach ( $matches as $file ) {
 			if ( basename( $file ) !== $current_filename ) {
 				@unlink( $file );

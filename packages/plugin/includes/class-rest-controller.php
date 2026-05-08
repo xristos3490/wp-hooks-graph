@@ -183,8 +183,8 @@ final class Rest_Controller {
 			return new WP_Error( 'hooksgraph_invalid_plugin', __( 'Invalid plugin identifier.', 'hooksgraph' ), [ 'status' => 400 ] );
 		}
 
-		$basename = sanitize_file_name( basename( $plugin ) );
-		$matches  = glob( $this->storage->dir() . '/' . $basename . '-*.json' ) ?: [];
+		$slug    = $this->storage->slug( $plugin );
+		$matches = glob( $this->storage->dir() . '/' . $slug . '-*.json' ) ?: [];
 		if ( ! $matches ) {
 			return new WP_Error( 'hooksgraph_not_parsed', __( 'No parsed graph found for this plugin.', 'hooksgraph' ), [ 'status' => 404 ] );
 		}
