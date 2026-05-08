@@ -30,9 +30,10 @@ export const SIGMA_SIZING_DEFAULTS = {
   // sizing pipeline behaves as if the canvas were smaller. Lets the user
   // verify small-screen behavior without resizing the browser.
   viewportScale: 70,
-  // Edge opacity as integer percent (0–100). Applied as an alpha-hex suffix
-  // on the base edge color in the reducer; sigma's default WebGL programs
-  // parse #RRGGBBAA, so this is just a string concat at apply time.
+  // Edge opacity as integer percent (0–100). The reducer pre-mixes the base
+  // edge color toward the canvas background via fadeColor() so sigma's
+  // default WebGL programs (which parse #RRGGBB only) still render correctly
+  // — alpha-hex suffixes are not used.
   edgeOpacity: 100,
   // Canvas background. Applied as an inline style on the sigma container
   // div — sigma's WebGL canvas renders transparent on top of it, so this is
