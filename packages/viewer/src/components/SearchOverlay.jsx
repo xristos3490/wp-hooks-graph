@@ -7,6 +7,7 @@ import {
 import { Button, IconButton, Popover, Stack } from '@wordpress/ui';
 import { category, file, download } from '@wordpress/icons';
 import { useGraphContext } from '../context/GraphContext';
+import { useSizing } from '../context/SizingContext';
 import { exportSigmaToPng } from '../lib/sigma-export';
 
 function debounce(fn, ms) {
@@ -21,6 +22,7 @@ const SCALE_OPTIONS = ['1', '2'];
 
 export default function SearchOverlay() {
   const { setSearchQuery, isLargeGraph, groupBy, setGroupBy, sigmaRef } = useGraphContext();
+  const { sizing } = useSizing();
   const [inputValue, setInputValue] = useState('');
   const [exportOpen, setExportOpen] = useState(false);
   const [exportScale, setExportScale] = useState('2');
@@ -52,7 +54,10 @@ export default function SearchOverlay() {
     if (!sigma) return;
     setIsExporting(true);
     try {
-      await exportSigmaToPng(sigma, { scale: Number(exportScale) });
+      await exportSigmaToPng(sigma, {
+        scale: Number(exportScale),
+        background: sizing.canvasBg || '#ffffff',
+      });
       setExportOpen(false);
     } catch (err) {
       // eslint-disable-next-line no-console

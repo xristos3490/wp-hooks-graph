@@ -4,9 +4,10 @@ import { NodePointProgram } from 'sigma/rendering';
 import { EdgeCurvedArrowProgram } from '@sigma/edge-curve';
 import { NodeSquareProgram } from '@sigma/node-square';
 import { useGraphContext } from '../context/GraphContext';
+import { useSizing } from '../context/SizingContext';
 import { buildSigmaGraph, buildCyAdapter, computeNodeSize, computeDensityFactor, recolorGraph } from '../lib/sigma-setup';
 import { applyLayout } from '../lib/sigma-layouts';
-import { SIGMA_SIZING_DEFAULTS, SIGMA_SIZE_PCT } from '../lib/constants';
+import { SIGMA_SIZE_PCT } from '../lib/constants';
 import SigmaSizingControls from './SigmaSizingControls';
 
 // rAF callbacks fire BEFORE paint, so a single rAF doesn't let the browser
@@ -40,10 +41,11 @@ export default function SigmaGraphCanvas() {
     setIsComputing,
   } = useGraphContext();
 
-  // Sizing controls — local to the canvas. The floating <SigmaSizingControls>
-  // panel mutates this; the reducer reads via sizingRef on every frame so
-  // changes apply without rebuilding the graph or layout.
-  const [sizing, setSizing] = useState(SIGMA_SIZING_DEFAULTS);
+  // Sizing/theme state lives in SizingContext so the floating panel here and
+  // future sidebar widgets share one source of truth. The reducer still reads
+  // via a local sigmaRef on every frame so changes apply without rebuilding
+  // sigma — that mirror is a tearing-free read concern, not state ownership.
+  const { sizing, setSizing } = useSizing();
   const sizingRef = useRef(sizing);
   sizingRef.current = sizing;
 
@@ -225,7 +227,7 @@ export default function SigmaGraphCanvas() {
             h.searchNeighborhood || h.selectedNeighborhood || h.hoveredNeighborhood;
           const inAny = inSearch || inSelected || inHovered;
           if (anyActive && !inAny) {
-            r.color = FADE_COLOR;
+            r.color = fadeBgColor(sizingRef.current.canvasBg);
             r.label = '';
             r.zIndex = 0;
           } else if (inAny) {
@@ -263,12 +265,15 @@ export default function SigmaGraphCanvas() {
             vminRef.current * (sizingRef.current.viewportScale / 100);
           r.size = (SIGMA_SIZE_PCT.edgeSize / 100) * (edgeVmin || 1000);
           // Default per-direction program — overridden below if this edge is
-          // inside an active highlight.
-          r.type =
-            attrs.edgeType === 'fires'
-              ? sizingRef.current.fireEdgeType
-              : sizingRef.current.listenEdgeType;
-          r.color = fadeColor(attrs.color, sizingRef.current.edgeOpacity);
+          // inside an active highlight. Both directions render via the
+          // edge-curve program; the per-edge `curvature` attribute (set in
+          // sigma-setup) bows fires and listens opposite ways.
+          r.type = EDGE_PROGRAM;
+          r.color = fadeColor(
+            attrs.color,
+            sizingRef.current.edgeOpacity,
+            sizingRef.current.canvasBg
+          );
           // Labels are stored on the edge ("fires" / "listens") but only
           // surfaced when the edge is inside an active highlight; at idle
           // we'd flood the canvas otherwise.
@@ -289,18 +294,18 @@ export default function SigmaGraphCanvas() {
               h.hoveredNeighborhood.has(src) &&
               h.hoveredNeighborhood.has(tgt);
             if (inSearch || inSelected || inHovered) {
-              r.size =
-                (sizingRef.current.focusedEdgeSize / 100) * (edgeVmin || 1000);
-              r.type =
-                attrs.edgeType === 'fires'
-                  ? sizingRef.current.focusedFireEdgeType
-                  : sizingRef.current.focusedListenEdgeType;
+              r.size = (FOCUSED_EDGE_SIZE_PCT / 100) * (edgeVmin || 1000);
+              r.type = EDGE_PROGRAM;
               const touchesSelected =
                 h.selectedNodeId === src || h.selectedNodeId === tgt;
               const baseColor = attrs.baseColor || attrs.color;
               r.color = touchesSelected
                 ? baseColor
-                : fadeColor(baseColor, sizingRef.current.edgeOpacity);
+                : fadeColor(
+                    baseColor,
+                    sizingRef.current.edgeOpacity,
+                    sizingRef.current.canvasBg
+                  );
               // Edge labels are noisy on broad search matches, so only
               // surface them on explicit pointer interactions (selection
               // or hover). Search keeps the highlight visuals unlabeled.
@@ -310,7 +315,7 @@ export default function SigmaGraphCanvas() {
               }
               r.zIndex = h.selectedNodeId === src || h.selectedNodeId === tgt ? 2 : 1;
             } else {
-              r.color = FADE_COLOR;
+              r.color = fadeBgColor(sizingRef.current.canvasBg);
               r.zIndex = 0;
             }
           }
@@ -574,7 +579,10 @@ export default function SigmaGraphCanvas() {
 
   return (
     <>
-      <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
+      <div
+        ref={containerRef}
+        style={{ width: '100%', height: '100%', background: sizing.canvasBg }}
+      />
       {graphReady && (
         <SigmaSizingControls
           sizing={sizing}
@@ -664,29 +672,61 @@ function diffApplyEdge(graph, prevSet, currSet) {
   });
 }
 
-// Sigma's default WebGL programs parse colors as #RRGGBB / #RRGGBBAA only —
-// rgba() strings break the color buffer and cause the entire canvas to fail
-// to render. Use a hex grey for the faded state.
-const FADE_COLOR = '#dcdcdc';
-const FADE_RGB = [0xdc, 0xdc, 0xdc];
+// Fallback fade target if the canvas bg can't be parsed (non-hex, e.g. user
+// pastes an `rgb(...)` into a future input). Sigma's default WebGL programs
+// parse colors as #RRGGBB / #RRGGBBAA only — rgba() strings break the color
+// buffer and cause the entire canvas to fail to render.
+const FALLBACK_FADE = '#dcdcdc';
+const FALLBACK_FADE_RGB = [0xdc, 0xdc, 0xdc];
 
-// Mix a #RRGGBB hex color toward FADE_COLOR by (1 - opacity/100) and return
-// a fully opaque hex. We pre-mix in JS instead of relying on WebGL alpha
-// blending against the canvas bg so the perceived hue stays stable as the
-// slider drops — alpha blending in sRGB against a non-neutral surface
+function parseHexRgb(hex) {
+  if (typeof hex !== 'string' || hex.length !== 7 || hex[0] !== '#') return null;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return null;
+  return [r, g, b];
+}
+
+// Mix a #RRGGBB hex color toward the canvas bg by (1 - opacity/100) and
+// return a fully opaque hex. We pre-mix in JS instead of relying on WebGL
+// alpha blending against the canvas bg so the perceived hue stays stable as
+// the slider drops — alpha blending in sRGB against a non-neutral surface
 // otherwise pulls warm hues off-axis. Bails on any non-7-char-hex input so
 // we never silently zero the color buffer.
-function fadeColor(color, opacity) {
+function fadeColor(color, opacity, bgHex) {
   if (opacity >= 100) return color;
   if (typeof color !== 'string' || color.length !== 7 || color[0] !== '#') return color;
+  const fadeRgb = parseHexRgb(bgHex) || FALLBACK_FADE_RGB;
   const t = Math.max(0, Math.min(1, opacity / 100));
   const r = parseInt(color.slice(1, 3), 16);
   const g = parseInt(color.slice(3, 5), 16);
   const b = parseInt(color.slice(5, 7), 16);
   const mix = (c, f) => Math.round(t * c + (1 - t) * f);
   const hex = (n) => n.toString(16).padStart(2, '0');
-  return '#' + hex(mix(r, FADE_RGB[0])) + hex(mix(g, FADE_RGB[1])) + hex(mix(b, FADE_RGB[2]));
+  return '#' + hex(mix(r, fadeRgb[0])) + hex(mix(g, fadeRgb[1])) + hex(mix(b, fadeRgb[2]));
 }
+
+// De-emphasis color for nodes/edges outside an active highlight. We pull
+// slightly off the canvas bg toward neutral grey so faded items don't
+// disappear entirely on a pure-white or pure-black canvas. Falls back to
+// the legacy grey if the bg isn't parseable.
+function fadeBgColor(bgHex) {
+  const rgb = parseHexRgb(bgHex);
+  if (!rgb) return FALLBACK_FADE;
+  const mix = (c) => Math.round(0.6 * c + 0.4 * 0x88);
+  const hex = (n) => n.toString(16).padStart(2, '0');
+  return '#' + hex(mix(rgb[0])) + hex(mix(rgb[1])) + hex(mix(rgb[2]));
+}
+
+// Edge program for both fires and listens, idle and focused. Curvature
+// direction comes from each edge's `curvature` attribute (set in
+// sigma-setup), so a single program covers both directions.
+const EDGE_PROGRAM = 'curvedArrow';
+
+// Focused-edge size, in % of vmin. Applied to edges inside an active
+// highlight neighborhood (search/selection/hover).
+const FOCUSED_EDGE_SIZE_PCT = 0.25;
 
 // Camera ratio above which all non-highlighted labels are suppressed. Sigma
 // frames the graph at ratio ≈ 1.0; anything past 1.5 means the user has
