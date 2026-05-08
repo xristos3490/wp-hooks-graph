@@ -228,7 +228,7 @@ const panelStyle = {
   position: 'absolute',
   top: 12,
   right: 12,
-  zIndex: 10,
+  zIndex: 1000,
   width: 220,
   padding: 12,
   background: 'rgba(255, 255, 255, 0.95)',
@@ -240,7 +240,7 @@ const panelStyle = {
   color: '#1e1a24',
 };
 
-const togglePos = { position: 'absolute', top: 12, right: 12, zIndex: 10 };
+const togglePos = { position: 'absolute', top: 12, right: 12, zIndex: 1000 };
 
 const headerStyle = {
   display: 'flex',
