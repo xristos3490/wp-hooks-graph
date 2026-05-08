@@ -487,9 +487,10 @@ describe('applyFilterPipeline', () => {
   });
 
   test('visibleEdgeIndices match the positions of visibleEdges in the input array', () => {
-    // GraphCanvas relies on these indices to look up Cytoscape edges by their
-    // `edge-${i}` id. If the indices and visibleEdges array drift apart,
-    // the diff-based filter apply will hide or show the wrong elements.
+    // SigmaGraphCanvas relies on these indices to look up graph edges by
+    // their `edge-${i}` id. If the indices and visibleEdges array drift
+    // apart, the diff-based filter apply will hide or show the wrong
+    // elements.
     const state = {
       ...baseState,
       hookType: { actions: true, filters: false },

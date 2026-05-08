@@ -111,6 +111,19 @@ Run `hooksgraph <dir>` — or `hooksgraph serve` / `HOOKSGRAPH_JSON=~/.hooksgrap
 
 The **Sources** card in the sidebar holds per-repo fire/listen toggles, plus two opt-ins for raw fire-only and listen-only hooks (hooks the scan found on just one side of the edge).
 
+### Hosting the viewer as a static site
+
+The viewer is a fully static React build, so you can drop it on any static host (GitHub Pages, Netlify, S3, an Nginx box) without the PHP server. Run:
+
+```sh
+pnpm build
+```
+
+Then upload the contents of `packages/viewer/dist/` to your host's web root. Two files at the root control what the homepage does:
+
+- **`hooks.json`** — Create an empty file (or any valid JSON) at the root to suppress the 404 the homepage logs while probing for a bound graph. Without a static fallback, every visit prints a console error. If you want the viewer to auto-load a graph on landing, drop a real parsed JSON here instead.
+- **`demo.json`** _(optional)_ — Drop a parsed JSON here to make the homepage's **"Load demo"** button appear. Generate it with `hooksgraph parse <dir>` and copy the output from `~/.hooksgraph/parsed/` to your web root as `demo.json`. Omit the file and the button stays hidden.
+
 ---
 
 ## MCP Server
@@ -178,7 +191,7 @@ packages/
     server.php          Router for `php -S`
     src/                Parser, Graph, Discovery, Cli classes
     tests/              PHPUnit
-  viewer/             Vite + React app (Cytoscape); bundled into the CLI tarball
+  viewer/             Vite + React app (Sigma WebGL + graphology); bundled into the CLI tarball
   cli/                @hooksgraph/hooksgraph (npm) — Node shim wrapping the PHP parser + viewer
     bin/hooksgraph.js
   mcp/                @hooksgraph/hooksgraph-mcp (npm) — stdio MCP server

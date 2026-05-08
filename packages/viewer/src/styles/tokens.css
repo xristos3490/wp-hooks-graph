@@ -4,7 +4,7 @@
 @import '@wordpress/dataviews/build-style/style.css';
 
 :root {
-  /* Graph-specific colors (used by Cytoscape, Legend, DetailPanel badges) */
+  /* Graph-specific colors (used by the Sigma renderer, Legend, DetailPanel badges) */
   --hg-color-hotspot: #e85454;
   --hg-color-dynamic: #e4b844;
   --hg-color-overlap-action: #a8eef0;
@@ -81,6 +81,10 @@ body {
 }
 .sidebar__header {
   margin-bottom: var(--wpds-dimension-padding-lg);
+}
+.sidebar__home-btn {
+  padding: var(--wpds-dimension-padding-xs);
+  height: auto;
 }
 /* Shared logo — SVG mark + handwritten wordmark */
 .hg-logo {

@@ -1,18 +1,26 @@
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import { Button, EmptyState, Stack, Text, Badge } from '@wordpress/ui';
 import Logo from './Logo';
 import HomePageBackground from './HomePageBackground';
 import GitHubLink from './GitHubLink';
 import './HomePage.css';
 
-export default function HomePage({ onFileLoad, isLoading }) {
+export default function HomePage({ onFileLoad, isLoading, onLoadDemo, hasDemo }) {
   const inputRef = useRef(null);
   const [dragging, setDragging] = useState(false);
+  const [pending, setPending] = useState(null);
   const dragCounter = useRef(0);
+
+  useEffect(() => {
+    if (!isLoading) setPending(null);
+  }, [isLoading]);
 
   function handleChange(e) {
     const file = e.target.files[0];
-    if (file) onFileLoad(file);
+    if (file) {
+      setPending('file');
+      onFileLoad(file);
+    }
   }
 
   const handleDragEnter = useCallback((e) => {
@@ -41,16 +49,21 @@ export default function HomePage({ onFileLoad, isLoading }) {
       setDragging(false);
       dragCounter.current = 0;
       const file = e.dataTransfer.files[0];
-      if (file) onFileLoad(file);
+      if (file) {
+        setPending('file');
+        onFileLoad(file);
+      }
     },
     [onFileLoad]
   );
 
-  const description = isLoading
-    ? 'Parsing your graph…'
-    : dragging
-      ? 'Release to load this graph'
-      : 'Drag and drop a hooks JSON file, or browse to pick one.';
+  function getDescription() {
+    if (isLoading) return 'Parsing your graph…';
+    if (dragging) return 'Release to load this graph';
+    if (hasDemo) return 'Drag and drop a hooks JSON file, browse to pick one, or load the demo.';
+    return 'Drag and drop a hooks JSON file, or browse to pick one.';
+  }
+  const description = getDescription();
 
   return (
     <div
@@ -74,13 +87,27 @@ export default function HomePage({ onFileLoad, isLoading }) {
             <EmptyState.Description>{description}</EmptyState.Description>
             <EmptyState.Actions>
               <Button
-                variant="primary"
-                tone="accent"
                 onClick={() => inputRef.current?.click()}
-                disabled={isLoading}
+                loading={pending === 'file'}
+                loadingAnnouncement="Loading graph"
+                disabled={isLoading && pending !== 'file'}
               >
-                {isLoading ? 'Loading…' : 'Browse files'}
+                Browse files
               </Button>
+              {hasDemo && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setPending('demo');
+                    onLoadDemo();
+                  }}
+                  loading={pending === 'demo'}
+                  loadingAnnouncement="Loading demo"
+                  disabled={isLoading && pending !== 'demo'}
+                >
+                  Load demo
+                </Button>
+              )}
             </EmptyState.Actions>
           </EmptyState.Root>
 

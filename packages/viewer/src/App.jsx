@@ -6,19 +6,21 @@ import { generateRepoPalette } from './lib/color-palette';
 import { LARGE_GRAPH_THRESHOLD } from './lib/constants';
 import HomePage from './components/HomePage';
 import Sidebar from './components/Sidebar';
-import GraphCanvas from './components/GraphCanvas';
+import SigmaGraphCanvas from './components/SigmaGraphCanvas';
 import SearchOverlay from './components/SearchOverlay';
 import DetailPanel from './components/DetailPanel';
 import Legend from './components/Legend';
 import './styles/tokens.css';
 
 export default function App() {
-  const { data, isLoading, loadFile } = useGraphData();
+  const { data, isLoading, loadFile, loadDemo, clearData: clearGraphData, hasDemo } = useGraphData();
   const [selectedNode, setSelectedNode] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [groupBy, setGroupBy] = useState('file');
   const [isComputing, setIsComputing] = useState(false);
+  const [paletteHueOverrides, setPaletteHueOverrides] = useState({});
   const cyRef = useRef(null);
+  const sigmaRef = useRef(null);
 
   // Derive source labels + palettes from data
   const {
@@ -43,7 +45,7 @@ export default function App() {
     const labels =
       meta.source_labels ||
       (meta.scanned_dirs || []).map((d) => d.split('/').filter(Boolean).pop());
-    const palettes = generateRepoPalette(labels);
+    const palettes = generateRepoPalette(labels, paletteHueOverrides);
 
     const hookNodes = data.nodes.filter((n) => n.type === 'hook');
     const fileNodes = data.nodes.filter((n) => n.type === 'file');
@@ -61,7 +63,7 @@ export default function App() {
       defaultThreshold: threshold,
       maxConnections: maxConn,
     };
-  }, [data]);
+  }, [data, paletteHueOverrides]);
 
   const {
     filterState,
@@ -87,12 +89,23 @@ export default function App() {
   const selectNode = useCallback((id) => setSelectedNode(id), []);
   const clearSelection = useCallback(() => setSelectedNode(null), []);
 
+  // Reset view state alongside graph data so a returning user gets a clean slate.
+  const clearData = useCallback(() => {
+    clearGraphData();
+    setSelectedNode(null);
+    setSearchQuery('');
+    setIsComputing(false);
+  }, [clearGraphData]);
+
   const contextValue = useMemo(
     () => ({
       data,
       cyRef,
+      sigmaRef,
       sourceLabels,
       repoPalettes,
+      paletteHueOverrides,
+      setPaletteHueOverrides,
       hookDataCache,
       isLargeGraph,
       defaultThreshold,
@@ -113,6 +126,7 @@ export default function App() {
       groupBy,
       setGroupBy,
       loadFile,
+      clearData,
       isLoading,
       isComputing,
       setIsComputing,
@@ -122,6 +136,7 @@ export default function App() {
       data,
       sourceLabels,
       repoPalettes,
+      paletteHueOverrides,
       hookDataCache,
       isLargeGraph,
       defaultThreshold,
@@ -140,6 +155,7 @@ export default function App() {
       searchQuery,
       groupBy,
       loadFile,
+      clearData,
       isLoading,
       isComputing,
     ]
@@ -147,7 +163,14 @@ export default function App() {
 
   // Show home page until a graph is loaded
   if (!data) {
-    return <HomePage onFileLoad={loadFile} isLoading={isLoading} />;
+    return (
+      <HomePage
+        onFileLoad={loadFile}
+        isLoading={isLoading}
+        onLoadDemo={loadDemo}
+        hasDemo={hasDemo}
+      />
+    );
   }
 
   return (
@@ -156,7 +179,7 @@ export default function App() {
         <Sidebar />
         <div className="graph-area">
           <SearchOverlay />
-          <GraphCanvas />
+          <SigmaGraphCanvas />
           <DetailPanel />
           <Legend />
         </div>

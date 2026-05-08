@@ -1,5 +1,5 @@
-// filters.js — Pure filter pipeline functions for hooks graph
-// No DOM or Cytoscape dependency. Testable with Node.js.
+// filters.js — Pure filter pipeline functions for hooks graph.
+// No DOM or renderer dependency. Testable with Node.js.
 
 function filterByHookType(hooks, state) {
   var result = new Set();
@@ -86,8 +86,8 @@ function filterEdgesByRepo(edges, fileNodes, visibleHookIds, state) {
 }
 
 // Same predicate as filterEdgesByRepo but yields the indices of visible edges
-// in the original array. Used by consumers that need to look up Cytoscape
-// elements by id (e.g. 'edge-${i}') without reconstructing composite keys.
+// in the original array. Used by consumers that need to look up graph edges
+// by id (e.g. 'edge-${i}') without reconstructing composite keys.
 function filterEdgeIndicesByRepo(edges, fileNodes, visibleHookIds, state) {
   var fileSourceMap = {};
   for (var i = 0; i < fileNodes.length; i++) {

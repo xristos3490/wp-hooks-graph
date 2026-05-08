@@ -40,7 +40,7 @@ packages/
     tests/              PHPUnit tests mirroring src/ (Parser/, Graph/, Discovery/, Cli/, Support/).
     vendor/             Composer output (package-local, gitignored). Bundled into the CLI tarball.
   viewer/             Vite + React app. "private": true — never published. Consumed by the CLI build.
-    package.json        React, Cytoscape, @wordpress/* deps.
+    package.json        React, Sigma + graphology, @wordpress/* deps.
     index.html          Vite entry HTML.
     src/                App.jsx, main.jsx, components/, context/, hooks/, lib/, styles/.
     vite.config.js      Self-contained; outDir = dist/ (inside the package).
@@ -94,7 +94,7 @@ The Node CLI shim is the single source of truth for routing parsed-vs-codebase o
 ```
 PHP files → HooksGraph\Cli\Runner (discover → FileParser tokenize/extract → Builder → optional OverlapFilter) → JSON
          → packages/parser/server.php serves JSON at /hooks.json
-         → React viewer (from packages/viewer/dist/) renders via Cytoscape
+         → React viewer (from packages/viewer/dist/) renders via Sigma (WebGL) + graphology
 ```
 
 ## Key Files
@@ -105,9 +105,35 @@ PHP files → HooksGraph\Cli\Runner (discover → FileParser tokenize/extract �
 - `packages/parser/src/Cli/Runner.php` — CLI orchestration: argument parsing, file discovery, per-file parse loop, summary rendering, output write.
 - `packages/parser/server.php` — Minimal router; any path other than `/hooks.json` falls through to the static file server rooted at the viewer dist dir.
 - `packages/cli/bin/hooksgraph.js` — Node shim. Primary entry point — the shell alias installed by `scripts/setup-profile.sh` points directly at this file (shebang-executable). Dev-aware path resolution: falls back to `../parser/hooksgraph.php` and `../viewer/dist/` when tarball-local `php/` and `dist/` are absent. Spawns `php` with `stdio: 'inherit'`.
-- `packages/viewer/src/App.jsx` — Top-level React component; orchestrates sidebar, graph canvas, and detail panel.
+- `packages/viewer/src/App.jsx` — Top-level React component; orchestrates sidebar, graph canvas, and detail panel. Mounts `<SigmaGraphCanvas>` once a graph JSON is loaded.
+- `packages/viewer/src/components/SigmaGraphCanvas.jsx` — Sigma/graphology renderer. Owns the Sigma WebGL instance and the graphology `Graph`. Populates `cyRef` with a small cy-style adapter so `DetailPanel.jsx` can keep its query syntax. Layout is hardcoded to `communities` — no dropdown.
+- `packages/viewer/src/lib/sigma-setup.js` — Graphology graph builder + cy-style adapter. `buildSigmaGraph(data, …)` produces the graphology `Graph`; `buildCyAdapter(graph)` exposes the narrow `cy.getElementById` / `cy.edges('[target="X"][edgeType="Y"]')` surface that DetailPanel calls. The adapter is the last bit of cy-shaped indirection — refactoring DetailPanel to read raw data from context would let it go away.
+- `packages/viewer/src/lib/sigma-layouts.js` — Layout module. `applyLayout(graph, mode, { isLargeGraph, spread })` mutates `x`/`y` in place. Only `communities` is wired up in the UI; the other modes (`directory`, `force`, `force-noverlap`, `circular`, `source-clusters`, `hook-type-split`, `bipartite`, `random`) remain as callable strategies for future re-exposure. Cluster layouts (`communities`, `directory`) are two-stage: per-cluster FA2 → normalize to a target radius → super-graph FA2 + noverlap to keep cluster bounding circles separated.
 - `packages/mcp/bin/hooksgraph-mcp.js` — Node entry point for the MCP server. Parses `--storage` / `-h`, resolves the storage dir, and hands off to `runStdioServer()` in `packages/mcp/src/server.js`.
 - `scripts/build-cli.js` — Builds the CLI tarball contents: viewer build → `packages/cli/dist/`, parser (src + composer no-dev vendor + shims) → `packages/cli/php/`.
+
+## Sigma renderer
+
+The viewer renders via Sigma (WebGL) on top of a graphology `Graph`. There is one renderer; no toggle. The layout emphasises *bounded contexts* — visually separated clusters per Louvain community, rather than one tight FA2 blob.
+
+**Wiring.** `App.jsx` mounts `<SigmaGraphCanvas>` once a graph JSON is loaded. The canvas populates `cyRef` with a tiny cy-style adapter built by `buildCyAdapter(graph)` in `lib/sigma-setup.js` so `DetailPanel.jsx` can keep its `cy.getElementById(...)` / `cy.edges('[target|source="X"][edgeType="…"]')` query syntax. The adapter only implements the surface DetailPanel touches; everything else returns empty collections. Refactoring DetailPanel to read raw data from context would let the adapter go.
+
+**Layout.** Hardcoded to `communities` (Louvain) with `spread = 0.3` — no dropdown, no UI. `applyLayout` in `lib/sigma-layouts.js` still exposes other strategies (`directory`, `force`, `force-noverlap`, etc.) as callable code for future re-exposure, but only `communities` is wired into the canvas. The cluster layouts (`communities`, `directory`) are two-stage:
+
+1. Bucket nodes into clusters (by directory prefix or Louvain community).
+2. Run FA2 on each cluster's *internal* subgraph for an organic shape.
+3. Normalize each cluster to a target radius (`15 + sqrt(n)*4`) so the next stage has consistent geometry to work with.
+4. Build a super-graph with one node per cluster sized to that radius, run FA2 with `adjustSizes: true` and a `noverlap` pass — this guarantees cluster bounding circles never touch.
+5. Translate each member position by its cluster's super-position.
+
+**Visual constraints.** Sigma 3 default programs only ship circle nodes, line + arrow edges, hex colors. So:
+- Hook nodes render as circles; file/class nodes render as squares via `@sigma/node-square` (registered in `SigmaGraphCanvas.jsx`). The square program is 1:1 with a single radius, not a true text-width rectangle.
+- Both fires and listens use the stock straight `arrow` program. The only differentiator is edge color from the palette (no built-in dashed style in sigma 3).
+- No dashed border on `[?dynamic]` hooks.
+- No 3px stroke ring on selected node — size bump only.
+- No `text-background` pill behind highlighted hook labels.
+
+These are fixable by registering more custom WebGL programs.
 
 ## Code Style
 
@@ -136,6 +162,11 @@ PHP files → HooksGraph\Cli\Runner (discover → FileParser tokenize/extract �
 - MCP tools receive `{ registry, index }` via a shared ctx from `createServer()`. `UnknownCodebaseError` / `CodebaseLoadError` / `MissingStorageError` are converted to `isError` tool results; anything else bubbles up and crashes the transport.
 - Two composer scopes exist: root (dev umbrella — phpunit + parser via path repo) and `packages/parser/` (self-contained autoloader bundled into the CLI tarball). `packages/parser/hooksgraph.php` requires the package-local vendor; tests run against the root vendor. Don't conflate them.
 - pnpm workspace. Each package only resolves dependencies it declares; phantom deps fail loudly. `.npmrc` public-hoists react/webpack/@wordpress/\* for wp-scripts compatibility (needed once the plugin pipeline is built).
+- Sigma renderer: node `type` attribute selects the Sigma rendering program (e.g. `'circle'`), so the app's hook/file/class type is stored as `nodeType` on the graphology node and surfaced back through the cy-adapter's `data().type`. Same for edges: `type: 'arrow' | 'line'` is the program, not the hook semantic.
+- Sigma renderer: default WebGL programs only parse `#RRGGBB(AA)` colors. The repo palette emits `rgba(...)` strings for `fireEdgeAlpha` / `listenEdgeAlpha` / `*Highlight` — the sigma builder uses the hex variants (`fireEdge`, `listenEdge`) instead. Passing rgba silently zeroes the color buffer and the entire canvas goes blank.
+- Sigma renderer: `camera.animate({ x, y })` uses **camera-space** (normalized across the framed graph bbox), not graph-space. To pan to a node, use `sigma.getNodeDisplayData(id)` which returns the right coords. Passing graph-space xy will fly the camera off-screen.
+- Sigma renderer: node `size` is in **screen pixels** (radius), not graph-px diameter. `nodeSizeFor` in `sigma-setup.js` returns sigma-space directly on a degree-driven sqrt curve (≈3 → ≈28), with a 3px floor in `addNode`. Leaves intentionally fall under `labelRenderedSizeThreshold` at default zoom — the threshold is the hub/leaf importance filter, so don't reintroduce a flat minimum (was previously `Math.max(15, …)`) or it collapses the hierarchy. The reducer in `SigmaGraphCanvas.jsx` sets `forceLabel: true` for hovered/searched/selected neighborhoods to bypass the throttle.
+- Sigma renderer: cluster layouts mutate `x`/`y` on the graph in place. The current canvas runs `applyLayout` once at init and never again, but the in-place contract still matters if you re-introduce a layout switcher — rebuilding sigma is expensive and resets the camera.
 
 ## Supported Hook Functions
 
