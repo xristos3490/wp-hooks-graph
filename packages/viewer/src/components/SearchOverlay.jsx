@@ -1,4 +1,4 @@
-import { useRef, useCallback, useState } from 'react';
+import { useRef, useCallback, useMemo, useState } from 'react';
 import {
   SearchControl,
   __experimentalToggleGroupControl as ToggleGroupControl,
@@ -9,6 +9,7 @@ import { category, file, download } from '@wordpress/icons';
 import { useGraphContext } from '../context/GraphContext';
 import { useSizing } from '../context/SizingContext';
 import { exportSigmaToPng } from '../lib/sigma-export';
+import { contrastForegroundColors } from '../lib/contrast';
 
 function debounce(fn, ms) {
   let timer;
@@ -28,6 +29,16 @@ export default function SearchOverlay() {
   const [exportScale, setExportScale] = useState('2');
   const [isExporting, setIsExporting] = useState(false);
   const inputRef = useRef(null);
+
+  const iconStyleVars = useMemo(() => {
+    const c = contrastForegroundColors(sizing.canvasBg);
+    return {
+      '--wp-ui-button-foreground-color': c.idle,
+      '--wp-ui-button-foreground-color-active': c.hover,
+      '--wp-ui-button-background-color-active': c.hoverBg,
+      '--wp-ui-button-border-color-active': c.hoverBg,
+    };
+  }, [sizing.canvasBg]);
 
   const searchDelay = isLargeGraph ? 200 : 80;
   const debouncedSearch = useCallback(
@@ -70,15 +81,17 @@ export default function SearchOverlay() {
   return (
     <div style={overlayStyle}>
       <div style={wrapperStyle}>
-        <IconButton
-          onClick={handleToggleGroupBy}
-          icon={groupBy === 'class' ? category : file}
-          label={groupBy === 'class' ? 'Switch to File view' : 'Switch to Class view'}
-          variant="minimal"
-          tone="neutral"
-          size="small"
-          style={leftButtonStyle}
-        />
+        <div style={leftButtonStyle}>
+          <IconButton
+            onClick={handleToggleGroupBy}
+            icon={groupBy === 'class' ? category : file}
+            label={groupBy === 'class' ? 'Switch to File view' : 'Switch to Class view'}
+            variant="minimal"
+            tone="neutral"
+            size="small"
+            style={iconStyleVars}
+          />
+        </div>
 
         <div style={{ flex: 1, overflow: 'hidden' }}>
           <SearchControl
@@ -103,6 +116,7 @@ export default function SearchOverlay() {
                   variant="minimal"
                   tone="neutral"
                   size="small"
+                  style={iconStyleVars}
                 />
               }
             />
