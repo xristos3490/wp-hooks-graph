@@ -1,4 +1,4 @@
-import { useRef, useCallback, useState } from 'react';
+import { useRef, useCallback, useMemo, useState } from 'react';
 import {
   SearchControl,
   __experimentalToggleGroupControl as ToggleGroupControl,
@@ -30,13 +30,15 @@ export default function SearchOverlay() {
   const [isExporting, setIsExporting] = useState(false);
   const inputRef = useRef(null);
 
-  const iconColors = contrastForegroundColors(sizing.canvasBg);
-  const iconStyleVars = {
-    '--wp-ui-button-foreground-color': iconColors.idle,
-    '--wp-ui-button-foreground-color-active': iconColors.hover,
-    '--wp-ui-button-background-color-active': iconColors.hoverBg,
-    '--wp-ui-button-border-color-active': iconColors.hoverBg,
-  };
+  const iconStyleVars = useMemo(() => {
+    const c = contrastForegroundColors(sizing.canvasBg);
+    return {
+      '--wp-ui-button-foreground-color': c.idle,
+      '--wp-ui-button-foreground-color-active': c.hover,
+      '--wp-ui-button-background-color-active': c.hoverBg,
+      '--wp-ui-button-border-color-active': c.hoverBg,
+    };
+  }, [sizing.canvasBg]);
 
   const searchDelay = isLargeGraph ? 200 : 80;
   const debouncedSearch = useCallback(
@@ -79,15 +81,17 @@ export default function SearchOverlay() {
   return (
     <div style={overlayStyle}>
       <div style={wrapperStyle}>
-        <IconButton
-          onClick={handleToggleGroupBy}
-          icon={groupBy === 'class' ? category : file}
-          label={groupBy === 'class' ? 'Switch to File view' : 'Switch to Class view'}
-          variant="minimal"
-          tone="neutral"
-          size="small"
-          style={{ ...leftButtonStyle, ...iconStyleVars }}
-        />
+        <div style={leftButtonStyle}>
+          <IconButton
+            onClick={handleToggleGroupBy}
+            icon={groupBy === 'class' ? category : file}
+            label={groupBy === 'class' ? 'Switch to File view' : 'Switch to Class view'}
+            variant="minimal"
+            tone="neutral"
+            size="small"
+            style={iconStyleVars}
+          />
+        </div>
 
         <div style={{ flex: 1, overflow: 'hidden' }}>
           <SearchControl
