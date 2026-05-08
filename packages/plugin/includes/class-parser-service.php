@@ -43,7 +43,7 @@ final class Parser_Service {
 		$all_calls = [];
 		foreach ( $files as $file ) {
 			try {
-				$all_calls = array_merge( $all_calls, FileParser::parse( $file, $label ) );
+				array_push( $all_calls, ...FileParser::parse( $file, $label ) );
 			} catch ( Throwable $e ) {
 				// Per-file failures shouldn't abort the whole parse; log and skip.
 				error_log( sprintf( '[hooksgraph] Failed to parse %s: %s', $file, $e->getMessage() ) );
