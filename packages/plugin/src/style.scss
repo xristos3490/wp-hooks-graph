@@ -1,0 +1,59 @@
+// Design-system stylesheets bundled into the admin page.
+// `@wordpress/components` ships via the `wp-components` style handle enqueued
+// server-side; `@wordpress/ui` and `@wordpress/admin-ui` use CSS modules and
+// self-bundle when their components are imported.
+@import '../../../node_modules/@wordpress/theme/src/prebuilt/css/design-tokens.css';
+@import '@wordpress/dataviews/build-style/style.css';
+
+body.tools_page_hooksgraph {
+  background: #fff;
+
+  #wpcontent {
+    padding-left: 0px;
+  }
+}
+
+.hooksgraph-page > header {
+  border-block-end: none;
+  background: transparent;
+}
+
+#hooksgraph-admin-root {
+  .dataviews-wrapper {
+    background: var(--wp-admin-theme-color-background, #fff);
+  }
+
+  // `BaseControl` (used internally by DataViews filters / view-config
+  // SelectControls) emits a deprecated `margin-bottom: 8px` on its
+  // `__field` wrapper unless the parent opts in via
+  // `__nextHasNoMarginBottom`. We don't own those internal controls, so
+  // kill it scope-locally.
+  .components-base-control__field {
+    margin-bottom: 0;
+  }
+
+  // Mirrors the ciab / bookings-list `&__view-actions` trick: replaces
+  // the default DataViews toolbar (which ships `padding: 16px 24px`) with
+  // a horizontal-only padded row plus `min-height: 48px` on direct
+  // children, so the 48px-tall Tabs.List sits flush with the
+  // border-bottom and the active-tab underline indicator (positioned at
+  // `bottom: 0` of the tablist) lands exactly on the divider.
+  .hooksgraph-plugins__view-actions {
+    box-sizing: border-box;
+    padding-inline: 24px;
+    border-bottom: 1px solid var(--wpds-color-stroke-surface-neutral, #dbdbdb);
+
+    > * {
+      min-height: 48px;
+    }
+  }
+
+  .dataviews-filters__container {
+    padding-top: var(--wpds-dimension-padding-md);
+  }
+
+  .hooksgraph-plugins__dashboard {
+    padding: 24px;
+    margin: 0;
+  }
+}

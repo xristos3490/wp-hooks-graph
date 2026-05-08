@@ -14,7 +14,14 @@ import Legend from './components/Legend';
 import './styles/tokens.css';
 
 export default function App() {
-  const { data, isLoading, loadFile, loadDemo, clearData: clearGraphData, hasDemo } = useGraphData();
+  const {
+    data,
+    isLoading,
+    loadFile,
+    loadDemo,
+    clearData: clearGraphData,
+    hasDemo,
+  } = useGraphData();
   const [selectedNode, setSelectedNode] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [groupBy, setGroupBy] = useState('file');
