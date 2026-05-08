@@ -2,7 +2,7 @@
 // `@wordpress/components` ships via the `wp-components` style handle enqueued
 // server-side; `@wordpress/ui` and `@wordpress/admin-ui` use CSS modules and
 // self-bundle when their components are imported.
-@import '@wordpress/theme/design-tokens.css';
+@import '../../../node_modules/@wordpress/theme/src/prebuilt/css/design-tokens.css';
 @import '@wordpress/dataviews/build-style/style.css';
 
 body.tools_page_hooksgraph {
