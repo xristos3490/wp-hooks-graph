@@ -44,11 +44,7 @@ export default function SigmaSizingControls({
 
   if (!open) {
     return (
-      <button
-        type="button"
-        style={{ ...buttonStyle, ...togglePos }}
-        onClick={() => setOpen(true)}
-      >
+      <button type="button" style={{ ...buttonStyle, ...togglePos }} onClick={() => setOpen(true)}>
         Sizing
       </button>
     );
@@ -77,7 +73,11 @@ export default function SigmaSizingControls({
       <Slider label="Hooks" value={sizing.hookScale} onChange={(v) => set({ hookScale: v })} />
       <Slider label="Files" value={sizing.fileScale} onChange={(v) => set({ fileScale: v })} />
       <Slider label="Classes" value={sizing.classScale} onChange={(v) => set({ classScale: v })} />
-      <Slider label="Hub emphasis" value={sizing.hubEmphasis} onChange={(v) => set({ hubEmphasis: v })} />
+      <Slider
+        label="Hub emphasis"
+        value={sizing.hubEmphasis}
+        onChange={(v) => set({ hubEmphasis: v })}
+      />
 
       <Toggle
         label="Reveal on zoom"
@@ -210,11 +210,7 @@ function Select({ label, value, options, onChange }) {
       <div style={rowLabelStyle}>
         <span>{label}</span>
       </div>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        style={selectStyle}
-      >
+      <select value={value} onChange={(e) => onChange(e.target.value)} style={selectStyle}>
         {options.map((opt) => (
           <option key={opt} value={opt}>
             {opt}
@@ -254,12 +250,7 @@ function SourceColorRow({ label, color, onCommit }) {
       <span style={colorLabelStyle} title={label}>
         {label}
       </span>
-      <input
-        ref={inputRef}
-        type="color"
-        defaultValue={color}
-        style={colorInputStyle}
-      />
+      <input ref={inputRef} type="color" defaultValue={color} style={colorInputStyle} />
     </label>
   );
 }
@@ -267,11 +258,7 @@ function SourceColorRow({ label, color, onCommit }) {
 function Toggle({ label, checked, onChange }) {
   return (
     <label style={toggleRowStyle}>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-      />
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
       <span>{label}</span>
     </label>
   );

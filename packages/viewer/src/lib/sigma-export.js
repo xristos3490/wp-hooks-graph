@@ -9,7 +9,10 @@
 
 const LAYER_ORDER = ['edges', 'nodes', 'edgeLabels', 'labels', 'hovers', 'hoverNodes'];
 
-export async function exportSigmaToPng(sigma, { scale = 2, background = '#ffffff', filename } = {}) {
+export async function exportSigmaToPng(
+  sigma,
+  { scale = 2, background = '#ffffff', filename } = {}
+) {
   if (!sigma) throw new Error('exportSigmaToPng: sigma instance required');
 
   const originalDPR = window.devicePixelRatio;

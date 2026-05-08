@@ -41,13 +41,13 @@ package.json            @hooksgraph/plugin (private). wp-scripts + @wordpress/* 
 
 Run from the **monorepo root** (workspace-aware) unless noted otherwise.
 
-| Command                      | Description                                                       |
-| ---------------------------- | ----------------------------------------------------------------- |
-| `pnpm -F @hooksgraph/plugin start`   | wp-scripts dev build (watch) → `build/`                   |
-| `pnpm -F @hooksgraph/plugin build`   | wp-scripts production build → `build/`                    |
-| `pnpm -F @hooksgraph/plugin format`  | Prettier via wp-scripts                                   |
-| `pnpm -F @hooksgraph/plugin lint:js` | ESLint via wp-scripts                                     |
-| `pnpm build:plugin`          | Placeholder; the strauss + zip release pipeline is not built yet  |
+| Command                              | Description                                                      |
+| ------------------------------------ | ---------------------------------------------------------------- |
+| `pnpm -F @hooksgraph/plugin start`   | wp-scripts dev build (watch) → `build/`                          |
+| `pnpm -F @hooksgraph/plugin build`   | wp-scripts production build → `build/`                           |
+| `pnpm -F @hooksgraph/plugin format`  | Prettier via wp-scripts                                          |
+| `pnpm -F @hooksgraph/plugin lint:js` | ESLint via wp-scripts                                            |
+| `pnpm build:plugin`                  | Placeholder; the strauss + zip release pipeline is not built yet |
 
 `composer install` inside `packages/plugin/` resolves the parser through the local path repo; the bootstrap autoloader prefers `vendor/autoload.php` here and falls back to `../parser/vendor/autoload.php` so dev installs that skip the plugin-local vendor still work.
 
@@ -65,7 +65,7 @@ Run from the **monorepo root** (workspace-aware) unless noted otherwise.
 
 ## Code style
 
-- PHP: namespaced `HooksGraph\Plugin\`, `declare(strict_types=1)`, `final` classes, constructor property promotion. Every includes/class-*.php starts with `defined( 'ABSPATH' ) || exit;`.
+- PHP: namespaced `HooksGraph\Plugin\`, `declare(strict_types=1)`, `final` classes, constructor property promotion. Every includes/class-\*.php starts with `defined( 'ABSPATH' ) || exit;`.
 - Class files are named `class-<kebab-name>.php` (WordPress convention) but the classes inside use `Snake_Case` (`Parser_Service`, `Rest_Controller`) — match the existing pattern when adding new ones.
 - JS/JSX: ES modules, function components, follow `@wordpress/eslint-plugin` rules baked into wp-scripts.
 - Strings are translatable via `__()` / `_x()` with the `hooksgraph` text domain. PHP and JS both use it.

@@ -267,8 +267,12 @@ function communitiesLayout(graph, spread, rng) {
     // Tuned generous-ish so internal structure is readable at first paint —
     // a 30-node cluster lands around r=37, a 5-node one around r=24.
     const targetRadius = 15 + Math.sqrt(ids.length) * 4;
-    let cx = 0, cy = 0;
-    sub.forEachNode((id, attrs) => { cx += attrs.x; cy += attrs.y; });
+    let cx = 0,
+      cy = 0;
+    sub.forEachNode((id, attrs) => {
+      cx += attrs.x;
+      cy += attrs.y;
+    });
     cx /= sub.order;
     cy /= sub.order;
     let maxDist = 0;
@@ -307,11 +311,7 @@ function communitiesLayout(graph, spread, rng) {
     if (!superGraph.hasEdge(key)) {
       superGraph.addEdgeWithKey(key, cs, ct, { weight: 1 });
     } else {
-      superGraph.setEdgeAttribute(
-        key,
-        'weight',
-        superGraph.getEdgeAttribute(key, 'weight') + 1
-      );
+      superGraph.setEdgeAttribute(key, 'weight', superGraph.getEdgeAttribute(key, 'weight') + 1);
     }
   });
 
@@ -427,8 +427,12 @@ function directoryLayout(graph, spread, rng) {
     // Tuned generous-ish so internal structure is readable at first paint —
     // a 30-node cluster lands around r=37, a 5-node one around r=24.
     const targetRadius = 15 + Math.sqrt(ids.length) * 4;
-    let cx = 0, cy = 0;
-    sub.forEachNode((id, attrs) => { cx += attrs.x; cy += attrs.y; });
+    let cx = 0,
+      cy = 0;
+    sub.forEachNode((id, attrs) => {
+      cx += attrs.x;
+      cy += attrs.y;
+    });
     cx /= sub.order;
     cy /= sub.order;
     let maxDist = 0;

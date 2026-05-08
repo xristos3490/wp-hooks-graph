@@ -79,37 +79,60 @@ export function buildSigmaGraph(data, sourceLabels, repoPalettes, mode) {
     // Pass 2: add all nodes (class, file, hook).
     for (const cid in classNodes) {
       const cn = classNodes[cid];
-      addNode(graph, {
-        id: cn.id,
-        type: 'class',
-        name: cn.name,
-        source: cn.source,
-        hook_count: cn.hook_count,
-        files: Array.from(cn.files).sort(),
-        sourceIndex: sourceIndexMap[cn.id],
-      }, repoPalettes, sourceLabels);
+      addNode(
+        graph,
+        {
+          id: cn.id,
+          type: 'class',
+          name: cn.name,
+          source: cn.source,
+          hook_count: cn.hook_count,
+          files: Array.from(cn.files).sort(),
+          sourceIndex: sourceIndexMap[cn.id],
+        },
+        repoPalettes,
+        sourceLabels
+      );
     }
 
     for (const node of data.nodes) {
       if (node.type === 'file' && fileEdgeCounts[node.id] > 0) {
-        addNode(graph, {
-          id: node.id,
-          ...node,
-          sourceIndex: Math.max(0, sourceLabels.indexOf(node.source)),
-        }, repoPalettes, sourceLabels);
+        addNode(
+          graph,
+          {
+            id: node.id,
+            ...node,
+            sourceIndex: Math.max(0, sourceLabels.indexOf(node.source)),
+          },
+          repoPalettes,
+          sourceLabels
+        );
       } else if (node.type === 'hook') {
-        addNode(graph, {
-          id: node.id,
-          ...node,
-          sourceIndex: node.sourceIndex !== undefined ? node.sourceIndex : -1,
-          overlap: node.overlap || false,
-        }, repoPalettes, sourceLabels);
+        addNode(
+          graph,
+          {
+            id: node.id,
+            ...node,
+            sourceIndex: node.sourceIndex !== undefined ? node.sourceIndex : -1,
+            overlap: node.overlap || false,
+          },
+          repoPalettes,
+          sourceLabels
+        );
       }
     }
 
     // Pass 3: add edges now that endpoints exist.
     for (let i = 0; i < data.edges.length; i++) {
-      addEdge(graph, data.edges[i], i, remappedSources[i], sourceIndexMap, repoPalettes, sourceLabels);
+      addEdge(
+        graph,
+        data.edges[i],
+        i,
+        remappedSources[i],
+        sourceIndexMap,
+        repoPalettes,
+        sourceLabels
+      );
     }
   } else {
     for (const node of data.nodes) {
@@ -124,7 +147,15 @@ export function buildSigmaGraph(data, sourceLabels, repoPalettes, mode) {
       addNode(graph, enriched, repoPalettes, sourceLabels);
     }
     for (let i = 0; i < data.edges.length; i++) {
-      addEdge(graph, data.edges[i], i, data.edges[i].source, sourceIndexMap, repoPalettes, sourceLabels);
+      addEdge(
+        graph,
+        data.edges[i],
+        i,
+        data.edges[i].source,
+        sourceIndexMap,
+        repoPalettes,
+        sourceLabels
+      );
     }
   }
 
@@ -221,16 +252,17 @@ export function colorForNode(attrs, repoPalettes, sourceLabels) {
     return attrs.hook_type === 'action' ? palette.action : palette.filter;
   }
   // file / class
-  const label = attrs.source && repoPalettes[attrs.source] ? attrs.source : sourceLabels[attrs.sourceIndex] || sourceLabels[0];
+  const label =
+    attrs.source && repoPalettes[attrs.source]
+      ? attrs.source
+      : sourceLabels[attrs.sourceIndex] || sourceLabels[0];
   return (repoPalettes[label] && repoPalettes[label].file) || '#bbb';
 }
 
 export function colorForEdge(attrs, repoPalettes, sourceLabels) {
   const label = sourceLabels[attrs.sourceIndex] || sourceLabels[0];
   const palette = repoPalettes[label] || {};
-  return attrs.edgeType === 'fires'
-    ? (palette.fireEdge || '#aaa')
-    : (palette.listenEdge || '#aaa');
+  return attrs.edgeType === 'fires' ? palette.fireEdge || '#aaa' : palette.listenEdge || '#aaa';
 }
 
 // Recompute color/baseColor for every node and edge in place. Cheap enough
@@ -362,7 +394,8 @@ export function buildCyAdapter(graph) {
       };
     },
     edges(selector) {
-      const m = selector && selector.match(/\[(target|source)="([^"]+)"\]\[edgeType="(fires|listens)"\]/);
+      const m =
+        selector && selector.match(/\[(target|source)="([^"]+)"\]\[edgeType="(fires|listens)"\]/);
       if (!m) return collection([]);
       const [, key, val, edgeType] = m;
       const matched = [];

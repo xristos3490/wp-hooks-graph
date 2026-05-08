@@ -5,11 +5,11 @@ import './style.scss';
 
 const MOUNT_ID = 'hooksgraph-admin-root';
 
-document.addEventListener( 'DOMContentLoaded', () => {
-	const container = document.getElementById( MOUNT_ID );
-	if ( ! container ) {
-		return;
-	}
+document.addEventListener('DOMContentLoaded', () => {
+  const container = document.getElementById(MOUNT_ID);
+  if (!container) {
+    return;
+  }
 
-	createRoot( container ).render( <App /> );
-} );
+  createRoot(container).render(<App />);
+});

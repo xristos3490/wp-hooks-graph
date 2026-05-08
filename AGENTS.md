@@ -114,19 +114,20 @@ PHP files → HooksGraph\Cli\Runner (discover → FileParser tokenize/extract �
 
 ## Sigma renderer
 
-The viewer renders via Sigma (WebGL) on top of a graphology `Graph`. There is one renderer; no toggle. The layout emphasises *bounded contexts* — visually separated clusters per Louvain community, rather than one tight FA2 blob.
+The viewer renders via Sigma (WebGL) on top of a graphology `Graph`. There is one renderer; no toggle. The layout emphasises _bounded contexts_ — visually separated clusters per Louvain community, rather than one tight FA2 blob.
 
 **Wiring.** `App.jsx` mounts `<SigmaGraphCanvas>` once a graph JSON is loaded. The canvas populates `cyRef` with a tiny cy-style adapter built by `buildCyAdapter(graph)` in `lib/sigma-setup.js` so `DetailPanel.jsx` can keep its `cy.getElementById(...)` / `cy.edges('[target|source="X"][edgeType="…"]')` query syntax. The adapter only implements the surface DetailPanel touches; everything else returns empty collections. Refactoring DetailPanel to read raw data from context would let the adapter go.
 
 **Layout.** Hardcoded to `communities` (Louvain) with `spread = 0.3` — no dropdown, no UI. `applyLayout` in `lib/sigma-layouts.js` still exposes other strategies (`directory`, `force`, `force-noverlap`, etc.) as callable code for future re-exposure, but only `communities` is wired into the canvas. The cluster layouts (`communities`, `directory`) are two-stage:
 
 1. Bucket nodes into clusters (by directory prefix or Louvain community).
-2. Run FA2 on each cluster's *internal* subgraph for an organic shape.
+2. Run FA2 on each cluster's _internal_ subgraph for an organic shape.
 3. Normalize each cluster to a target radius (`15 + sqrt(n)*4`) so the next stage has consistent geometry to work with.
 4. Build a super-graph with one node per cluster sized to that radius, run FA2 with `adjustSizes: true` and a `noverlap` pass — this guarantees cluster bounding circles never touch.
 5. Translate each member position by its cluster's super-position.
 
 **Visual constraints.** Sigma 3 default programs only ship circle nodes, line + arrow edges, hex colors. So:
+
 - Hook nodes render as circles; file/class nodes render as squares via `@sigma/node-square` (registered in `SigmaGraphCanvas.jsx`). The square program is 1:1 with a single radius, not a true text-width rectangle.
 - Both fires and listens use the stock straight `arrow` program. The only differentiator is edge color from the palette (no built-in dashed style in sigma 3).
 - No dashed border on `[?dynamic]` hooks.

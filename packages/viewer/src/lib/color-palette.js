@@ -127,9 +127,7 @@ export function defaultHueFor(sourceLabels, index) {
   if (index < CURATED_HUES.length) return CURATED_HUES[index];
   const extras = Math.max(0, sourceLabels.length - CURATED_HUES.length);
   const step = 360 / (extras + 1);
-  return (
-    (CURATED_HUES[CURATED_HUES.length - 1] + step * (index - CURATED_HUES.length + 1)) % 360
-  );
+  return (CURATED_HUES[CURATED_HUES.length - 1] + step * (index - CURATED_HUES.length + 1)) % 360;
 }
 
 export function generateRepoPalette(sourceLabels, hueOverrides = {}) {
