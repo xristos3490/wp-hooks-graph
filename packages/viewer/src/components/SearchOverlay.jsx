@@ -9,6 +9,7 @@ import { category, file, download } from '@wordpress/icons';
 import { useGraphContext } from '../context/GraphContext';
 import { useSizing } from '../context/SizingContext';
 import { exportSigmaToPng } from '../lib/sigma-export';
+import { contrastForegroundColors } from '../lib/contrast';
 
 function debounce(fn, ms) {
   let timer;
@@ -28,6 +29,14 @@ export default function SearchOverlay() {
   const [exportScale, setExportScale] = useState('2');
   const [isExporting, setIsExporting] = useState(false);
   const inputRef = useRef(null);
+
+  const iconColors = contrastForegroundColors(sizing.canvasBg);
+  const iconStyleVars = {
+    '--wp-ui-button-foreground-color': iconColors.idle,
+    '--wp-ui-button-foreground-color-active': iconColors.hover,
+    '--wp-ui-button-background-color-active': iconColors.hoverBg,
+    '--wp-ui-button-border-color-active': iconColors.hoverBg,
+  };
 
   const searchDelay = isLargeGraph ? 200 : 80;
   const debouncedSearch = useCallback(
@@ -77,7 +86,7 @@ export default function SearchOverlay() {
           variant="minimal"
           tone="neutral"
           size="small"
-          style={leftButtonStyle}
+          style={{ ...leftButtonStyle, ...iconStyleVars }}
         />
 
         <div style={{ flex: 1, overflow: 'hidden' }}>
@@ -103,6 +112,7 @@ export default function SearchOverlay() {
                   variant="minimal"
                   tone="neutral"
                   size="small"
+                  style={iconStyleVars}
                 />
               }
             />
