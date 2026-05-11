@@ -285,16 +285,10 @@ function addNode(graph, node, repoPalettes, sourceLabels) {
   if (graph.hasNode(node.id)) return;
   const sigmaSize = Math.max(3, nodeSizeFor(node));
   const color = colorForNode(node, repoPalettes, sourceLabels);
-  // Sigma uses `type` as the registered renderer program, so we cannot store
-  // the app's hook/file/class type under that key. Stash it as `nodeType` and
-  // surface it back via the cy-adapter's data() method below.
   const { type: appType, ...rest } = node;
   graph.addNode(node.id, {
     ...rest,
     nodeType: appType,
-    // Hooks render as circles; files/classes render as squares. Both
-    // programs are registered in SigmaGraphCanvas.
-    type: appType === 'hook' ? 'circle' : 'square',
     size: sigmaSize,
     baseSize: sigmaSize,
     color,
@@ -331,21 +325,15 @@ function addEdge(graph, edge, i, sourceId, sourceIndexMap, repoPalettes, sourceL
     size: pctToPx(SIGMA_SIZE_PCT.edgeSize, REFERENCE_VMIN),
     color,
     baseColor: color,
-    type: 'arrow',
     // Curvature sign distinguishes fires (arc one way) from listens (arc the
-    // other way) when the curvedArrow program is selected. Read by
-    // @sigma/edge-curve. Magnitude kept modest so dense graphs don't get
-    // tangled. The 'arrow' program ignores this attribute.
+    // other way) when the curved path primitive is selected. Magnitude kept
+    // modest so dense graphs don't get tangled.
     curvature: isFires ? 0.25 : -0.25,
     // Stored on the edge but blanked out by the reducer at idle — only
     // surfaced when the edge is inside an active highlight neighborhood.
     label: edge.type,
     baseLabel: edge.type,
     hidden: false,
-    // Seed at 0 so sigma's zIndex sort has an attribute to compare against
-    // when applyEdgeElevation lifts highlighted edges to 1 in
-    // SigmaGraphCanvas.
-    zIndex: 0,
   });
 }
 
