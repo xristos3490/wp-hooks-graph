@@ -229,6 +229,37 @@ export default function SigmaGraphCanvas() {
                 depth: 'topNodes',
               },
             },
+            // Hover / selection halo: white backdrop around the node + label
+            // pill behind the label. Sigma manages isHovered internally on
+            // pointer enter/leave.
+            // Hover / selection: white halo around node (backdrop on shape)
+            // + white pill behind label (labelBackground). Sigma manages
+            // isHovered internally on pointer enter/leave.
+            {
+              whenState: 'isHovered',
+              then: {
+                backdropVisibility: 'visible',
+                backdropColor: '#ffffff',
+                backdropArea: 'node',
+                backdropPadding: 6,
+                backdropCornerRadius: 8,
+                labelBackgroundColor: '#ffffff',
+                labelBackgroundPadding: 4,
+                depth: 'topNodes',
+              },
+            },
+            {
+              whenState: 'isSelected',
+              then: {
+                backdropVisibility: 'visible',
+                backdropColor: '#ffffff',
+                backdropArea: 'node',
+                backdropPadding: 6,
+                backdropCornerRadius: 8,
+                labelBackgroundColor: '#ffffff',
+                labelBackgroundPadding: 4,
+              },
+            },
           ],
           edges: [
             {
