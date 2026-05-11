@@ -54,6 +54,10 @@ final class CallbackBodyAnalyzer
      * @param list<string> $effects
      * @param list<array<string,mixed>> $targets
      * @param list<string> $calledApis
+     *
+     * @param-out list<string> $effects
+     * @param-out list<array<string,mixed>> $targets
+     * @param-out list<string> $calledApis
      */
     private static function walk(array $tokens, int $i, int $n, array &$effects, array &$targets, array &$calledApis): void
     {
@@ -268,6 +272,10 @@ final class CallbackBodyAnalyzer
      * @param list<string> $effects
      * @param list<array<string,mixed>> $targets
      * @param list<string> $calledApis
+     *
+     * @param-out list<string> $effects
+     * @param-out list<array<string,mixed>> $targets
+     * @param-out list<string> $calledApis
      */
     private static function handleFunctionCall(string $name, array $args, array &$effects, array &$targets, array &$calledApis): void
     {
@@ -323,6 +331,10 @@ final class CallbackBodyAnalyzer
      * @param list<string> $effects
      * @param list<array<string,mixed>> $targets
      * @param list<string> $calledApis
+     *
+     * @param-out list<string> $effects
+     * @param-out list<array<string,mixed>> $targets
+     * @param-out list<string> $calledApis
      */
     private static function handleVariable(array $tokens, int $i, int $n, array &$effects, array &$targets, array &$calledApis, bool $forceWrite): int
     {
@@ -540,6 +552,11 @@ final class CallbackBodyAnalyzer
         return $out;
     }
 
+    /**
+     * @param list<array<string,mixed>> $targets
+     *
+     * @param-out list<array<string,mixed>> $targets
+     */
     private static function handleUnset(array $tokens, int $i, int $n, array &$targets): int
     {
         // T_UNSET, ws, '(' args ')'
