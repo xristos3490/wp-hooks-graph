@@ -4,6 +4,8 @@
 
 Parses every `do_action`, `add_action`, `apply_filters`, and `add_filter` call using PHP's built-in `token_get_all()` tokenizer. No WordPress runtime, no database, no autoloading — just source files in, dependency graph out.
 
+🔗 **Live demo:** [wphooksgraph.wpcomstaging.com](https://wphooksgraph.wpcomstaging.com/)
+
 ![Hooks Graph viewer exploring the Gutenberg codebase](images/gutenberg-hooksgraph-demo.jpg)
 
 ![Hooks Graph viewer focused on the admin_init hook in Gutenberg](images/gutenberg-hooksgraph-admin-init-demo.jpg)
