@@ -23,10 +23,17 @@ function hooksgraph_ability_list_codebases( Graph_Index $idx, Storage $storage )
 	return array(
 		'label'               => __( 'List available codebases', 'hooksgraph' ),
 		'description'         => __( 'List every parsed plugin codebase available for hooks-graph querying. Call this first to learn which plugin keys to pass as the `plugin` argument to the other hooksgraph abilities.', 'hooksgraph' ),
+		// `default` matters here: the AI Client resolver calls `execute()` with
+		// `null` when the model sends no args (which is the only valid shape
+		// for this ability). `WP_Ability::normalize_input()` then falls
+		// through to `input_schema['default']`, so without it the validator
+		// rejects `null` as "not of type object" and the model loops trying to
+		// guess the right arg shape.
 		'input_schema'        => array(
 			'type'                 => 'object',
 			'properties'           => new \stdClass(),
 			'additionalProperties' => false,
+			'default'              => new \stdClass(),
 		),
 		'output_schema'       => array(
 			'type'  => 'array',

@@ -1,6 +1,7 @@
 import { Page } from '@wordpress/admin-ui';
 import { __ } from '@wordpress/i18n';
 
+import AiCodebasesPanel from './ai-codebases-panel';
 import PluginsView from './plugins-view';
 
 export default function App() {
@@ -11,6 +12,7 @@ export default function App() {
       subTitle={__('Active plugins on this site.', 'hooksgraph')}
       ariaLabel={__('HooksGraph admin page', 'hooksgraph')}
     >
+      <AiCodebasesPanel />
       <PluginsView />
     </Page>
   );
