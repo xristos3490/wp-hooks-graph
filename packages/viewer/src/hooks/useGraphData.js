@@ -119,7 +119,7 @@ export default function useGraphData() {
   );
 
   const loadDemo = useCallback(() => {
-    if (!demoUrl) {
+    if (demoUrl === null) {
       setError('No demo available');
       return Promise.resolve();
     }

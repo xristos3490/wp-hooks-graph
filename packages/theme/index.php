@@ -17,7 +17,7 @@
 <body <?php body_class(); ?>>
 	<?php wp_body_open(); ?>
 	<main class="hooksgraph-fallback">
-		<h1><?php bloginfo( 'name' ); ?></h1>
+		<h1><?php echo esc_html( get_bloginfo( 'name', 'display' ) ); ?></h1>
 		<p>
 			<?php
 			printf(

@@ -11,7 +11,7 @@
 
 $home_url    = home_url( '/' );
 $redirect_in = 5;
-?>
+?><!DOCTYPE html>
 <html <?php language_attributes(); ?>>
 <head>
 	<meta charset="<?php bloginfo( 'charset' ); ?>">
