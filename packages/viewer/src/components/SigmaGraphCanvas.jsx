@@ -616,16 +616,20 @@ function diffApplyNode(graph, prevSet, currSet) {
 }
 
 // Push the current highlight neighborhoods into sigma's v4 state system.
-// One call replaces the v3 ref+refresh combo for color/depth/label visuals;
-// size + zoom-suppression still flow through the reducer.
+// `setNodeState` merges into the existing state — passing `null` is a no-op,
+// so each call must send explicit `false` for every known flag to clear
+// stale ones. NODE_CLEARED / EDGE_CLEARED define the canonical flag sets.
+const NODE_CLEARED = { isFaded: false, isFocused: false, forceLabel: false, isSelected: false };
+const EDGE_CLEARED = { isFaded: false, isFocusedEdge: false, touchesSelected: false };
+
 function applyHighlightState(sigma, graph, h, statedRef) {
   const anyActive = !!(h.searchNeighborhood || h.selectedNeighborhood || h.hoveredNeighborhood);
   sigma.setGraphState({ hasActiveSubgraph: anyActive });
 
   const nextNodes = new Set();
-  const setNode = (id, state) => {
+  const setNode = (id, flags) => {
     if (!graph.hasNode(id)) return;
-    sigma.setNodeState(id, state);
+    sigma.setNodeState(id, { ...NODE_CLEARED, ...flags });
     nextNodes.add(id);
   };
 
@@ -640,7 +644,7 @@ function applyHighlightState(sigma, graph, h, statedRef) {
         setNode(id, { isFaded: true });
       } else {
         const forceLabel = inSelected || inHovered;
-        setNode(id, { isFocused: true, ...(forceLabel ? { forceLabel: true } : null) });
+        setNode(id, { isFocused: true, forceLabel });
       }
     });
   }
@@ -650,8 +654,8 @@ function applyHighlightState(sigma, graph, h, statedRef) {
   }
 
   const nextEdges = new Set();
-  const setEdge = (id, state) => {
-    sigma.setEdgeState(id, state);
+  const setEdge = (id, flags) => {
+    sigma.setEdgeState(id, { ...EDGE_CLEARED, ...flags });
     nextEdges.add(id);
   };
   if (anyActive) {
@@ -662,7 +666,7 @@ function applyHighlightState(sigma, graph, h, statedRef) {
         (h.hoveredNeighborhood && h.hoveredNeighborhood.has(src) && h.hoveredNeighborhood.has(tgt));
       if (inFocus) {
         const touchesSel = h.selectedNodeId && (h.selectedNodeId === src || h.selectedNodeId === tgt);
-        setEdge(id, { isFocusedEdge: true, ...(touchesSel ? { touchesSelected: true } : null) });
+        setEdge(id, { isFocusedEdge: true, touchesSelected: !!touchesSel });
       } else {
         setEdge(id, { isFaded: true });
       }
@@ -670,10 +674,10 @@ function applyHighlightState(sigma, graph, h, statedRef) {
   }
 
   statedRef.current.nodes.forEach((id) => {
-    if (!nextNodes.has(id) && graph.hasNode(id)) sigma.setNodeState(id, null);
+    if (!nextNodes.has(id) && graph.hasNode(id)) sigma.setNodeState(id, NODE_CLEARED);
   });
   statedRef.current.edges.forEach((id) => {
-    if (!nextEdges.has(id) && graph.hasEdge(id)) sigma.setEdgeState(id, null);
+    if (!nextEdges.has(id) && graph.hasEdge(id)) sigma.setEdgeState(id, EDGE_CLEARED);
   });
   statedRef.current = { nodes: nextNodes, edges: nextEdges };
 }
