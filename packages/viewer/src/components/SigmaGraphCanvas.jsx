@@ -1,8 +1,11 @@
 import { useRef, useEffect, useState } from 'react';
 import Sigma from 'sigma';
-import { NodePointProgram } from 'sigma/rendering';
-import { EdgeCurvedArrowProgram } from '@sigma/edge-curve';
-import { NodeSquareProgram } from '@sigma/node-square';
+import {
+  sdfCircle,
+  sdfSquare,
+  pathCurved,
+  extremityArrow,
+} from 'sigma/rendering';
 import { useGraphContext } from '../context/GraphContext';
 import { useSizing } from '../context/SizingContext';
 import {
@@ -98,11 +101,9 @@ export default function SigmaGraphCanvas() {
   // Snapshot of previously visible ids; mirrors GraphCanvas's diff approach.
   const prevVisibleRef = useRef(null);
 
-  // Edges currently elevated to zIndex 1 because both endpoints are in the
-  // active highlight neighborhood. Sigma sorts edges by graph-attribute
-  // zIndex at index time (reducer zIndex is read but doesn't reorder), so we
-  // mutate the graph itself and let refresh() re-index.
-  const elevatedEdgesRef = useRef(new Set());
+  // Sets of node/edge ids that currently have non-default state in sigma.
+  // Used to clear stale state when neighborhoods shrink.
+  const statedNodesRef = useRef({ nodes: new Set(), edges: new Set() });
 
   // Latest camera ratio, kept in a ref so the node reducer can suppress
   // labels when zoomed out without forcing a React re-render on every pan.
@@ -166,30 +167,9 @@ export default function SigmaGraphCanvas() {
         defaultEdgeColor: '#aaa',
         edgeLabelColor: { color: '#6b6378' },
         edgeLabelSize: 11,
-        // Register edge-curve program alongside the stock 'arrow' so the
-        // reducer can opt edges into curved rendering. Curvature direction is
-        // read from each edge's `curvature` attribute (set in sigma-setup).
-        edgeProgramClasses: {
-          curvedArrow: EdgeCurvedArrowProgram,
-        },
-        nodeProgramClasses: {
-          // Sigma's default `circle` is a quad-based SDF program whose AA
-          // border is fixed in clip-space (`u_correctionRatio * 2.0`). That
-          // means the band's pixel width grows with pixelRatio — circles
-          // soften visibly at 2× export. NodePointProgram uses gl.POINTS
-          // with the AA band measured in gl_PointCoord (pixel-space), so
-          // edges stay at ~½ px regardless of DPR. The trade-off is the
-          // hardware ALIASED_POINT_SIZE_RANGE cap, but our largest hub
-          // size (~28 CSS px) × pixelRatio 4 = 224 sits well under typical
-          // desktop limits (511+).
-          circle: NodePointProgram,
-          square: NodeSquareProgram,
-        },
         labelColor: { color: '#4a4258' },
         labelDensity: isLargeGraph ? 0.07 : 1,
         labelGridCellSize: isLargeGraph ? 200 : 60,
-        // Seed in pixels at the current vmin; the resize / viewport-scale
-        // effects below push live updates via sigma.setSetting().
         labelRenderedSizeThreshold:
           ((isLargeGraph ? SIGMA_SIZE_PCT.labelThresholdLarge : SIGMA_SIZE_PCT.labelThreshold) /
             100) *
@@ -197,132 +177,132 @@ export default function SigmaGraphCanvas() {
         enableEdgeEvents: false,
         minCameraRatio: 0.05,
         maxCameraRatio: 20,
-        // Stock sigma defaults are 1.7x per wheel tick / 2.2x per double-click,
-        // which overshoots constantly on a trackpad and trips the >10% reveal-
-        // on-zoom refresh on every notch. Finer steps + shorter animations
-        // feel snappier and refresh less often (the throttle is relative).
         zoomingRatio: 1.4,
         mouseZoomDuration: 80,
         doubleClickZoomingRatio: 1.7,
         doubleClickZoomingDuration: 80,
-        // Required for per-element `zIndex` from the reducers to take effect —
-        // without it sigma renders in insertion order.
-        zIndex: true,
+
+        primitives: {
+          // Named depth layers replace v3 numeric zIndex. Order = back-to-front.
+          depthLayers: ['edges', 'nodes', 'focusedEdges', 'focusedNodes', 'topNodes'],
+          nodes: {
+            shapes: { circle: sdfCircle(), square: sdfSquare() },
+          },
+          edges: {
+            paths: [pathCurved()],
+            extremities: [extremityArrow()],
+          },
+        },
+
+        styles: {
+          nodes: [
+            {
+              shape: (attrs) => (attrs.nodeType === 'hook' ? 'circle' : 'square'),
+              color: { attribute: 'color' },
+              depth: 'nodes',
+            },
+            {
+              when: (attrs) => attrs.hidden === true,
+              then: { visibility: 'hidden' },
+            },
+            {
+              whenState: 'isFaded',
+              then: {
+                color: () => fadeBgColor(sizingRef.current.canvasBg),
+                labelVisibility: 'hidden',
+              },
+            },
+            {
+              whenState: 'isFocused',
+              then: { depth: 'focusedNodes' },
+            },
+            {
+              whenState: 'forceLabel',
+              then: { labelVisibility: 'visible' },
+            },
+            {
+              whenState: 'isSelected',
+              then: {
+                color: { attribute: 'baseColor' },
+                labelVisibility: 'visible',
+                depth: 'topNodes',
+              },
+            },
+          ],
+          edges: [
+            {
+              path: 'curved',
+              head: 'arrow',
+              color: ({ attrs }) =>
+                fadeColor(attrs.color, sizingRef.current.edgeOpacity, sizingRef.current.canvasBg),
+              depth: 'edges',
+              labelVisibility: 'hidden',
+            },
+            {
+              when: (attrs) => attrs.hidden === true,
+              then: { visibility: 'hidden' },
+            },
+            {
+              whenState: 'isFaded',
+              then: { color: () => fadeBgColor(sizingRef.current.canvasBg) },
+            },
+            {
+              whenState: 'isFocusedEdge',
+              then: {
+                color: ({ attrs }) =>
+                  fadeColor(
+                    attrs.baseColor || attrs.color,
+                    sizingRef.current.edgeOpacity,
+                    sizingRef.current.canvasBg
+                  ),
+                depth: 'focusedEdges',
+                labelVisibility: 'visible',
+              },
+            },
+            {
+              whenState: 'touchesSelected',
+              then: {
+                color: { attribute: 'baseColor' },
+                depth: 'focusedEdges',
+              },
+            },
+          ],
+        },
+
+        // v4 keeps reducers as an escape hatch. We still need per-frame size
+        // (camera ratio + viewport scale + density) and zoom-driven label
+        // suppression. The reducer returns *only* the dynamic bits; everything
+        // else flows through styles + state above.
         nodeReducer: (node, attrs) => {
-          const h = highlightStateRef.current;
-          const r = { ...attrs };
-          // Live size: recomputed every frame from raw signals on the node so
-          // the user-tunable sizing controls + camera-driven reveal-on-zoom
-          // boost apply without rebuilding the graph. Effective vmin folds in
-          // the Viewport % slider so dialing it down emulates a smaller
-          // canvas across every downstream consumer.
           const effectiveVmin = vminRef.current * (sizingRef.current.viewportScale / 100);
-          r.size = computeNodeSize(
+          const size = computeNodeSize(
             attrs,
             sizingRef.current,
             cameraRatioRef.current,
             densityRef.current,
             effectiveVmin
           );
-          if (attrs.hidden) {
-            r.hidden = true;
-            return r;
-          }
           const isZoomedOut = cameraRatioRef.current > ZOOMED_OUT_LABEL_CUTOFF;
-          const inSearch = h.searchNeighborhood && h.searchNeighborhood.has(node);
-          const inSelected = h.selectedNeighborhood && h.selectedNeighborhood.has(node);
-          const inHovered = h.hoveredNeighborhood && h.hoveredNeighborhood.has(node);
-          const anyActive = h.searchNeighborhood || h.selectedNeighborhood || h.hoveredNeighborhood;
-          const inAny = inSearch || inSelected || inHovered;
-          if (anyActive && !inAny) {
-            r.color = fadeBgColor(sizingRef.current.canvasBg);
-            r.label = '';
-            r.zIndex = 0;
-          } else if (inAny) {
-            // Selection and hover always force labels — user has explicitly
-            // pointed at this neighborhood. Search-only nodes follow the
-            // zoom-based cutoff so a wide match set doesn't blanket the
-            // canvas with labels at low zoom.
-            if (inSelected || inHovered) {
-              r.forceLabel = true;
-            } else if (isZoomedOut) {
-              r.label = '';
-            }
-            r.zIndex = 1;
-          } else if (isZoomedOut) {
-            r.label = '';
-          }
-          if (h.selectedNodeId === node) {
-            r.color = attrs.baseColor || attrs.color;
-            r.size = r.size * 1.4;
-            r.forceLabel = true;
-            r.zIndex = 2;
-          }
-          return r;
+          return {
+            size,
+            ...(highlightStateRef.current.selectedNodeId === node ? { size: size * 1.4 } : null),
+            ...(isZoomedOut ? { labelVisibility: 'hidden' } : null),
+          };
         },
         edgeReducer: (edge, attrs) => {
-          const h = highlightStateRef.current;
-          const r = { ...attrs };
-          if (attrs.hidden) {
-            r.hidden = true;
-            return r;
-          }
-          // Convert vmin-% sizes to pixels using the same effective vmin as
-          // the node reducer. Sigma reads `r.size` in screen pixels.
           const edgeVmin = vminRef.current * (sizingRef.current.viewportScale / 100);
-          r.size = (SIGMA_SIZE_PCT.edgeSize / 100) * (edgeVmin || 1000);
-          // Default per-direction program — overridden below if this edge is
-          // inside an active highlight. Both directions render via the
-          // edge-curve program; the per-edge `curvature` attribute (set in
-          // sigma-setup) bows fires and listens opposite ways.
-          r.type = EDGE_PROGRAM;
-          r.color = fadeColor(
-            attrs.color,
-            sizingRef.current.edgeOpacity,
-            sizingRef.current.canvasBg
-          );
-          // Labels are stored on the edge ("fires" / "listens") but only
-          // surfaced when the edge is inside an active highlight; at idle
-          // we'd flood the canvas otherwise.
-          r.label = '';
+          const h = highlightStateRef.current;
           const anyActive = h.searchNeighborhood || h.selectedNeighborhood || h.hoveredNeighborhood;
-          if (anyActive) {
-            const src = graph.source(edge);
-            const tgt = graph.target(edge);
-            const inSearch =
-              h.searchNeighborhood &&
-              h.searchNeighborhood.has(src) &&
-              h.searchNeighborhood.has(tgt);
-            const inSelected =
-              h.selectedNeighborhood &&
-              h.selectedNeighborhood.has(src) &&
-              h.selectedNeighborhood.has(tgt);
-            const inHovered =
-              h.hoveredNeighborhood &&
-              h.hoveredNeighborhood.has(src) &&
-              h.hoveredNeighborhood.has(tgt);
-            if (inSearch || inSelected || inHovered) {
-              r.size = (FOCUSED_EDGE_SIZE_PCT / 100) * (edgeVmin || 1000);
-              r.type = EDGE_PROGRAM;
-              const touchesSelected = h.selectedNodeId === src || h.selectedNodeId === tgt;
-              const baseColor = attrs.baseColor || attrs.color;
-              r.color = touchesSelected
-                ? baseColor
-                : fadeColor(baseColor, sizingRef.current.edgeOpacity, sizingRef.current.canvasBg);
-              // Edge labels are noisy on broad search matches, so only
-              // surface them on explicit pointer interactions (selection
-              // or hover). Search keeps the highlight visuals unlabeled.
-              if (inSelected || inHovered) {
-                r.label = attrs.baseLabel || '';
-                r.forceLabel = true;
-              }
-              r.zIndex = h.selectedNodeId === src || h.selectedNodeId === tgt ? 2 : 1;
-            } else {
-              r.color = fadeBgColor(sizingRef.current.canvasBg);
-              r.zIndex = 0;
-            }
-          }
-          return r;
+          const baseSize = (SIGMA_SIZE_PCT.edgeSize / 100) * (edgeVmin || 1000);
+          if (!anyActive) return { size: baseSize };
+          const src = graph.source(edge);
+          const tgt = graph.target(edge);
+          const inFocus =
+            (h.searchNeighborhood && h.searchNeighborhood.has(src) && h.searchNeighborhood.has(tgt)) ||
+            (h.selectedNeighborhood && h.selectedNeighborhood.has(src) && h.selectedNeighborhood.has(tgt)) ||
+            (h.hoveredNeighborhood && h.hoveredNeighborhood.has(src) && h.hoveredNeighborhood.has(tgt));
+          if (inFocus) return { size: (FOCUSED_EDGE_SIZE_PCT / 100) * (edgeVmin || 1000) };
+          return { size: baseSize };
         },
       });
 
@@ -395,7 +375,7 @@ export default function SigmaGraphCanvas() {
           hoveredNode: node,
           hoveredNeighborhood: neighborhood,
         };
-        refreshElevation(graph, highlightStateRef.current, elevatedEdgesRef);
+        applyHighlightState(sigma, graph, highlightStateRef.current, statedNodesRef);
         sigma.refresh();
       });
       sigma.on('leaveNode', () => {
@@ -404,7 +384,7 @@ export default function SigmaGraphCanvas() {
           hoveredNode: null,
           hoveredNeighborhood: null,
         };
-        refreshElevation(graph, highlightStateRef.current, elevatedEdgesRef);
+        applyHighlightState(sigma, graph, highlightStateRef.current, statedNodesRef);
         sigma.refresh();
       });
 
@@ -444,7 +424,7 @@ export default function SigmaGraphCanvas() {
       graphRef.current = null;
       cyRef.current = null;
       prevVisibleRef.current = null;
-      elevatedEdgesRef.current = new Set();
+      statedNodesRef.current = { nodes: new Set(), edges: new Set() };
       setIsComputing(false);
     };
   }, [data, sourceLabels, isLargeGraph, groupBy]);
@@ -499,6 +479,7 @@ export default function SigmaGraphCanvas() {
     prev.edgeIds = currEdgeIds;
     prev.fileClassIds = currFileClassIds;
 
+    applyHighlightState(sigma, graph, highlightStateRef.current, statedNodesRef);
     sigma.refresh();
   }, [filterResult, graphReady]);
 
@@ -514,7 +495,7 @@ export default function SigmaGraphCanvas() {
         matchedNodes: null,
         searchNeighborhood: null,
       };
-      refreshElevation(graph, highlightStateRef.current, elevatedEdgesRef);
+      applyHighlightState(sigma, graph, highlightStateRef.current, statedNodesRef);
       sigma.refresh();
       return;
     }
@@ -550,7 +531,7 @@ export default function SigmaGraphCanvas() {
         selectedNodeId: null,
         selectedNeighborhood: null,
       };
-      refreshElevation(graph, highlightStateRef.current, elevatedEdgesRef);
+      applyHighlightState(sigma, graph, highlightStateRef.current, statedNodesRef);
       sigma.refresh();
       return;
     }
@@ -634,33 +615,67 @@ function diffApplyNode(graph, prevSet, currSet) {
   });
 }
 
-// Lift edges in any active highlight neighborhood above the rest by writing
-// `zIndex: 1` directly on the graphology edge (sigma reads zIndex at index
-// time, not from the reducer). Walks each neighborhood independently — an
-// edge counts as elevated if both endpoints are in the same neighborhood.
-function refreshElevation(graph, state, elevatedRef) {
-  const next = new Set();
-  collectInternalEdges(graph, state.searchNeighborhood, next);
-  collectInternalEdges(graph, state.selectedNeighborhood, next);
-  collectInternalEdges(graph, state.hoveredNeighborhood, next);
-  const prev = elevatedRef.current;
-  prev.forEach((eid) => {
-    if (!next.has(eid) && graph.hasEdge(eid)) graph.setEdgeAttribute(eid, 'zIndex', 0);
-  });
-  next.forEach((eid) => {
-    if (!prev.has(eid) && graph.hasEdge(eid)) graph.setEdgeAttribute(eid, 'zIndex', 1);
-  });
-  elevatedRef.current = next;
-}
+// Push the current highlight neighborhoods into sigma's v4 state system.
+// One call replaces the v3 ref+refresh combo for color/depth/label visuals;
+// size + zoom-suppression still flow through the reducer.
+function applyHighlightState(sigma, graph, h, statedRef) {
+  const anyActive = !!(h.searchNeighborhood || h.selectedNeighborhood || h.hoveredNeighborhood);
+  sigma.setGraphState({ hasActiveSubgraph: anyActive });
 
-function collectInternalEdges(graph, neighborhood, out) {
-  if (!neighborhood) return;
-  neighborhood.forEach((nodeId) => {
-    if (!graph.hasNode(nodeId)) return;
-    graph.forEachEdge(nodeId, (eid, _attrs, src, tgt) => {
-      if (neighborhood.has(src) && neighborhood.has(tgt)) out.add(eid);
+  const nextNodes = new Set();
+  const setNode = (id, state) => {
+    if (!graph.hasNode(id)) return;
+    sigma.setNodeState(id, state);
+    nextNodes.add(id);
+  };
+
+  if (anyActive) {
+    graph.forEachNode((id, attrs) => {
+      if (attrs.hidden) return;
+      const inSearch = h.searchNeighborhood && h.searchNeighborhood.has(id);
+      const inSelected = h.selectedNeighborhood && h.selectedNeighborhood.has(id);
+      const inHovered = h.hoveredNeighborhood && h.hoveredNeighborhood.has(id);
+      const inAny = inSearch || inSelected || inHovered;
+      if (!inAny) {
+        setNode(id, { isFaded: true });
+      } else {
+        const forceLabel = inSelected || inHovered;
+        setNode(id, { isFocused: true, ...(forceLabel ? { forceLabel: true } : null) });
+      }
     });
+  }
+
+  if (h.selectedNodeId) {
+    setNode(h.selectedNodeId, { isSelected: true, isFocused: true, forceLabel: true });
+  }
+
+  const nextEdges = new Set();
+  const setEdge = (id, state) => {
+    sigma.setEdgeState(id, state);
+    nextEdges.add(id);
+  };
+  if (anyActive) {
+    graph.forEachEdge((id, _attrs, src, tgt) => {
+      const inFocus =
+        (h.searchNeighborhood && h.searchNeighborhood.has(src) && h.searchNeighborhood.has(tgt)) ||
+        (h.selectedNeighborhood && h.selectedNeighborhood.has(src) && h.selectedNeighborhood.has(tgt)) ||
+        (h.hoveredNeighborhood && h.hoveredNeighborhood.has(src) && h.hoveredNeighborhood.has(tgt));
+      if (inFocus) {
+        const touchesSel = h.selectedNodeId && (h.selectedNodeId === src || h.selectedNodeId === tgt);
+        setEdge(id, { isFocusedEdge: true, ...(touchesSel ? { touchesSelected: true } : null) });
+      } else {
+        setEdge(id, { isFaded: true });
+      }
+    });
+  }
+
+  statedRef.current.nodes.forEach((id) => {
+    if (!nextNodes.has(id) && graph.hasNode(id)) sigma.setNodeState(id, null);
   });
+  statedRef.current.edges.forEach((id) => {
+    if (!nextEdges.has(id) && graph.hasEdge(id)) sigma.setEdgeState(id, null);
+  });
+  statedRef.current = { nodes: nextNodes, edges: nextEdges };
 }
 
 function diffApplyEdge(graph, prevSet, currSet) {
@@ -718,11 +733,6 @@ function fadeBgColor(bgHex) {
   const hex = (n) => n.toString(16).padStart(2, '0');
   return '#' + hex(mix(rgb[0])) + hex(mix(rgb[1])) + hex(mix(rgb[2]));
 }
-
-// Edge program for both fires and listens, idle and focused. Curvature
-// direction comes from each edge's `curvature` attribute (set in
-// sigma-setup), so a single program covers both directions.
-const EDGE_PROGRAM = 'curvedArrow';
 
 // Focused-edge size, in % of vmin. Applied to edges inside an active
 // highlight neighborhood (search/selection/hover).
