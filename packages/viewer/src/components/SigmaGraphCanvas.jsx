@@ -199,6 +199,7 @@ export default function SigmaGraphCanvas() {
             {
               shape: (attrs) => (attrs.nodeType === 'hook' ? 'circle' : 'square'),
               color: { attribute: 'color' },
+              label: { attribute: 'label' },
               depth: 'nodes',
             },
             {
@@ -235,6 +236,7 @@ export default function SigmaGraphCanvas() {
               head: 'arrow',
               color: (attrs) =>
                 fadeColor(attrs.color, sizingRef.current.edgeOpacity, sizingRef.current.canvasBg),
+              label: { attribute: 'label' },
               depth: 'edges',
               labelVisibility: 'hidden',
             },
