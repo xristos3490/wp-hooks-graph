@@ -25,26 +25,41 @@ export function hookNameFromEdgeTarget(edge, index) {
   return edge.target.startsWith(prefix) ? edge.target.slice(prefix.length) : edge.target;
 }
 
+const METADATA_FIELDS = ['effects', 'targets', 'called_apis', 'filter_behavior'];
+
+function withMetadata(base, edge) {
+  for (const key of METADATA_FIELDS) {
+    if (edge[key] !== undefined) base[key] = edge[key];
+  }
+  return base;
+}
+
 export function listenerResult(edge, index) {
-  return {
-    file: filePathFromEdgeSource(edge, index),
-    line: edge.line ?? null,
-    callback: edge.callback ?? null,
-    callback_type: edge.callback_type ?? null,
-    priority: edge.priority ?? null,
-    scope_function: edge.scope_function ?? null,
-  };
+  return withMetadata(
+    {
+      file: filePathFromEdgeSource(edge, index),
+      line: edge.line ?? null,
+      callback: edge.callback ?? null,
+      callback_type: edge.callback_type ?? null,
+      priority: edge.priority ?? null,
+      scope_function: edge.scope_function ?? null,
+    },
+    edge,
+  );
 }
 
 export function firerResult(edge, index) {
-  return {
-    file: filePathFromEdgeSource(edge, index),
-    line: edge.line ?? null,
-    callback: null,
-    callback_type: null,
-    priority: null,
-    scope_function: edge.scope_function ?? null,
-  };
+  return withMetadata(
+    {
+      file: filePathFromEdgeSource(edge, index),
+      line: edge.line ?? null,
+      callback: null,
+      callback_type: null,
+      priority: null,
+      scope_function: edge.scope_function ?? null,
+    },
+    edge,
+  );
 }
 
 export function fileEdgeResult(edge, index) {
@@ -58,7 +73,7 @@ export function fileEdgeResult(edge, index) {
     base.priority = edge.priority ?? null;
     base.scope_function = edge.scope_function ?? null;
   }
-  return base;
+  return withMetadata(base, edge);
 }
 
 export function codebasedListenerResult(edge, codebaseId, index) {
@@ -70,12 +85,15 @@ export function codebasedFirerResult(edge, codebaseId, index) {
 }
 
 export function callbackSearchResult(edge, codebaseId, index) {
-  return {
-    codebase: codebaseId,
-    hook: hookNameFromEdgeTarget(edge, index),
-    file: filePathFromEdgeSource(edge, index),
-    line: edge.line ?? null,
-    callback: edge.callback ?? null,
-    priority: edge.priority ?? null,
-  };
+  return withMetadata(
+    {
+      codebase: codebaseId,
+      hook: hookNameFromEdgeTarget(edge, index),
+      file: filePathFromEdgeSource(edge, index),
+      line: edge.line ?? null,
+      callback: edge.callback ?? null,
+      priority: edge.priority ?? null,
+    },
+    edge,
+  );
 }
