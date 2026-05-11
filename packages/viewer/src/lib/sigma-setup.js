@@ -329,6 +329,14 @@ function addEdge(graph, edge, i, sourceId, sourceIndexMap, repoPalettes, sourceL
     // other way) when the curved path primitive is selected. Magnitude kept
     // modest so dense graphs don't get tangled.
     curvature: isFires ? 0.25 : -0.25,
+    // Dash pattern keyed off the dashed edge layer. Fires set dashSize=0 so
+    // layerDashed early-returns transparent and only layerPlain shows — pure
+    // solid line. Listens set dashSize>0 with dashColor matching the canvas
+    // background, so the dash regions paint over the plain layer as visible
+    // "gaps". gapColor is 0 (transparent) so the plain layer shows through
+    // the gap regions, giving the dashed look.
+    dashSize: isFires ? 0 : 10,
+    dashColor: '#ffffff',
     // Stored on the edge but blanked out by the reducer at idle — only
     // surfaced when the edge is inside an active highlight neighborhood.
     label: edge.type,

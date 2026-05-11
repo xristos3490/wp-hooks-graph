@@ -5,6 +5,8 @@ import {
   sdfSquare,
   pathCurved,
   extremityArrow,
+  layerPlain,
+  layerDashed,
 } from 'sigma/rendering';
 import { useGraphContext } from '../context/GraphContext';
 import { useSizing } from '../context/SizingContext';
@@ -189,8 +191,29 @@ export default function SigmaGraphCanvas() {
             shapes: [sdfCircle(), sdfSquare()],
           },
           edges: {
+            // Declare custom per-edge variables so the renderer knows to
+            // upload them as vertex attributes. Without this declaration
+            // the attribute source on a layer never gets wired up.
+            variables: {
+              dashColor: { type: 'color', default: '#ffffff' },
+              dashSize: { type: 'number', default: 0 },
+            },
             paths: [pathCurved()],
             extremities: [extremityArrow()],
+            // layerPlain renders the full solid line. layerDashed paints
+            // dashColor regions on top — when dashColor matches the canvas
+            // background, the dash regions visually appear as gaps in the
+            // line. Fires keep dashSize=0 so the dashed layer early-returns
+            // transparent and they render fully solid.
+            layers: [
+              layerPlain(),
+              layerDashed({
+                dashColor: { attribute: 'dashColor' },
+                dashSize: { attribute: 'dashSize', default: 0, mode: 'pixels' },
+                gapColor: 0,
+                gapSize: { value: 10, mode: 'pixels' },
+              }),
+            ],
           },
         },
 
