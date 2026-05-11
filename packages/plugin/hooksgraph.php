@@ -40,13 +40,17 @@ require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-parser-service.php';
 require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-cron.php';
 require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-admin-page.php';
 require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-rest-controller.php';
+require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-graph-index.php';
+require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-abilities-registrar.php';
 
 add_action( 'plugins_loaded', static function (): void {
 	$storage = new \HooksGraph\Plugin\Storage();
 	$parser  = new \HooksGraph\Plugin\Parser_Service( $storage );
 	$cron    = new \HooksGraph\Plugin\Cron( $parser, $storage );
+	$index   = new \HooksGraph\Plugin\Graph_Index( $storage );
 
 	( new \HooksGraph\Plugin\Admin_Page() )->register();
 	( new \HooksGraph\Plugin\Rest_Controller( $storage, $cron ) )->register();
+	( new \HooksGraph\Plugin\Abilities_Registrar( $storage, $index ) )->register();
 	$cron->register();
 } );
