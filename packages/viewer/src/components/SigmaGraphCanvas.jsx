@@ -186,7 +186,7 @@ export default function SigmaGraphCanvas() {
           // Named depth layers replace v3 numeric zIndex. Order = back-to-front.
           depthLayers: ['edges', 'nodes', 'focusedEdges', 'focusedNodes', 'topNodes'],
           nodes: {
-            shapes: { circle: sdfCircle(), square: sdfSquare() },
+            shapes: [sdfCircle(), sdfSquare()],
           },
           edges: {
             paths: [pathCurved()],
@@ -233,7 +233,7 @@ export default function SigmaGraphCanvas() {
             {
               path: 'curved',
               head: 'arrow',
-              color: ({ attrs }) =>
+              color: (attrs) =>
                 fadeColor(attrs.color, sizingRef.current.edgeOpacity, sizingRef.current.canvasBg),
               depth: 'edges',
               labelVisibility: 'hidden',
@@ -249,7 +249,7 @@ export default function SigmaGraphCanvas() {
             {
               whenState: 'isFocusedEdge',
               then: {
-                color: ({ attrs }) =>
+                color: (attrs) =>
                   fadeColor(
                     attrs.baseColor || attrs.color,
                     sizingRef.current.edgeOpacity,
@@ -515,7 +515,7 @@ export default function SigmaGraphCanvas() {
       matchedNodes: matched,
       searchNeighborhood: nb,
     };
-    refreshElevation(graph, highlightStateRef.current, elevatedEdgesRef);
+    applyHighlightState(sigma, graph, highlightStateRef.current, statedNodesRef);
     sigma.refresh();
   }, [searchQuery, graphReady]);
 
@@ -541,7 +541,7 @@ export default function SigmaGraphCanvas() {
       selectedNodeId: selectedNode,
       selectedNeighborhood: nb,
     };
-    refreshElevation(graph, highlightStateRef.current, elevatedEdgesRef);
+    applyHighlightState(sigma, graph, highlightStateRef.current, statedNodesRef);
     sigma.refresh();
 
     // Sigma's camera coords are normalized across the framed graph bbox,
