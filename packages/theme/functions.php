@@ -48,8 +48,9 @@ function hooksgraph_enqueue_viewer() {
 
 	$base_uri   = get_template_directory_uri();
 	$version    = wp_get_theme()->get( 'Version' );
-	// Manifest paths are relative to the viewer's dist/ root (e.g. "assets/index-XXX.js").
-	// The build copies dist/ contents into the theme's assets/ dir, so prepend "assets/".
+	// Manifest values are bare filenames relative to the theme's assets/ dir
+	// (e.g. "index-XXX.js"). scripts/build-theme.js strips the dist-relative
+	// "assets/" prefix before writing manifest.json.
 	$assets_url = $base_uri . '/assets';
 
 	wp_enqueue_style(

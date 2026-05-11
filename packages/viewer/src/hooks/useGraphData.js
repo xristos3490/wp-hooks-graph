@@ -57,7 +57,9 @@ export default function useGraphData() {
   useEffect(() => {
     let cancelled = false;
 
-    if (demoUrl) {
+    if (demoUrl === null) {
+      if (!cancelled) setHasDemo(false);
+    } else {
       fetch(demoUrl, { method: 'HEAD' })
         .then((r) => {
           if (!r.ok || r.status === 204) return false;

@@ -38,5 +38,5 @@ To enable the "Load demo" button on the empty state, drop a `demo.json` next to 
 ## How it works
 
 - `front-page.php` is a hardcoded classic template: `<!DOCTYPE html>` shell, `wp_head()` / `wp_footer()`, `<div id="root">` mount point.
-- `functions.php` reads `assets/manifest.json`, enqueues the built bundle, and injects `window.HOOKSGRAPH_JSON_URL` (and `HOOKSGRAPH_DEMO_URL`) via `wp_add_inline_script`. A `script_loader_tag` filter rewrites the viewer script to `type="module"` since the Vite output is an ES module.
+- `functions.php` reads `assets/manifest.json`, enqueues the built bundle, and injects `window.HOOKSGRAPH_JSON_URL` (and `HOOKSGRAPH_DEMO_URL`) via `wp_add_inline_script`. `wp_script_attributes` / `wp_inline_script_attributes` filters mark the viewer bundle and its inline bootstrap as `type="module"` since the Vite output is an ES module.
 - The viewer (`packages/viewer/src/hooks/useGraphData.js`) reads those globals via `resolveDataUrls()` and falls back to relative paths when they are absent (preserving the CLI/server flow).
