@@ -211,7 +211,7 @@ export default function SigmaGraphCanvas() {
                 dashColor: { attribute: 'dashColor' },
                 dashSize: { attribute: 'dashSize', default: 0, mode: 'pixels' },
                 gapColor: 0,
-                gapSize: { value: 10, mode: 'pixels' },
+                gapSize: { value: 4, mode: 'pixels' },
               }),
             ],
           },
@@ -497,6 +497,21 @@ export default function SigmaGraphCanvas() {
     if (labelThresholdRef.current) labelThresholdRef.current();
     sigma.refresh();
   }, [sizing, densityFactor, graphReady]);
+
+  // --- Dash-color sync effect ---
+  // The dashed edge layer paints dashColor over the solid plain layer, so
+  // gaps visually match the canvas background only when dashColor === bg.
+  // Push the current canvasBg onto every edge's dashColor attribute whenever
+  // the user changes the background.
+  useEffect(() => {
+    const sigma = sigmaRef.current;
+    const graph = graphRef.current;
+    if (!sigma || !graph || !graphReady) return;
+    graph.forEachEdge((id) => {
+      graph.setEdgeAttribute(id, 'dashColor', sizing.canvasBg);
+    });
+    sigma.refresh();
+  }, [sizing.canvasBg, graphReady]);
 
   // --- Recolor effect ---
   // Hue tweaks from the picker change `repoPalettes` identity but don't
