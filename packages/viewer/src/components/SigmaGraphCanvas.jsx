@@ -211,7 +211,7 @@ export default function SigmaGraphCanvas() {
                 dashColor: { attribute: 'dashColor' },
                 dashSize: { attribute: 'dashSize', default: 0, mode: 'pixels' },
                 gapColor: 0,
-                gapSize: { value: 4, mode: 'pixels' },
+                gapSize: { value: 10, mode: 'pixels' },
               }),
             ],
           },
