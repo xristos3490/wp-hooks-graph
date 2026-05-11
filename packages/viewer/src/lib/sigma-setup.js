@@ -335,7 +335,7 @@ function addEdge(graph, edge, i, sourceId, sourceIndexMap, repoPalettes, sourceL
     // background, so the dash regions paint over the plain layer as visible
     // "gaps". gapColor is 0 (transparent) so the plain layer shows through
     // the gap regions, giving the dashed look.
-    dashSize: isFires ? 0 : 10,
+    dashSize: isFires ? 0 : 18,
     // dashColor is overwritten by the canvas-bg sync effect in
     // SigmaGraphCanvas; the seed value here just keeps the attribute defined
     // so the WebGL buffer slot doesn't go unbound before the first sync.
