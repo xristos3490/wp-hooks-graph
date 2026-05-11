@@ -45,21 +45,8 @@ function hooksgraph_ability_list_codebases( Graph_Index $idx, Storage $storage )
 			),
 		),
 		'execute_callback'    => static function () use ( $storage ): array {
-			if ( ! function_exists( 'get_plugins' ) ) {
-				require_once ABSPATH . 'wp-admin/includes/plugin.php';
-			}
-
-			$active = (array) get_option( 'active_plugins', array() );
-			$all    = \get_plugins();
-
 			$out = array();
-			foreach ( $active as $file ) {
-				if ( ! isset( $all[ $file ] ) ) {
-					continue;
-				}
-				$key     = substr( $file, 0, -4 );
-				$version = (string) ( $all[ $file ]['Version'] ?? '' );
-
+			foreach ( known_active_plugins() as $key => $version ) {
 				$status = $storage->status_for( $key, $version );
 				if ( Storage::STATUS_NEEDS_PARSING === $status ) {
 					continue;

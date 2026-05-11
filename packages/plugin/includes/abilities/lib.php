@@ -16,12 +16,16 @@ use HooksGraph\Plugin\Storage;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Enumerate active plugin keys that have at least a stale parsed graph on disk.
- * Used as the default "all codebases" for cross-plugin abilities.
+ * Map of `<plugin_key> => <version>` for every active installed plugin.
  *
- * @return list<string>
+ * Exposes the `hooksgraph_known_plugins` filter so test suites (and any plugin
+ * that wants to scope hooksgraph differently than "all active plugins") can
+ * override the source list. Default implementation reads `get_plugins()` +
+ * `active_plugins` option, matching the existing REST controller's surface.
+ *
+ * @return array<string, string>
  */
-function active_parsed_plugin_keys( Storage $storage ): array {
+function known_active_plugins(): array {
 	if ( ! function_exists( 'get_plugins' ) ) {
 		require_once ABSPATH . 'wp-admin/includes/plugin.php';
 	}
@@ -33,8 +37,28 @@ function active_parsed_plugin_keys( Storage $storage ): array {
 		if ( ! isset( $all[ $file ] ) ) {
 			continue;
 		}
-		$key     = substr( $file, 0, -4 );
-		$version = (string) ( $all[ $file ]['Version'] ?? '' );
+		$key         = substr( $file, 0, -4 );
+		$out[ $key ] = (string) ( $all[ $file ]['Version'] ?? '' );
+	}
+
+	/**
+	 * Filter the active plugin set that hooksgraph abilities operate over.
+	 *
+	 * @param array<string, string> $plugins Map of plugin key (e.g. `akismet/akismet`) → version.
+	 */
+	$filtered = apply_filters( 'hooksgraph_known_plugins', $out );
+	return is_array( $filtered ) ? $filtered : $out;
+}
+
+/**
+ * Enumerate active plugin keys that have at least a stale parsed graph on disk.
+ * Used as the default "all codebases" for cross-plugin abilities.
+ *
+ * @return list<string>
+ */
+function active_parsed_plugin_keys( Storage $storage ): array {
+	$out = array();
+	foreach ( known_active_plugins() as $key => $version ) {
 		if ( Storage::STATUS_NEEDS_PARSING === $storage->status_for( $key, $version ) ) {
 			continue;
 		}

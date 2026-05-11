@@ -15,17 +15,24 @@ defined( 'ABSPATH' ) || exit;
 
 final class Abilities_Registrar {
 
-	private const ABILITIES = array(
-		'list_codebases'             => 'list-codebases.php',
-		'find_hook'                  => 'find-hook.php',
-		'listeners_of'               => 'listeners-of.php',
-		'firers_of'                  => 'firers-of.php',
-		'hooks_in_file'              => 'hooks-in-file.php',
-		'search_callbacks'           => 'search-callbacks.php',
-		'hotspots'                   => 'hotspots.php',
-		'shared_hooks'               => 'shared-hooks.php',
-		'compare_hook'               => 'compare-hook.php',
-		'filter_priority_conflicts'  => 'filter-priority-conflicts.php',
+	/**
+	 * Ability slugs (dashes only — Abilities API rejects underscores).
+	 * Each slug maps to:
+	 *   - ability name: "hooksgraph/{$slug}"
+	 *   - factory file: "includes/abilities/{$slug}.php"
+	 *   - factory fn:   "HooksGraph\Plugin\Abilities\hooksgraph_ability_{$slug_with_underscores}"
+	 */
+	private const TOOL_SLUGS = array(
+		'list-codebases',
+		'find-hook',
+		'listeners-of',
+		'firers-of',
+		'hooks-in-file',
+		'search-callbacks',
+		'hotspots',
+		'shared-hooks',
+		'compare-hook',
+		'filter-priority-conflicts',
 	);
 
 	public function __construct(
@@ -34,7 +41,21 @@ final class Abilities_Registrar {
 	) {}
 
 	public function register(): void {
+		add_action( 'wp_abilities_api_categories_init', array( $this, 'register_category' ) );
 		add_action( 'wp_abilities_api_init', array( $this, 'register_abilities' ) );
+	}
+
+	public function register_category(): void {
+		if ( ! function_exists( 'wp_register_ability_category' ) ) {
+			return;
+		}
+		\wp_register_ability_category(
+			'hooksgraph',
+			array(
+				'label'       => __( 'HooksGraph', 'hooksgraph' ),
+				'description' => __( 'Query WordPress hook graphs built by the HooksGraph plugin.', 'hooksgraph' ),
+			)
+		);
 	}
 
 	public function register_abilities(): void {
@@ -45,14 +66,15 @@ final class Abilities_Registrar {
 		$dir = HOOKSGRAPH_PLUGIN_DIR . 'includes/abilities/';
 		require_once $dir . 'lib.php';
 
-		foreach ( self::ABILITIES as $tool => $file ) {
-			require_once $dir . $file;
-			$factory = "\\HooksGraph\\Plugin\\Abilities\\hooksgraph_ability_{$tool}";
+		foreach ( self::TOOL_SLUGS as $slug ) {
+			require_once $dir . $slug . '.php';
+			$factory = '\\HooksGraph\\Plugin\\Abilities\\hooksgraph_ability_' . str_replace( '-', '_', $slug );
 			if ( ! function_exists( $factory ) ) {
 				continue;
 			}
-			$args = $factory( $this->index, $this->storage );
-			\wp_register_ability( "hooksgraph/{$tool}", $args );
+			$args             = $factory( $this->index, $this->storage );
+			$args['category'] = 'hooksgraph';
+			\wp_register_ability( "hooksgraph/{$slug}", $args );
 		}
 	}
 }
