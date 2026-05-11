@@ -1,0 +1,37 @@
+/*
+Theme Name: Hooks Graph
+Theme URI: https://github.com/Automattic/wp-hooks-graph
+Author: WordPress Hooks Graph contributors
+Author URI: https://github.com/Automattic/wp-hooks-graph
+Description: Classic theme that renders the interactive WordPress hooks graph (Sigma + graphology) on the front page from a bundled hooks.json. Built from the wp-hooks-graph viewer package.
+Version: 1.0.0
+Requires at least: 6.4
+Tested up to: 6.7
+Requires PHP: 7.4
+License: GPL-2.0-or-later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
+Text Domain: hooksgraph
+*/
+
+html,
+body,
+#root {
+	height: 100%;
+	margin: 0;
+	padding: 0;
+}
+
+body.hooksgraph-viewer {
+	overflow: hidden;
+	background: #0d1117;
+	color: #e6edf3;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.hooksgraph-fallback {
+	max-width: 40rem;
+	margin: 4rem auto;
+	padding: 0 1.5rem;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	line-height: 1.6;
+}
