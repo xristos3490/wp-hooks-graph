@@ -88,6 +88,31 @@ body {
   padding: var(--wpds-dimension-padding-xs);
   height: auto;
 }
+.search-overlay {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  width: min(540px, calc(100% - 70px));
+}
+.search-overlay__wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.search-overlay__left-btn {
+  position: absolute;
+  left: -52px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.search-overlay__right-btn {
+  position: absolute;
+  right: -52px;
+  top: 50%;
+  transform: translateY(-50%);
+}
 .sidebar-toggle {
   position: absolute;
   top: 20px;
@@ -124,10 +149,13 @@ body {
     display: none;
   }
   .search-overlay {
-    left: 70px !important;
-    right: 16px !important;
-    width: auto !important;
-    transform: none !important;
+    left: 70px;
+    right: 16px;
+    width: auto;
+    transform: none;
+  }
+  .legend {
+    max-width: calc(100vw - 32px);
   }
   .search-overlay > div > div:first-child,
   .search-overlay > div > div:last-child {

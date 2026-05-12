@@ -58,9 +58,7 @@ export default function Sidebar() {
     isBusy,
     sidebarOpen,
     setSidebarOpen,
-    isMobile,
   } = useGraphContext();
-  const sidebarClosed = isMobile && !sidebarOpen;
 
   const fileInputRef = useRef(null);
 
@@ -453,11 +451,7 @@ export default function Sidebar() {
   }, [sourceLabels, meta.overlap_filter, overlapCount]);
 
   return (
-    <aside
-      className="sidebar"
-      data-open={sidebarOpen ? 'true' : 'false'}
-      {...(sidebarClosed ? { inert: '', 'aria-hidden': true } : {})}
-    >
+    <aside className="sidebar" data-open={sidebarOpen ? 'true' : 'false'}>
       <header className="sidebar__header">
         <Stack direction="row" align="center" gap="sm">
           <Button

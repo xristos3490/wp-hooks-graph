@@ -25,7 +25,6 @@ export default function Legend() {
         bottom: 16,
         left: '50%',
         transform: 'translateX(-50%)',
-        maxWidth: 'calc(100vw - 32px)',
         background: 'var(--wpds-color-bg-surface-neutral-weak)',
         border: '1px solid var(--wpds-color-stroke-surface-neutral)',
         borderRadius: 'var(--wpds-border-radius-lg)',

@@ -79,9 +79,9 @@ export default function SearchOverlay() {
   }
 
   return (
-    <div className="search-overlay" style={overlayStyle}>
-      <div style={wrapperStyle}>
-        <div style={leftButtonStyle}>
+    <div className="search-overlay">
+      <div className="search-overlay__wrapper">
+        <div className="search-overlay__left-btn">
           <IconButton
             onClick={handleToggleGroupBy}
             icon={groupBy === 'class' ? category : file}
@@ -106,7 +106,7 @@ export default function SearchOverlay() {
           />
         </div>
 
-        <div style={rightButtonStyle}>
+        <div className="search-overlay__right-btn">
           <Popover.Root open={exportOpen} onOpenChange={setExportOpen}>
             <Popover.Trigger
               render={
@@ -176,35 +176,6 @@ export default function SearchOverlay() {
     </div>
   );
 }
-
-const overlayStyle = {
-  position: 'absolute',
-  top: 20,
-  left: '50%',
-  transform: 'translateX(-50%)',
-  zIndex: 20,
-  width: 'min(540px, calc(100% - 70px))',
-};
-
-const wrapperStyle = {
-  position: 'relative',
-  display: 'flex',
-  alignItems: 'center',
-};
-
-const leftButtonStyle = {
-  position: 'absolute',
-  left: -52,
-  top: '50%',
-  transform: 'translateY(-50%)',
-};
-
-const rightButtonStyle = {
-  position: 'absolute',
-  right: -52,
-  top: '50%',
-  transform: 'translateY(-50%)',
-};
 
 const popupStyle = {
   padding: 'var(--wpds-dimension-gap-md)',
