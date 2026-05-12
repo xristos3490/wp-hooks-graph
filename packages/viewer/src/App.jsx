@@ -27,9 +27,23 @@ export default function App() {
   const [groupBy, setGroupBy] = useState('file');
   const [isComputing, setIsComputing] = useState(false);
   const [paletteHueOverrides, setPaletteHueOverrides] = useState({});
-  const [sidebarOpen, setSidebarOpen] = useState(() =>
-    typeof window !== 'undefined' ? window.innerWidth > 768 : true
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 768px)').matches : false
   );
+  const [sidebarOpen, setSidebarOpen] = useState(() =>
+    typeof window !== 'undefined' ? !window.matchMedia('(max-width: 768px)').matches : true
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const mq = window.matchMedia('(max-width: 768px)');
+    const handler = (e) => {
+      setIsMobile(e.matches);
+      setSidebarOpen(!e.matches);
+    };
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
   const cyRef = useRef(null);
   const sigmaRef = useRef(null);
 
@@ -144,6 +158,7 @@ export default function App() {
       isBusy: isLoading || isComputing,
       sidebarOpen,
       setSidebarOpen,
+      isMobile,
     }),
     [
       data,
@@ -172,6 +187,7 @@ export default function App() {
       isLoading,
       isComputing,
       sidebarOpen,
+      isMobile,
     ]
   );
 
