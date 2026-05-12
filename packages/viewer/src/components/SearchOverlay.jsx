@@ -79,7 +79,7 @@ export default function SearchOverlay() {
   }
 
   return (
-    <div style={overlayStyle}>
+    <div className="search-overlay" style={overlayStyle}>
       <div style={wrapperStyle}>
         <div style={leftButtonStyle}>
           <IconButton

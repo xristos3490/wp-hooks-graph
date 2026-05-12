@@ -584,13 +584,15 @@ export default function SigmaGraphCanvas() {
         style={{ width: '100%', height: '100%', background: sizing.canvasBg }}
       />
       {graphReady && (
-        <SigmaSizingControls
-          sizing={sizing}
-          onChange={setSizing}
-          sourceLabels={sourceLabels}
-          repoPalettes={repoPalettes}
-          setPaletteHueOverrides={setPaletteHueOverrides}
-        />
+        <div className="sigma-sizing-controls-wrap">
+          <SigmaSizingControls
+            sizing={sizing}
+            onChange={setSizing}
+            sourceLabels={sourceLabels}
+            repoPalettes={repoPalettes}
+            setPaletteHueOverrides={setPaletteHueOverrides}
+          />
+        </div>
       )}
       {progress && (
         <div

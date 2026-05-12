@@ -56,6 +56,8 @@ export default function Sidebar() {
     loadFile,
     clearData,
     isBusy,
+    sidebarOpen,
+    setSidebarOpen,
   } = useGraphContext();
 
   const fileInputRef = useRef(null);
@@ -449,7 +451,7 @@ export default function Sidebar() {
   }, [sourceLabels, meta.overlap_filter, overlapCount]);
 
   return (
-    <aside className="sidebar">
+    <aside className="sidebar" data-open={sidebarOpen ? 'true' : 'false'} aria-hidden={!sidebarOpen}>
       <header className="sidebar__header">
         <Stack direction="row" align="center" gap="sm">
           <Button
@@ -463,6 +465,17 @@ export default function Sidebar() {
             <Logo />
           </Button>
           <Text variant="body-sm">{metadataLine}</Text>
+          <Button
+            variant="minimal"
+            tone="neutral"
+            className="sidebar__close-btn"
+            aria-label="Close sidebar"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" fill="none" />
+            </svg>
+          </Button>
         </Stack>
       </header>
       <DataForm data={formData} fields={fields} form={form} onChange={handleChange} />
