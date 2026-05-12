@@ -100,8 +100,8 @@ body {
   height: 40px;
   padding: 0;
   background: var(--wpds-color-bg-surface-neutral-weak);
-  border: 1px solid var(--wpds-color-stroke-surface-neutral);
-  border-radius: var(--wpds-border-radius-md);
+  border: 1px solid rgb(148, 148, 148);
+  border-radius: var(--wpds-border-radius-sm);
   color: var(--wpds-color-fg-content-neutral);
   cursor: var(--wpds-cursor-control);
 }
