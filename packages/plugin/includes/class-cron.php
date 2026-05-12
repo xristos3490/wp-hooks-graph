@@ -43,7 +43,11 @@ final class Cron {
 			return self::SCHEDULE_EXISTING;
 		}
 		$queued = wp_schedule_single_event( time() + 5, self::HOOK, [ $plugin_relative ] );
-		return false === $queued ? self::SCHEDULE_FAILED : self::SCHEDULE_NEW;
+		if ( false === $queued ) {
+			return self::SCHEDULE_FAILED;
+		}
+		$this->storage->invalidate_status_map();
+		return self::SCHEDULE_NEW;
 	}
 
 	public function is_scheduled( string $plugin_relative ): bool {
@@ -81,6 +85,11 @@ final class Cron {
 				$plugin_relative,
 				sprintf( '%s: %s', $e::class, $e->getMessage() )
 			);
+		} finally {
+			// The on-disk state changed (file written, meta option updated, or
+			// failure recorded). Drop the cached status map so the next REST
+			// hit doesn't keep showing `scheduled`.
+			$this->storage->invalidate_status_map();
 		}
 	}
 

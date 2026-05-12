@@ -18,18 +18,28 @@ includes/               PHP runtime, namespace HooksGraph\Plugin\.
   class-cron.php          One-shot WP-Cron events keyed by plugin basename. Hook:
                           `hooksgraph_parse_plugin`. UI uses `wp_next_scheduled()` to
                           render a "Scheduled" pill.
-  class-rest-controller.php Custom `hooksgraph/v1` namespace. All routes require
+  class-rest-controller.php Extends `WP_REST_Controller` under the
+                          `hooksgraph/v1` namespace. All routes require
                           `manage_options`. Routes:
-                            GET  /parse-status   → status map for active plugins
-                            POST /parse-plugin   → schedules a parse via Cron
+                            GET  /plugins             → list active plugins (joined row shape, X-WP-Total* headers)
+                            GET  /plugins/{id}        → single record (id is plugin key, e.g. akismet/akismet)
+                            POST /parse-plugin        → schedules a parse via Cron
+                            GET  /parse-download      → streams the parsed JSON for a plugin
+                            POST /ai/list-codebases   → single-turn AI Client loop over hooksgraph abilities
   class-admin-page.php    Registers the Tools → HooksGraph submenu and enqueues
                           build/index.{js,css} on that screen only.
 src/                    React admin UI (wp-scripts entry).
-  index.js                Mount point.
-  app.jsx                 Top-level layout.
-  plugins-view.jsx        DataViews table of active plugins + schedule action.
+  index.js                Mount point. Calls `registerEntities()` before render.
+  app.jsx                 Top-level layout; mounts `<ActivePluginsStage>`.
   schedule-parse-modal.jsx Modal for entering exclude patterns before scheduling.
-  fields.js               DataViews field + view definitions.
+  data/
+    register-entities.js  Guarded `addEntities([PLUGIN_ENTITY])` against `coreStore`.
+  routes/active-plugins/  CIAB-style route folder for the active-plugins list.
+    entity.js               `PLUGIN_ENTITY` (`hooksgraph:plugin`) descriptor + `_fields` const.
+    view-utils.js           `DEFAULT_VIEW` + `getDefaultView()` + `viewToQuery()`.
+    use-plugin-fields.js    `usePluginFields()` → DataViews `Field[]` (replaces old `fields.js`).
+    use-plugin-actions.js   `usePluginActions({ onScheduleSingle, refreshList })` → action defs.
+    stage.jsx               Wiring: `useEntityRecords` → DataViews + tabs + ScheduleParseModal.
   style.scss              Plugin-scoped styles.
 build/                  wp-scripts output. Not checked in.
 composer.json           type: wordpress-plugin. Requires hooksgraph/hooks-parser via
@@ -61,7 +71,9 @@ Run from the **monorepo root** (workspace-aware) unless noted otherwise.
 - **REST permission** is uniformly `current_user_can( 'manage_options' )`. `sanitize_plugin()` enforces `^[a-zA-Z0-9._-]+(?:/[a-zA-Z0-9._-]+)?$`; anything else is rejected.
 - **Schedule semantics**: `Cron::schedule()` returns one of `Cron::SCHEDULE_NEW` / `SCHEDULE_EXISTING` / `SCHEDULE_FAILED`. The REST endpoint maps `SCHEDULE_FAILED` to a 500 `WP_Error` and otherwise responds 202 with `scheduled => true` plus `newly` distinguishing new vs already-pending.
 - **Cron callback re-reads version** from `get_plugins()` — the queued job carries only the plugin key, so a plugin update between schedule and run is fine.
-- **React UI** is mounted at `#hooksgraph-admin-root` on the Tools → HooksGraph screen. Data layer is `apiFetch` against `/wp/v2/plugins?context=view&per_page=100` (active plugins) joined with `/hooksgraph/v1/parse-status` (parse state).
+- **React UI** is mounted at `#hooksgraph-admin-root` on the Tools → HooksGraph screen. Data layer is `@wordpress/core-data`: `useEntityRecords( 'hooksgraph', 'plugin', QUERY )` against `/hooksgraph/v1/plugins`. The server does the active-plugin + parse-state join, so the client makes one request per resolution. Mutations (`POST /parse-plugin`, bulk downloads) call `invalidateResolution( 'getEntityRecords', [ 'hooksgraph', 'plugin', QUERY ] )` for a surgical refetch instead of refetching everything.
+- **Entity registration** lives in `src/data/register-entities.js` and is called from `src/index.js` before `createRoot`. Adding a new entity = extend that file. The `hooksgraph` kind is just a namespace string in core-data; no extra wiring is needed.
+- **Status map caching**: `Storage::status_map_for( $keys, $versions, $cron )` does one `glob()` of the storage dir + a single bulk read of `hooksgraph_plugin_settings`, and is wrapped in the `hooksgraph_plugin_status_map` transient (60s TTL). `Cron::schedule()` and the `finally` block of `Cron::run()` call `Storage::invalidate_status_map()` so the UI sees `scheduled → parsed` transitions immediately rather than after the TTL.
 
 ## Code style
 
@@ -76,7 +88,7 @@ Run from the **monorepo root** (workspace-aware) unless noted otherwise.
 - The plugin's autoloader prefers `vendor/autoload.php` here, but tests and dev may not have it. The fallback to `../parser/vendor/autoload.php` is intentional — don't remove it without first wiring the strauss build that bundles a prefixed copy.
 - Two parser-call surfaces exist: `Cli\Runner` (stdout/stderr, used by the `hooksgraph` CLI) and the lower-level `Discovery`/`Parser`/`Graph` classes (used here). Don't route plugin code through `Runner`; it would print to the response stream.
 - The admin asset enqueue checks `'tools_page_' . HOOKSGRAPH_ADMIN_PAGE_SLUG`. If the menu is moved off Tools, this string changes — keep it in sync with `register_menu()`.
-- WP-Cron callbacks don't bootstrap wp-admin. `Cron::run()` / `Rest_Controller::list_status()` both `require_once ABSPATH . 'wp-admin/includes/plugin.php'` before calling `get_plugins()` — keep this guarded.
+- WP-Cron callbacks don't bootstrap wp-admin. `Cron::run()` and `Rest_Controller::active_plugin_keys()` both `require_once ABSPATH . 'wp-admin/includes/plugin.php'` before calling `get_plugins()` — keep this guarded.
 - The `hooksgraph_plugin_settings` option is autoloaded `false` (3rd arg to `update_option`). The data lives in a single keyed array; don't switch to per-plugin options without a migration.
 - The REST namespace is `hooksgraph/v1`. Do **not** extend `/wp/v2/plugins` — see the comment block at the top of `class-rest-controller.php`. The previous attempt to expose a plugin file path via `/wp/v2/plugins` was reverted (commit 8699f1e).
 - `Storage::prune_older()` is called after each successful parse and unlinks every `<basename>-*.json` that doesn't match the current filename. If you add multi-version retention, change this logic — don't add a sibling cleanup pass.

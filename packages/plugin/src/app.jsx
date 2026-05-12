@@ -2,7 +2,7 @@ import { Page } from '@wordpress/admin-ui';
 import { __ } from '@wordpress/i18n';
 
 import AiCodebasesPanel from './ai-codebases-panel';
-import PluginsView from './plugins-view';
+import ActivePluginsStage from './routes/active-plugins/stage';
 
 export default function App() {
   return (
@@ -13,7 +13,7 @@ export default function App() {
       ariaLabel={__('HooksGraph admin page', 'hooksgraph')}
     >
       <AiCodebasesPanel />
-      <PluginsView />
+      <ActivePluginsStage />
     </Page>
   );
 }

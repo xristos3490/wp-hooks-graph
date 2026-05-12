@@ -23,6 +23,8 @@ final class Storage {
 
 	private const SETTINGS_OPTION        = 'hooksgraph_plugin_settings';
 	private const CODEBASE_OPTION_PREFIX = 'hooksgraph-parsed-data-';
+	private const STATUS_MAP_TRANSIENT   = 'hooksgraph_plugin_status_map';
+	private const STATUS_MAP_TTL         = 60;
 
 	public function dir(): string {
 		return trailingslashit( WP_CONTENT_DIR ) . 'hooksgraph';
@@ -215,6 +217,140 @@ final class Storage {
 		$existing['failed_error'] = wp_substr( $error, 0, 500 );
 
 		update_option( $this->codebase_option_name( $plugin_relative ), $existing, false );
+	}
+
+	/**
+	 * Batched status lookup for many plugins at once.
+	 *
+	 * Replaces the N-time `glob() + get_option()` loop in the REST list endpoint
+	 * with one directory scan, one bulk read of the settings option, and one
+	 * `get_option()` per codebase meta record. Wrapped in a short-TTL transient
+	 * so the dashboard's first paint is the only one that pays the full cost
+	 * until something invalidates the cache (scheduling or cron completion).
+	 *
+	 * @param list<string>          $plugin_keys e.g. `[ 'akismet/akismet', 'hello' ]`.
+	 * @param array<string,string>  $versions    Map of plugin key → plugin header version.
+	 * @param Cron                  $cron        Used to layer the `scheduled` status on top.
+	 * @return array<string, array{
+	 *   status: string,
+	 *   last_parsed_at: ?string,
+	 *   exclude: list<string>,
+	 *   total_files: ?int,
+	 *   total_hooks: ?int,
+	 *   total_edges: ?int,
+	 *   dynamic_hooks: ?int,
+	 *   failed_at: ?string,
+	 *   failed_error: ?string,
+	 * }>
+	 */
+	public function status_map_for( array $plugin_keys, array $versions, Cron $cron ): array {
+		$fingerprint = $this->status_map_fingerprint( $plugin_keys, $versions );
+		$cached      = get_transient( self::STATUS_MAP_TRANSIENT );
+		if ( is_array( $cached ) && ( $cached['fingerprint'] ?? '' ) === $fingerprint && isset( $cached['map'] ) && is_array( $cached['map'] ) ) {
+			return $cached['map'];
+		}
+
+		$all_settings = get_option( self::SETTINGS_OPTION, [] );
+		if ( ! is_array( $all_settings ) ) {
+			$all_settings = [];
+		}
+
+		// One glob() over the storage dir; bucket files by slug so each plugin
+		// resolves with a hash lookup instead of a per-plugin glob.
+		$files_by_slug = [];
+		foreach ( glob( $this->dir() . '/*.json' ) ?: [] as $file ) {
+			$base = basename( $file, '.json' );
+			$dash = strrpos( $base, '-' );
+			if ( false === $dash ) {
+				continue;
+			}
+			$slug    = substr( $base, 0, $dash );
+			$version = substr( $base, $dash + 1 );
+			$mtime   = @filemtime( $file );
+			$files_by_slug[ $slug ][] = [
+				'version' => $version,
+				'mtime'   => false === $mtime ? 0 : (int) $mtime,
+			];
+		}
+
+		$map = [];
+		foreach ( $plugin_keys as $key ) {
+			$slug             = $this->slug( $key );
+			$version          = (string) ( $versions[ $key ] ?? '' );
+			$version_filename = sanitize_file_name( '' !== $version ? $version : 'unversioned' );
+
+			$files_for = $files_by_slug[ $slug ] ?? [];
+			$last      = null;
+			$has_exact = false;
+			foreach ( $files_for as $f ) {
+				if ( $f['version'] === $version_filename ) {
+					$has_exact = true;
+				}
+				if ( null === $last || $f['mtime'] > $last ) {
+					$last = $f['mtime'];
+				}
+			}
+
+			$entry   = isset( $all_settings[ $key ] ) && is_array( $all_settings[ $key ] ) ? $all_settings[ $key ] : [];
+			$exclude = isset( $entry['exclude'] ) && is_array( $entry['exclude'] )
+				? array_values( array_filter( array_map( 'strval', $entry['exclude'] ) ) )
+				: [];
+
+			$meta               = $this->get_codebase_meta( $key );
+			$failed_at          = isset( $meta['failed_at'] ) ? (int) $meta['failed_at'] : null;
+			$has_recent_failure = null !== $failed_at && ( null === $last || $failed_at > $last );
+
+			if ( $cron->is_scheduled( $key ) ) {
+				$status = 'scheduled';
+			} elseif ( $has_recent_failure ) {
+				$status = 'failed';
+			} elseif ( $has_exact ) {
+				$status = self::STATUS_PARSED;
+			} elseif ( ! empty( $files_for ) ) {
+				$status = self::STATUS_STALE;
+			} else {
+				$status = self::STATUS_NEEDS_PARSING;
+			}
+
+			$map[ $key ] = [
+				'status'         => $status,
+				'last_parsed_at' => null !== $last ? gmdate( 'c', $last ) : null,
+				'exclude'        => $exclude,
+				'total_files'    => isset( $meta['total_files'] ) ? (int) $meta['total_files'] : null,
+				'total_hooks'    => isset( $meta['total_hooks'] ) ? (int) $meta['total_hooks'] : null,
+				'total_edges'    => isset( $meta['total_edges'] ) ? (int) $meta['total_edges'] : null,
+				'dynamic_hooks'  => isset( $meta['dynamic_hooks'] ) ? (int) $meta['dynamic_hooks'] : null,
+				'failed_at'      => $has_recent_failure ? gmdate( 'c', $failed_at ) : null,
+				'failed_error'   => $has_recent_failure && isset( $meta['failed_error'] ) ? (string) $meta['failed_error'] : null,
+			];
+		}
+
+		set_transient( self::STATUS_MAP_TRANSIENT, [ 'fingerprint' => $fingerprint, 'map' => $map ], self::STATUS_MAP_TTL );
+
+		return $map;
+	}
+
+	/**
+	 * Drop the cached status map so the next REST hit recomputes.
+	 *
+	 * Called from `Cron::schedule()` and the tail of `Cron::run()` so the UI
+	 * sees `scheduled → parsed` transitions without waiting out the TTL.
+	 */
+	public function invalidate_status_map(): void {
+		delete_transient( self::STATUS_MAP_TRANSIENT );
+	}
+
+	/**
+	 * Fingerprint of the active-plugins + versions input. Same input → same key,
+	 * regardless of order — so callers don't need to canonicalize.
+	 *
+	 * @param list<string>         $plugin_keys
+	 * @param array<string,string> $versions
+	 */
+	private function status_map_fingerprint( array $plugin_keys, array $versions ): string {
+		sort( $plugin_keys );
+		ksort( $versions );
+		return md5( serialize( [ $plugin_keys, $versions ] ) );
 	}
 
 	/**
