@@ -78,7 +78,7 @@ importers:
   packages/viewer:
     dependencies:
       '@sigma/edge-curve':
-        specifier: ^3.1.0
+        specifier: ~3.1.0
         version: 3.1.0(sigma@3.0.3(graphology-types@0.24.8))
       '@sigma/node-square':
         specifier: ^3.0.0
