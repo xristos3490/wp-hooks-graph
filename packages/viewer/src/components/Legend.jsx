@@ -19,6 +19,7 @@ export default function Legend() {
 
   return (
     <div
+      className="legend"
       style={{
         position: 'absolute',
         bottom: 16,

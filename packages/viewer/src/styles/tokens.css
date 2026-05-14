@@ -82,6 +82,118 @@ body {
 .sidebar__header {
   margin-bottom: var(--wpds-dimension-padding-lg);
 }
+.sidebar__close-btn {
+  display: none;
+  margin-left: auto;
+  padding: var(--wpds-dimension-padding-xs);
+  height: auto;
+}
+.search-overlay {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  width: min(540px, calc(100% - 70px));
+}
+.search-overlay__wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.search-overlay__left-btn {
+  position: absolute;
+  left: -52px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.search-overlay__right-btn {
+  position: absolute;
+  right: -52px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.sidebar-toggle {
+  position: absolute;
+  top: 20px;
+  left: 16px;
+  z-index: 25;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  background: var(--wpds-color-bg-surface-neutral-weak);
+  border: 1px solid rgb(148, 148, 148);
+  border-radius: var(--wpds-border-radius-sm);
+  color: var(--wpds-color-fg-content-neutral);
+  cursor: var(--wpds-cursor-control);
+}
+.sidebar-toggle:hover {
+  background: var(--wpds-color-bg-surface-neutral);
+}
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  background: rgba(0, 0, 0, 0.4);
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .sigma-sizing-controls-wrap {
+    display: none;
+  }
+  .search-overlay {
+    left: 70px;
+    right: 16px;
+    width: auto;
+    transform: none;
+  }
+  .legend {
+    max-width: calc(100vw - 32px);
+  }
+  .search-overlay > div > div:first-child,
+  .search-overlay > div > div:last-child {
+    display: none;
+  }
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 30;
+    width: min(320px, 88vw);
+    transform: translateX(-100%);
+    transition: transform 200ms ease, visibility 0s linear 200ms;
+    background: var(--wpds-color-bg-surface-neutral-weak);
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.12);
+  }
+  .sidebar[data-open='false'] {
+    pointer-events: none;
+    visibility: hidden;
+  }
+  .sidebar[data-open='true'] {
+    transform: translateX(0);
+    visibility: visible;
+    transition: transform 200ms ease;
+  }
+  .sidebar__close-btn {
+    display: inline-flex;
+  }
+  .sidebar-toggle {
+    display: inline-flex;
+  }
+  .app-shell--sidebar-open .sidebar-backdrop {
+    display: block;
+  }
+  .graph-area {
+    width: 100vw;
+  }
+}
 .sidebar__home-btn {
   padding: var(--wpds-dimension-padding-xs);
   height: auto;

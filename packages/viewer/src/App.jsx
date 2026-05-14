@@ -27,6 +27,9 @@ export default function App() {
   const [groupBy, setGroupBy] = useState('file');
   const [isComputing, setIsComputing] = useState(false);
   const [paletteHueOverrides, setPaletteHueOverrides] = useState({});
+  const [sidebarOpen, setSidebarOpen] = useState(() =>
+    typeof window !== 'undefined' ? !window.matchMedia('(max-width: 768px)').matches : true
+  );
   const cyRef = useRef(null);
   const sigmaRef = useRef(null);
 
@@ -139,6 +142,8 @@ export default function App() {
       isComputing,
       setIsComputing,
       isBusy: isLoading || isComputing,
+      sidebarOpen,
+      setSidebarOpen,
     }),
     [
       data,
@@ -166,6 +171,7 @@ export default function App() {
       clearData,
       isLoading,
       isComputing,
+      sidebarOpen,
     ]
   );
 
@@ -184,9 +190,28 @@ export default function App() {
   return (
     <GraphContext.Provider value={contextValue}>
       <SizingProvider>
-        <div className="app-shell">
+        <div className={`app-shell${sidebarOpen ? ' app-shell--sidebar-open' : ''}`}>
           <Sidebar />
+          {sidebarOpen && (
+            <button
+              type="button"
+              className="sidebar-backdrop"
+              aria-label="Close sidebar"
+              onClick={() => setSidebarOpen(false)}
+            />
+          )}
           <div className="graph-area">
+            <button
+              type="button"
+              className="sidebar-toggle"
+              aria-label="Open sidebar"
+              aria-expanded={sidebarOpen}
+              onClick={() => setSidebarOpen(true)}
+            >
+              <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" fill="none" />
+              </svg>
+            </button>
             <SearchOverlay />
             <SigmaGraphCanvas />
             <DetailPanel />
