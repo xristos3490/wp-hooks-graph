@@ -1,6 +1,6 @@
 # WordPress Hooks Graph
 
-Parses WordPress PHP codebases for hook relationships (do_action/add_action/apply_filters/add_filter) and visualizes them as an interactive graph. The repo is a **pnpm workspace** with five packages under `packages/`: the PHP parser, Vite/React viewer, Node CLI shim, MCP stdio server, and (shell-only) WordPress plugin.
+Parses WordPress PHP codebases for hook relationships (do_action/add_action/apply_filters/add_filter) and visualizes them as an interactive graph. The repo is a **pnpm workspace** with six packages under `packages/`: the PHP parser, Vite/React viewer, Node CLI shim, MCP stdio server, (shell-only) WordPress plugin, and a WordPress classic theme that embeds the viewer.
 
 ## Commands
 
@@ -18,10 +18,11 @@ Parses WordPress PHP codebases for hook relationships (do_action/add_action/appl
 | `hooksgraph --help` (or `hooksgraph` with no args)                            | Top-level help                                                                                                                                                                                                      |
 | `pnpm dev` / `pnpm dev:viewer`                                                | Vite dev server for the viewer (alias: `pnpm -F @hooksgraph/viewer dev`). Accepts `--json <path>` via `HOOKSGRAPH_JSON` env to bind a specific hooks JSON                                                           |
 | `pnpm dev:plugin`                                                             | wp-scripts watch for the plugin (alias: `pnpm -F @hooksgraph/plugin start`)                                                                                                                                         |
-| `pnpm build`                                                                  | Full build: `composer install` at root + `pnpm build:cli` (viewer + parser composer no-dev) + `pnpm build:plugin`. The one-shot "install and build everything" command                                              |
+| `pnpm build`                                                                  | Full build: `composer install` at root + `pnpm build:cli` (viewer + parser composer no-dev) + `pnpm build:plugin` + `pnpm build:theme`. The one-shot "install and build everything" command                       |
 | `pnpm build:viewer`                                                           | Viewer-only build (alias: `pnpm -F @hooksgraph/viewer build`). Outputs `packages/viewer/dist/`                                                                                                                      |
 | `pnpm build:cli`                                                              | Assemble `packages/cli/` for npm publish — runs viewer build, `composer install --no-dev` in parser, copies into `packages/cli/{php,dist}/`                                                                         |
 | `pnpm build:plugin`                                                           | wp-scripts build for the plugin (alias: `pnpm -F @hooksgraph/plugin build`). Outputs `packages/plugin/build/`                                                                                                       |
+| `pnpm build:theme`                                                            | Build the classic theme: runs the viewer build and copies `packages/viewer/dist/` into `packages/theme/assets/`. Writes `packages/theme/assets/manifest.json` with the hashed JS/CSS filenames                     |
 | `pnpm test`                                                                   | PHPUnit + Vitest                                                                                                                                                                                                    |
 | `pnpm test:php` (or `vendor/bin/phpunit`)                                     | PHPUnit 11 suite at `packages/parser/tests/`                                                                                                                                                                        |
 | `pnpm test:js`                                                                | Vitest (MCP suite under `packages/mcp/tests/`, viewer tests under `packages/viewer/src/**/*.test.js`)                                                                                                               |
@@ -57,6 +58,20 @@ packages/
     tests/              Vitest (per-tool coverage + registry + pagination, fixtures under tests/fixtures/).
   plugin/             WP.org plugin shell — scaffolding only. Real build pipeline (strauss + wp-scripts) is a follow-up spec.
     hooksgraph.php      Plugin header only.
+  theme/              @hooksgraph/theme — WordPress classic theme that renders the Sigma viewer on the front page.
+    style.css           Theme header (Theme Name, Version, …) + minimal global CSS for the viewer mount.
+    index.php           Fallback template for non-front-page routes; shows a "visit /" notice.
+    front-page.php      Hardcoded classic-theme HTML — DOCTYPE shell, wp_head(), <div id="root">, wp_footer().
+    functions.php       Reads assets/manifest.json, enqueues built JS+CSS, injects window.HOOKSGRAPH_JSON_URL /
+                        HOOKSGRAPH_DEMO_URL inline before the bundle, rewrites the script tag to type="module".
+    hooks.json          Ships empty (0 bytes, committed). Replace with parsed graph via
+                        `hooksgraph parse <dir> -o packages/theme/hooks.json`. Empty body → viewer
+                        catches the JSON.parse error and renders its empty state (upload/demo prompt).
+    demo.json           Optional, gitignored. Drop a parsed graph here to enable the viewer's
+                        "Load demo" button — functions.php exposes its URL via
+                        window.HOOKSGRAPH_DEMO_URL. When absent the global is set to null so the
+                        viewer skips its HEAD probe entirely and hides the button.
+    assets/             Generated by scripts/build-theme.js (viewer dist + manifest.json). Gitignored.
 
 scripts/
   build-cli.js        Builds the viewer, validates and installs parser composer deps, copies into packages/cli/.
@@ -111,6 +126,9 @@ PHP files → HooksGraph\Cli\Runner (discover → FileParser tokenize/extract �
 - `packages/viewer/src/lib/sigma-layouts.js` — Layout module. `applyLayout(graph, mode, { isLargeGraph, spread })` mutates `x`/`y` in place. Only `communities` is wired up in the UI; the other modes (`directory`, `force`, `force-noverlap`, `circular`, `source-clusters`, `hook-type-split`, `bipartite`, `random`) remain as callable strategies for future re-exposure. Cluster layouts (`communities`, `directory`) are two-stage: per-cluster FA2 → normalize to a target radius → super-graph FA2 + noverlap to keep cluster bounding circles separated.
 - `packages/mcp/bin/hooksgraph-mcp.js` — Node entry point for the MCP server. Parses `--storage` / `-h`, resolves the storage dir, and hands off to `runStdioServer()` in `packages/mcp/src/server.js`.
 - `scripts/build-cli.js` — Builds the CLI tarball contents: viewer build → `packages/cli/dist/`, parser (src + composer no-dev vendor + shims) → `packages/cli/php/`.
+- `scripts/build-theme.js` — Builds the classic theme: viewer build → `packages/theme/assets/`. Parses the emitted `dist/index.html` for the entry `<script type="module">` and `<link rel="stylesheet">` and writes `packages/theme/assets/manifest.json` so `functions.php` can enqueue hashed filenames without runtime HTML parsing.
+- `packages/theme/functions.php` — WP theme bootstrap. Loads `assets/manifest.json`, enqueues `hooksgraph-viewer` script + style, injects `window.HOOKSGRAPH_JSON_URL` (and `HOOKSGRAPH_DEMO_URL`, set to `null` when no `demo.json` is bundled to suppress the viewer's HEAD probe). `wp_script_attributes` / `wp_inline_script_attributes` filters mark the viewer bundle and its inline bootstrap as `type="module"` because the Vite output is an ES module.
+- `packages/viewer/src/hooks/useGraphData.js` — `resolveDataUrls()` reads `window.HOOKSGRAPH_JSON_URL` / `HOOKSGRAPH_DEMO_URL` and falls back to `./hooks.json` / `./demo.json`. Tri-state on demo (key absent → default; `null` → skip; string → use). The CLI/server flow leaves both globals undefined.
 
 ## Sigma renderer
 

@@ -1,6 +1,6 @@
 import './GitHubLink.css';
 
-export default function GitHubLink({ href = '#', className = '' }) {
+export default function GitHubLink({ href = 'https://github.com/xristos3490/wp-hooks-graph', className = '' }) {
   return (
     <a
       className={['gh-link', className].filter(Boolean).join(' ')}
