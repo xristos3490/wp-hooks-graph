@@ -348,8 +348,7 @@ final class CallbackBodyAnalyzer
             if ($next < $n) {
                 $t = $tokens[$next];
                 if (is_string($t) && $t === '=') {
-                    // Must not be '==' or '=>'.
-                    $nn = $next + 1;
+                    // '==' and '=>' tokenize as distinct token IDs, so a bare '=' string is always assignment.
                     $isWrite = true;
                 }
                 if (is_array($t)) {
