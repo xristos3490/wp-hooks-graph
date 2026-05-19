@@ -93,6 +93,11 @@ final class Builder
                     $edge[$f] = $call[$f];
                 }
             }
+            foreach (['effects', 'targets', 'called_apis', 'filter_behavior'] as $f) {
+                if (array_key_exists($f, $call) && $call[$f] !== null) {
+                    $edge[$f] = $call[$f];
+                }
+            }
             $edges[] = $edge;
         }
 

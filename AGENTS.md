@@ -154,6 +154,38 @@ The viewer renders via Sigma (WebGL) on top of a graphology `Graph`. There is on
 
 These are fixable by registering more custom WebGL programs.
 
+## Callback metadata extraction
+
+Listener edges carry static-analysis facts about what each callback body does. The analyzers run inside `FileParser::parse()` per listener; the output rides along on existing JSON and is passed through `Graph\Builder` onto the edge `data`.
+
+**New fields on listener records / edges:**
+
+- `effects[]` — closed-set tags (`reads_option`, `writes_post_meta`, `io_http`, `redirect`, `fires_hook`, …). Defined in `WpApiMap::EFFECTS`.
+- `targets[]` — `{kind, key, op, confidence}` touch list. `kind` ∈ `option | post_meta | user_meta | term_meta | transient | capability | hook_fire | global | superglobal | chain | db_table`. `op` ∈ `read | write | check | fire`. `confidence` is `literal` (string literal at a known API) or `syntactic` (variable-rooted chain — type unknown).
+- `called_apis[]` — recognised function / `$wpdb->method` names found in the body, deduped.
+- `filter_behavior` — **filter listeners only**. `{return_origin, mutates_input, modified_paths}` where `return_origin` ∈ `input_unchanged | input_mutated | derived | replaced | conditional | unknown`. Absent on action listeners. `modified_paths` is rooted at `arg0` and uses verbatim `->prop` / `[key]` syntax (different from `targets[].key` which uses dotted notation for `chain` and superglobals).
+
+**Architecture:**
+
+- `packages/parser/src/Parser/WpApiMap.php` — static catalogue of WP/PHP APIs and `$wpdb` methods. Each entry: `{function, kind, op, key_arg_index, effect}`. `key_arg_index = -1` means no keyed target (IO-only effect).
+- `packages/parser/src/Parser/CallbackBodyAnalyzer.php` — orchestrator. Pure function over a body token slice. Owns chain extraction, WP-API lookup, globals/superglobals, `$wpdb->method` recognition. Delegates filter-only logic to FilterReturnAnalyzer.
+- `packages/parser/src/Parser/FilterReturnAnalyzer.php` — `return_origin` classifier + `arg0` mutation tracker. Maintains two sets (`alias`, `derived`) and rolls up return categories.
+- `FileParser` builds a per-file method index (`ClassName::method` → body tokens) in one pass, then resolves callback bodies for inline closures, arrow fns, and same-file `[$this,'m']` / `[Cls,'m']` / `'Cls::m'` references. String callbacks and out-of-file classes get no metadata.
+
+**Decisions pinned in tests:**
+
+- `delete_*` folds into `writes_*` effects (no separate "delete" tag).
+- `current_user_can(...)` emits a target but no effect.
+- Method calls `$x->foo()` never produce a `chain` target; they go to `called_apis` only.
+- Nested closure / arrow-fn bodies inside a callback do **not** contribute to the outer callback's effects.
+- By-ref / variadic / no-param filter callbacks → `return_origin: unknown`.
+- Mutation detection is structural (LHS root literally `$arg0`), not flow-sensitive. Aliases (`$out = $v; $out['x'] = 1`) do **not** count — token-level analysis does not model PHP reference semantics.
+- `try` / `catch` return paths roll up to `conditional`; `finally` returns count as a path.
+- Dynamic chain keys (`$v[$key]`) normalise to `arg0[*]`.
+- Implicit fallthrough (no top-level `return` at end) injects a synthetic `replaced` return.
+
+**Wire-up gotcha:** `Graph\Builder` only attaches fields that are present and non-null (`array_key_exists` check). For callbacks the parser can't see into (string callbacks, cross-file methods), the listener record has no `effects` / `targets` / `filter_behavior` key — consumers must treat absence as "unknown", not as "no effects".
+
 ## Code Style
 
 - PHP: namespaced classes under `HooksGraph\`; `declare(strict_types=1)` at top of every file; final classes; camelCase methods.
