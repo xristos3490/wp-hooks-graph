@@ -40,6 +40,7 @@ require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-parser-service.php';
 require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-cron.php';
 require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-admin-page.php';
 require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-rest-controller.php';
+require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-ai-chat-controller.php';
 require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-graph-index.php';
 // Abilities are registered via top-level add_action() calls inside this file.
 require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/abilities.php';
@@ -51,5 +52,6 @@ add_action( 'plugins_loaded', static function (): void {
 
 	( new \HooksGraph\Plugin\Admin_Page() )->register();
 	( new \HooksGraph\Plugin\Rest_Controller( $storage, $cron ) )->register();
+	( new \HooksGraph\Plugin\Ai_Chat_Controller() )->register();
 	$cron->register();
 } );

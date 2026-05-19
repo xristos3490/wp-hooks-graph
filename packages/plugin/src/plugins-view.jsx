@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import { Notice, Stack, Tabs } from '@wordpress/ui';
 
+import AiChatView from './ai-chat-view';
 import { defaultView, fields } from './fields';
 import ScheduleParseModal from './schedule-parse-modal';
 
@@ -233,6 +234,7 @@ export default function PluginsView() {
   }
 
   const isActivePlugins = tab === 'active-plugins';
+  const isAssistant = tab === 'assistant';
 
   return (
     <>
@@ -258,6 +260,7 @@ export default function PluginsView() {
             <Tabs.List variant="minimal">
               <Tabs.Tab value="dashboard">{__('Dashboard', 'hooksgraph')}</Tabs.Tab>
               <Tabs.Tab value="active-plugins">{__('Active plugins', 'hooksgraph')}</Tabs.Tab>
+              <Tabs.Tab value="assistant">{__('AI Assistant', 'hooksgraph')}</Tabs.Tab>
             </Tabs.List>
           </Tabs.Root>
           {isActivePlugins && (
@@ -268,13 +271,15 @@ export default function PluginsView() {
             </Stack>
           )}
         </Stack>
-        {isActivePlugins ? (
+        {isActivePlugins && (
           <>
             <DataViews.FiltersToggled className="dataviews-filters__container" />
             <DataViews.Layout />
             <DataViews.Footer />
           </>
-        ) : (
+        )}
+        {isAssistant && <AiChatView />}
+        {!isActivePlugins && !isAssistant && (
           <h1 className="hooksgraph-plugins__dashboard">{__('Dashboard', 'hooksgraph')}</h1>
         )}
       </DataViews>
