@@ -10,7 +10,6 @@
  * @package HooksGraph\Plugin
  */
 
-use HooksGraph\Plugin\Abilities_Registrar;
 use HooksGraph\Plugin\Graph_Index;
 use HooksGraph\Plugin\Storage;
 
@@ -34,6 +33,12 @@ abstract class HooksGraph_Abilities_Test_Case extends HooksGraph_Test_Case {
 		$this->index   = new Graph_Index( $this->storage );
 		$this->storage->ensure_dir();
 		$this->stage_fixtures();
+
+		// Abilities are gated behind `manage_options`. Run every ability test
+		// as an administrator unless the test overrides explicitly.
+		if ( function_exists( 'wp_set_current_user' ) ) {
+			wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		}
 	}
 
 	public function tear_down(): void {
@@ -68,19 +73,20 @@ abstract class HooksGraph_Abilities_Test_Case extends HooksGraph_Test_Case {
 	}
 
 	/**
-	 * Invoke an ability's execute_callback by name. Returns the raw return
-	 * (array | WP_Error | null) — does NOT go through wp_register_ability,
-	 * so input/output schema validation is bypassed. Use for unit tests of
-	 * handler logic; use wp_get_ability(...)->execute(...) for end-to-end.
+	 * Resolve an ability by short name (with underscores or dashes) and execute
+	 * it through the WordPress Abilities API. Goes through input validation +
+	 * permission_callback — `set_up()` installs an admin user so the permission
+	 * check passes by default. Returns the raw value from the execute callback
+	 * (array | WP_Error | null).
 	 *
 	 * @return mixed
 	 */
 	protected function call_ability( string $tool, array $input = array() ) {
 		$slug    = str_replace( '_', '-', $tool );
-		$factory = '\\HooksGraph\\Plugin\\Abilities\\hooksgraph_ability_' . str_replace( '-', '_', $tool );
-		require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/abilities/lib.php';
-		require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/abilities/' . $slug . '.php';
-		$args = $factory( $this->index, $this->storage );
-		return ( $args['execute_callback'] )( $input );
+		$ability = wp_get_ability( "hooksgraph/{$slug}" );
+		if ( null === $ability ) {
+			$this->fail( "Ability hooksgraph/{$slug} is not registered." );
+		}
+		return $ability->execute( $input );
 	}
 }

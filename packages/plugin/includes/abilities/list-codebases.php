@@ -1,31 +1,33 @@
 <?php
 /**
- * Ability: hooksgraph/list_codebases
+ * Ability: hooksgraph/list-codebases
  *
  * Discovery surface for the AI. Returns every active plugin that has at least
  * a stale parsed graph on disk — anything the other 9 abilities can actually
  * query.
+ *
+ * Included from {@see \HooksGraph\Plugin\hooksgraph_register_abilities()} with
+ * `$index` (Graph_Index) and `$storage` (Storage) in local scope.
+ *
+ * @package HooksGraph\Plugin
  */
 
 declare(strict_types=1);
 
 namespace HooksGraph\Plugin\Abilities;
 
-use HooksGraph\Plugin\Graph_Index;
-use HooksGraph\Plugin\Storage;
-
 defined( 'ABSPATH' ) || exit;
 
-/**
- * @return array<string, mixed>
- */
-function hooksgraph_ability_list_codebases( Graph_Index $idx, Storage $storage ): array {
-	return array(
+/** @var \HooksGraph\Plugin\Storage $storage */
+
+\wp_register_ability(
+	'hooksgraph/list-codebases',
+	array(
+		'category'            => 'hooksgraph',
 		'label'               => __( 'List available codebases', 'hooksgraph' ),
 		'description'         => __( 'List every parsed plugin codebase available for hooks-graph querying. Call this first to learn which plugin keys to pass as the `plugin` argument to the other hooksgraph abilities.', 'hooksgraph' ),
-		// `default` matters here: the AI Client resolver calls `execute()` with
-		// `null` when the model sends no args (which is the only valid shape
-		// for this ability). `WP_Ability::normalize_input()` then falls
+		// `default` matters: the AI Client resolver calls `execute()` with `null`
+		// when the model sends no args. `WP_Ability::normalize_input()` falls
 		// through to `input_schema['default']`, so without it the validator
 		// rejects `null` as "not of type object" and the model loops trying to
 		// guess the right arg shape.
@@ -55,7 +57,7 @@ function hooksgraph_ability_list_codebases( Graph_Index $idx, Storage $storage )
 			$out = array();
 			foreach ( known_active_plugins() as $key => $version ) {
 				$status = $storage->status_for( $key, $version );
-				if ( Storage::STATUS_NEEDS_PARSING === $status ) {
+				if ( \HooksGraph\Plugin\Storage::STATUS_NEEDS_PARSING === $status ) {
 					continue;
 				}
 
@@ -83,5 +85,5 @@ function hooksgraph_ability_list_codebases( Graph_Index $idx, Storage $storage )
 				'idempotent'  => true,
 			),
 		),
-	);
-}
+	)
+);

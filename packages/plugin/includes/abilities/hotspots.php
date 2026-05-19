@@ -1,22 +1,25 @@
 <?php
 /**
  * Ability: hooksgraph/hotspots
+ *
+ * Included from {@see \HooksGraph\Plugin\hooksgraph_register_abilities()} with
+ * `$index` (Graph_Index) and `$storage` (Storage) in local scope.
+ *
+ * @package HooksGraph\Plugin
  */
 
 declare(strict_types=1);
 
 namespace HooksGraph\Plugin\Abilities;
 
-use HooksGraph\Plugin\Graph_Index;
-use HooksGraph\Plugin\Storage;
-
 defined( 'ABSPATH' ) || exit;
 
-/**
- * @return array<string, mixed>
- */
-function hooksgraph_ability_hotspots( Graph_Index $idx, Storage $storage ): array {
-	return array(
+/** @var \HooksGraph\Plugin\Graph_Index $index */
+
+\wp_register_ability(
+	'hooksgraph/hotspots',
+	array(
+		'category'            => 'hooksgraph',
 		'label'               => __( 'Hook hotspots', 'hooksgraph' ),
 		'description'         => __( 'Return the hooks with the most activity in one plugin codebase, sorted descending. Use to highlight the busiest extension points.', 'hooksgraph' ),
 		'input_schema'        => array(
@@ -33,8 +36,8 @@ function hooksgraph_ability_hotspots( Graph_Index $idx, Storage $storage ): arra
 			'required'             => array( 'plugin' ),
 			'additionalProperties' => false,
 		),
-		'execute_callback'    => static function ( array $input ) use ( $idx ) {
-			$built = $idx->for_plugin( $input['plugin'] );
+		'execute_callback'    => static function ( array $input ) use ( $index ) {
+			$built = $index->for_plugin( $input['plugin'] );
 			if ( $built instanceof \WP_Error ) {
 				return $built;
 			}
@@ -76,5 +79,5 @@ function hooksgraph_ability_hotspots( Graph_Index $idx, Storage $storage ): arra
 				'idempotent'  => true,
 			),
 		),
-	);
-}
+	)
+);

@@ -7,7 +7,7 @@ export default function App() {
   return (
     <Page
       className="hooksgraph-page"
-      title={__('HooksGraph', 'hooksgraph')}
+      title={__('Hooks Graph', 'hooksgraph')}
       subTitle={__('Active plugins on this site.', 'hooksgraph')}
       ariaLabel={__('HooksGraph admin page', 'hooksgraph')}
     >

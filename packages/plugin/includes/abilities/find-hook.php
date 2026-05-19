@@ -1,22 +1,25 @@
 <?php
 /**
- * Ability: hooksgraph/find_hook
+ * Ability: hooksgraph/find-hook
+ *
+ * Included from {@see \HooksGraph\Plugin\hooksgraph_register_abilities()} with
+ * `$index` (Graph_Index) and `$storage` (Storage) in local scope.
+ *
+ * @package HooksGraph\Plugin
  */
 
 declare(strict_types=1);
 
 namespace HooksGraph\Plugin\Abilities;
 
-use HooksGraph\Plugin\Graph_Index;
-use HooksGraph\Plugin\Storage;
-
 defined( 'ABSPATH' ) || exit;
 
-/**
- * @return array<string, mixed>
- */
-function hooksgraph_ability_find_hook( Graph_Index $idx, Storage $storage ): array {
-	return array(
+/** @var \HooksGraph\Plugin\Graph_Index $index */
+
+\wp_register_ability(
+	'hooksgraph/find-hook',
+	array(
+		'category'            => 'hooksgraph',
 		'label'               => __( 'Find hook', 'hooksgraph' ),
 		'description'         => __( 'Look up a hook by exact name in one plugin codebase. Returns a single hook summary or null when not found. Use when the user names a specific hook and you want its metadata (type, fire/listen counts, dynamic flag).', 'hooksgraph' ),
 		'input_schema'        => array(
@@ -24,7 +27,7 @@ function hooksgraph_ability_find_hook( Graph_Index $idx, Storage $storage ): arr
 			'properties'           => array(
 				'plugin' => array(
 					'type'        => 'string',
-					'description' => __( 'Plugin key like "akismet/akismet" or "hello". Call hooksgraph/list_codebases first to see available plugins.', 'hooksgraph' ),
+					'description' => __( 'Plugin key like "akismet/akismet" or "hello". Call hooksgraph/list-codebases first to see available plugins.', 'hooksgraph' ),
 				),
 				'name'   => array(
 					'type'        => 'string',
@@ -34,8 +37,8 @@ function hooksgraph_ability_find_hook( Graph_Index $idx, Storage $storage ): arr
 			'required'             => array( 'plugin', 'name' ),
 			'additionalProperties' => false,
 		),
-		'execute_callback'    => static function ( array $input ) use ( $idx ) {
-			$built = $idx->for_plugin( $input['plugin'] );
+		'execute_callback'    => static function ( array $input ) use ( $index ) {
+			$built = $index->for_plugin( $input['plugin'] );
 			if ( $built instanceof \WP_Error ) {
 				return $built;
 			}
@@ -50,5 +53,5 @@ function hooksgraph_ability_find_hook( Graph_Index $idx, Storage $storage ): arr
 				'idempotent'  => true,
 			),
 		),
-	);
-}
+	)
+);
