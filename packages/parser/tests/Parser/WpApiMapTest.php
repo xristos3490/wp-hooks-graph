@@ -43,14 +43,6 @@ final class WpApiMapTest extends TestCase
         }
     }
 
-    public function test_no_duplicate_function_keys(): void
-    {
-        // PHP arrays already dedupe; assert by checking the canonical list.
-        $map = WpApiMap::functions();
-        $names = array_keys($map);
-        $this->assertSame(count($names), count(array_unique($names)));
-    }
-
     public function test_effect_is_within_closed_taxonomy(): void
     {
         foreach (WpApiMap::functions() as $entry) {

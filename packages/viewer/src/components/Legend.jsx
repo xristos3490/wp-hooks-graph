@@ -19,6 +19,7 @@ export default function Legend() {
 
   return (
     <div
+      className="legend"
       style={{
         position: 'absolute',
         bottom: 16,
@@ -126,6 +127,7 @@ function SwatchCell({ children }) {
 // the target end. Single stroke, current per-source color.
 function CurveSwatch({ color, direction }) {
   const apexY = direction === 'fires' ? 4 : 14;
+  const dashArray = direction === 'listens' ? '3 2' : undefined;
   return (
     <svg width="32" height="14" viewBox="0 0 32 18" aria-hidden="true">
       <path
@@ -134,6 +136,7 @@ function CurveSwatch({ color, direction }) {
         stroke={color}
         strokeWidth="1.5"
         strokeLinecap="round"
+        strokeDasharray={dashArray}
       />
       <path
         d="M 25 6 L 28 9 L 25 12"

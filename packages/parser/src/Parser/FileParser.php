@@ -402,7 +402,6 @@ final class FileParser
                     break;
                 }
                 // Type hint tokens (T_STRING, T_NAME_QUALIFIED, T_ARRAY, T_CALLABLE, etc.) — just consume.
-                $sawType = true;
                 continue;
             }
             if (is_string($t)) {

@@ -3,6 +3,7 @@ import Sigma from 'sigma';
 import { NodePointProgram } from 'sigma/rendering';
 import { EdgeCurvedArrowProgram } from '@sigma/edge-curve';
 import { NodeSquareProgram } from '@sigma/node-square';
+import { EdgeDashedCurvedArrowProgram } from '../lib/sigma-programs/EdgeDashedCurvedArrowProgram';
 import { useGraphContext } from '../context/GraphContext';
 import { useSizing } from '../context/SizingContext';
 import {
@@ -171,6 +172,7 @@ export default function SigmaGraphCanvas() {
         // read from each edge's `curvature` attribute (set in sigma-setup).
         edgeProgramClasses: {
           curvedArrow: EdgeCurvedArrowProgram,
+          dashedCurvedArrow: EdgeDashedCurvedArrowProgram,
         },
         nodeProgramClasses: {
           // Sigma's default `circle` is a quad-based SDF program whose AA
@@ -271,11 +273,11 @@ export default function SigmaGraphCanvas() {
           // the node reducer. Sigma reads `r.size` in screen pixels.
           const edgeVmin = vminRef.current * (sizingRef.current.viewportScale / 100);
           r.size = (SIGMA_SIZE_PCT.edgeSize / 100) * (edgeVmin || 1000);
-          // Default per-direction program — overridden below if this edge is
-          // inside an active highlight. Both directions render via the
-          // edge-curve program; the per-edge `curvature` attribute (set in
-          // sigma-setup) bows fires and listens opposite ways.
-          r.type = EDGE_PROGRAM;
+          // Per-direction program: fires renders as solid curved arrow,
+          // listens as dashed curved arrow. Curvature direction (set on the
+          // edge in sigma-setup) bows them opposite ways; the dashed
+          // program adds a screen-pixel-space stroke pattern to listens.
+          r.type = attrs.edgeType === 'listens' ? EDGE_PROGRAM_LISTENS : EDGE_PROGRAM_FIRES;
           r.color = fadeColor(
             attrs.color,
             sizingRef.current.edgeOpacity,
@@ -303,7 +305,7 @@ export default function SigmaGraphCanvas() {
               h.hoveredNeighborhood.has(tgt);
             if (inSearch || inSelected || inHovered) {
               r.size = (FOCUSED_EDGE_SIZE_PCT / 100) * (edgeVmin || 1000);
-              r.type = EDGE_PROGRAM;
+              r.type = attrs.edgeType === 'listens' ? EDGE_PROGRAM_LISTENS : EDGE_PROGRAM_FIRES;
               const touchesSelected = h.selectedNodeId === src || h.selectedNodeId === tgt;
               const baseColor = attrs.baseColor || attrs.color;
               r.color = touchesSelected
@@ -584,13 +586,15 @@ export default function SigmaGraphCanvas() {
         style={{ width: '100%', height: '100%', background: sizing.canvasBg }}
       />
       {graphReady && (
-        <SigmaSizingControls
-          sizing={sizing}
-          onChange={setSizing}
-          sourceLabels={sourceLabels}
-          repoPalettes={repoPalettes}
-          setPaletteHueOverrides={setPaletteHueOverrides}
-        />
+        <div className="sigma-sizing-controls-wrap">
+          <SigmaSizingControls
+            sizing={sizing}
+            onChange={setSizing}
+            sourceLabels={sourceLabels}
+            repoPalettes={repoPalettes}
+            setPaletteHueOverrides={setPaletteHueOverrides}
+          />
+        </div>
       )}
       {progress && (
         <div
@@ -719,10 +723,12 @@ function fadeBgColor(bgHex) {
   return '#' + hex(mix(rgb[0])) + hex(mix(rgb[1])) + hex(mix(rgb[2]));
 }
 
-// Edge program for both fires and listens, idle and focused. Curvature
-// direction comes from each edge's `curvature` attribute (set in
-// sigma-setup), so a single program covers both directions.
-const EDGE_PROGRAM = 'curvedArrow';
+// Edge programs. Both pick curvature direction from each edge's `curvature`
+// attribute (set in sigma-setup). Listens uses a dashed fragment shader
+// (EdgeDashedCurvedArrowProgram) so the two directions are distinguishable
+// beyond color alone on dense graphs.
+const EDGE_PROGRAM_FIRES = 'curvedArrow';
+const EDGE_PROGRAM_LISTENS = 'dashedCurvedArrow';
 
 // Focused-edge size, in % of vmin. Applied to edges inside an active
 // highlight neighborhood (search/selection/hover).

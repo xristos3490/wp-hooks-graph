@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@sigma/edge-curve": "^3.1.0",
+    "@sigma/edge-curve": "~3.1.0",
     "@sigma/node-square": "^3.0.0",
     "@wordpress/components": "^33.0.0",
     "@wordpress/dataviews": "^14.2.0",
