@@ -36,6 +36,7 @@ foreach ( $hooksgraph_autoload_candidates as $hooksgraph_autoload ) {
 unset( $hooksgraph_autoload, $hooksgraph_autoload_candidates );
 
 require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-storage.php';
+require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-settings.php';
 require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-parser-service.php';
 require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-cron.php';
 require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-admin-page.php';
@@ -46,12 +47,13 @@ require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-graph-index.php';
 require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/abilities.php';
 
 add_action( 'plugins_loaded', static function (): void {
-	$storage = new \HooksGraph\Plugin\Storage();
-	$parser  = new \HooksGraph\Plugin\Parser_Service( $storage );
-	$cron    = new \HooksGraph\Plugin\Cron( $parser, $storage );
+	$storage  = new \HooksGraph\Plugin\Storage();
+	$settings = new \HooksGraph\Plugin\Settings();
+	$parser   = new \HooksGraph\Plugin\Parser_Service( $storage );
+	$cron     = new \HooksGraph\Plugin\Cron( $parser, $storage );
 
 	( new \HooksGraph\Plugin\Admin_Page() )->register();
-	( new \HooksGraph\Plugin\Rest_Controller( $storage, $cron ) )->register();
-	( new \HooksGraph\Plugin\Ai_Chat_Controller() )->register();
+	( new \HooksGraph\Plugin\Rest_Controller( $storage, $cron, $settings ) )->register();
+	( new \HooksGraph\Plugin\Ai_Chat_Controller( $settings ) )->register();
 	$cron->register();
 } );

@@ -60,6 +60,7 @@ function hooksgraph_register_abilities(): void {
 	require_once $dir . 'shared-hooks.php';
 	require_once $dir . 'compare-hook.php';
 	require_once $dir . 'filter-priority-conflicts.php';
+	require_once $dir . 'read-file.php';
 }
 
 add_action( 'wp_abilities_api_categories_init', __NAMESPACE__ . '\\hooksgraph_register_ability_category' );

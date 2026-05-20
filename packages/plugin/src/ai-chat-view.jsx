@@ -1,9 +1,9 @@
 import apiFetch from '@wordpress/api-fetch';
-import { Spinner } from '@wordpress/components';
+import { Notice, Spinner } from '@wordpress/components';
 import { useCallback, useEffect, useMemo, useRef, useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import { closeSmall } from '@wordpress/icons';
-import { Badge, Button, IconButton, Notice, Stack, Text, Textarea } from '@wordpress/ui';
+import { Badge, Button, IconButton, Stack, Text, Textarea } from '@wordpress/ui';
 import ReactMarkdown from 'react-markdown';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import remarkGfm from 'remark-gfm';
@@ -59,8 +59,6 @@ function AssistantMarkdown({ source }) {
 
 const SUGGESTIONS = [
   __('Which plugins do you have parsed graphs for?', 'hooksgraph'),
-  __('What listens on `init`?', 'hooksgraph'),
-  __('Find the busiest hooks across all codebases.', 'hooksgraph'),
   __('Are there any filter priority conflicts I should know about?', 'hooksgraph'),
 ];
 
@@ -112,19 +110,17 @@ function MessageBubble({ message }) {
             <AssistantMarkdown source={message.content} />
           ))}
         {message.error && (
-          <Notice.Root variant="error">
-            <Notice.Description>{message.error}</Notice.Description>
-          </Notice.Root>
+          <Notice status="error" isDismissible={false}>
+            {message.error}
+          </Notice>
         )}
         {message.truncated && (
-          <Notice.Root variant="warning">
-            <Notice.Description>
-              {__(
-                'Answered with partial data — the assistant hit its tool-call budget. Ask a follow-up to dig deeper.',
-                'hooksgraph'
-              )}
-            </Notice.Description>
-          </Notice.Root>
+          <Notice status="warning" isDismissible={false}>
+            {__(
+              'Answered with partial data — the assistant hit its tool-call budget. Ask a follow-up to dig deeper.',
+              'hooksgraph'
+            )}
+          </Notice>
         )}
         {message.toolCalls?.length > 0 && (
           <Stack direction="column" gap="xs" className="hooksgraph-chat__tools">
@@ -256,15 +252,13 @@ export default function AiChatView() {
   if (!availability.available) {
     return (
       <div className="hooksgraph-chat">
-        <Notice.Root variant="warning">
-          <Notice.Title>{__('AI Client not available', 'hooksgraph')}</Notice.Title>
-          <Notice.Description>
-            {__(
-              'The WordPress AI Client API is required for this assistant. It ships in WordPress 7.0; on older releases or when the wp_supports_ai filter returns false the chat is disabled.',
-              'hooksgraph'
-            )}
-          </Notice.Description>
-        </Notice.Root>
+        <Notice status="warning" isDismissible={false}>
+          <strong>{__('AI Client not available', 'hooksgraph')}</strong>{' '}
+          {__(
+            'The WordPress AI Client API is required for this assistant. It ships in WordPress 7.0; on older releases or when the wp_supports_ai filter returns false the chat is disabled.',
+            'hooksgraph'
+          )}
+        </Notice>
       </div>
     );
   }
@@ -275,11 +269,11 @@ export default function AiChatView() {
         {messages.length === 0 ? (
           <Stack direction="column" gap="md" className="hooksgraph-chat__intro">
             <Text size="large" weight="strong">
-              {__('Ask anything about your hooks', 'hooksgraph')}
+              {__('Investigate your hooks', 'hooksgraph')}
             </Text>
             <Text variant="muted">
               {__(
-                'The assistant can query parsed plugin graphs through 10 read-only tools — listeners, firers, hotspots, priority conflicts, callback search, and more.',
+                'Ask about listeners, firers, hotspots, priority conflicts, or callback behavior across your parsed plugins. Answers cite the codebase, file, line, callback, and priority — and call out any conflict signals worth a closer look.',
                 'hooksgraph'
               )}
             </Text>

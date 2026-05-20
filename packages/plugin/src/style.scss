@@ -57,6 +57,11 @@ body.tools_page_hooksgraph {
     margin: 0;
   }
 
+  .hooksgraph-settings {
+    padding: 24px;
+    max-width: 720px;
+  }
+
   .hooksgraph-chat {
     display: flex;
     flex-direction: column;

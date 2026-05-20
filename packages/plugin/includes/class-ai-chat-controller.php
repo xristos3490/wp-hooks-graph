@@ -30,11 +30,12 @@ defined( 'ABSPATH' ) || exit;
 final class Ai_Chat_Controller {
 
 	/**
-	 * Every hooksgraph ability is read-only — safe to expose to the model
-	 * with no further gating beyond the resolver's allowlist + each
-	 * ability's `manage_options` permission callback.
+	 * Read-only graph abilities — always available to the model. Filesystem
+	 * access (`hooksgraph/read-file`) is gated separately by the
+	 * `allow_read_files` setting and appended at request time via
+	 * {@see self::abilities()}.
 	 */
-	private const ABILITIES = [
+	private const GRAPH_ABILITIES = [
 		'hooksgraph/list-codebases',
 		'hooksgraph/find-hook',
 		'hooksgraph/listeners-of',
@@ -46,6 +47,24 @@ final class Ai_Chat_Controller {
 		'hooksgraph/compare-hook',
 		'hooksgraph/filter-priority-conflicts',
 	];
+
+	public function __construct( private Settings $settings ) {}
+
+	/**
+	 * Build the per-request ability allowlist. `hooksgraph/read-file` is only
+	 * included when the admin has opted in via Settings, so a disabled
+	 * setting means the tool is invisible to the model — no enforcement at
+	 * call time required.
+	 *
+	 * @return list<string>
+	 */
+	private function abilities(): array {
+		$abilities = self::GRAPH_ABILITIES;
+		if ( $this->settings->get( 'allow_read_files' ) ) {
+			$abilities[] = 'hooksgraph/read-file';
+		}
+		return $abilities;
+	}
 
 	/**
 	 * Hard safety cap so a pathological loop can't run forever. The UI
@@ -96,7 +115,7 @@ final class Ai_Chat_Controller {
 		return new WP_REST_Response(
 			[
 				'available' => function_exists( 'wp_ai_client_prompt' ) && function_exists( 'wp_supports_ai' ) && \wp_supports_ai(),
-				'abilities' => self::ABILITIES,
+				'abilities' => $this->abilities(),
 			],
 			200
 		);
@@ -120,10 +139,11 @@ final class Ai_Chat_Controller {
 			);
 		}
 
-		$history = (array) $request->get_param( 'history' );
-		$system  = $this->build_system_instruction( $history );
+		$history   = (array) $request->get_param( 'history' );
+		$abilities = $this->abilities();
+		$system    = $this->build_system_instruction( $history, $abilities );
 
-		$resolver = new WP_AI_Client_Ability_Function_Resolver( ...self::ABILITIES );
+		$resolver = new WP_AI_Client_Ability_Function_Resolver( ...$abilities );
 		$tool_log = [];
 
 		// The PromptBuilder treats a `list<Message>` argument as the full
@@ -140,7 +160,7 @@ final class Ai_Chat_Controller {
 		// answer has room to complete.
 		$this->extend_time_limit();
 
-		$result = $this->generate( $messages, $system );
+		$result = $this->generate( $messages, $system, $abilities );
 		if ( is_wp_error( $result ) ) {
 			return $this->wrap_error( $result );
 		}
@@ -150,9 +170,33 @@ final class Ai_Chat_Controller {
 			$messages[]        = $assistant_message;
 
 			if ( ! $resolver->has_ability_calls( $assistant_message ) ) {
+				// Some providers occasionally emit a "Let me pull X..." intent
+				// statement and then stop without actually calling a tool.
+				// Detect that pattern and nudge the model to follow through
+				// instead of treating it as a final answer — the user sees a
+				// continuous "thinking" state while the loop carries on.
+				$reply = $this->message_to_text( $result );
+				if ( $this->looks_like_unfinished_intent( $reply ) ) {
+					$messages[] = new UserMessage(
+						[
+							new MessagePart(
+								'You announced an action but did not call any tool. '
+								. 'Make the tool call(s) you described now, in this turn. '
+								. 'Do not narrate intent without acting on it.'
+							),
+						]
+					);
+					$this->extend_time_limit();
+					$result = $this->generate( $messages, $system, $abilities );
+					if ( is_wp_error( $result ) ) {
+						return $this->wrap_error( $result );
+					}
+					continue;
+				}
+
 				return new WP_REST_Response(
 					[
-						'reply'      => $this->message_to_text( $result ),
+						'reply'      => $reply,
 						'tool_calls' => $tool_log,
 						'iterations' => $i,
 					],
@@ -174,7 +218,7 @@ final class Ai_Chat_Controller {
 			}
 
 			$this->extend_time_limit();
-			$result = $this->generate( $messages, $system );
+			$result = $this->generate( $messages, $system, $abilities );
 			if ( is_wp_error( $result ) ) {
 				return $this->wrap_error( $result );
 			}
@@ -197,7 +241,7 @@ final class Ai_Chat_Controller {
 		);
 		$result = \wp_ai_client_prompt( $messages )
 			->using_system_instruction( $system )
-			->using_max_tokens( 2048 )
+			->using_max_tokens( 1024 )
 			->generate_text_result();
 
 		if ( is_wp_error( $result ) ) {
@@ -258,21 +302,94 @@ final class Ai_Chat_Controller {
 	}
 
 	/**
-	 * @param list<\WordPress\AiClient\Messages\DTO\Message> $messages
+	 * Heuristic for "the model announced a tool call but didn't make it."
+	 * Looks for short, intent-like phrasing without a final answer marker.
+	 * Conservative on purpose — false positives just cost one extra round
+	 * trip; false negatives leave the user staring at a half-message.
 	 */
-	private function generate( array $messages, string $system ) {
+	private function looks_like_unfinished_intent( string $reply ): bool {
+		$trimmed = trim( $reply );
+		if ( '' === $trimmed ) {
+			// Pure tool-call turns sometimes come back with no text at all;
+			// if there are no tool calls AND no text, the model has nothing
+			// to say — push it to act.
+			return true;
+		}
+		// Too long to be a pure intent statement — assume it's a real reply.
+		if ( strlen( $trimmed ) > 400 ) {
+			return false;
+		}
+		$lower = strtolower( $trimmed );
+		// Trailing colon / ellipsis is a strong signal the model expected to
+		// continue (with a tool call or a list) but stopped.
+		if ( preg_match( '/[:\\.]{1,3}$/u', $trimmed ) && str_ends_with( $trimmed, ':' ) ) {
+			return true;
+		}
+		$intent_phrases = [
+			'let me ',
+			"let's ",
+			"i'll ",
+			'i will ',
+			'i am going to ',
+			"i'm going to ",
+			'going to ',
+			'one moment',
+			'one sec',
+			'fetching ',
+			'looking up',
+			'pulling ',
+			'checking ',
+			'querying ',
+			'gathering ',
+			'about to ',
+		];
+		foreach ( $intent_phrases as $needle ) {
+			if ( str_contains( $lower, $needle ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * @param list<\WordPress\AiClient\Messages\DTO\Message> $messages
+	 * @param list<string>                                   $abilities
+	 */
+	private function generate( array $messages, string $system, array $abilities ) {
 		return \wp_ai_client_prompt( $messages )
 			->using_system_instruction( $system )
-			->using_abilities( ...self::ABILITIES )
-			->using_max_tokens( 2048 )
+			->using_abilities( ...$abilities )
+			->using_max_tokens( 1024 )
 			->generate_text_result();
 	}
 
-	private function build_system_instruction( array $history ): string {
+	/**
+	 * @param list<string> $abilities
+	 */
+	private function build_system_instruction( array $history, array $abilities ): string {
 		$base = "You are the HooksGraph assistant — an expert on WordPress hooks (actions and filters) for this site's installed plugins.\n"
 			. "Use the provided tools to look up real data. Never invent hook names, file paths, or plugin keys: call `hooksgraph/list-codebases` first if you don't yet know what is available.\n"
 			. "Cite the codebase, file, line, callback, and priority when discussing listeners or firers.\n"
-			. "Format every reply in GitHub-flavored Markdown:\n"
+			. "NEVER announce a tool call without making it in the same turn. Do not write `Let me…`, `I'll check…`, `Pulling…`, `One moment…`, `Looking up…` or any similar intent statement on its own — either emit the actual tool call(s) immediately, or skip the narration entirely and just produce the call. If you need multiple tool calls to answer, emit them across consecutive turns; do not stall with a text-only acknowledgement.\n"
+			. "Prefer the graph tools (`listeners-of`, `firers-of`, `hooks-in-file`, `search-callbacks`, `compare-hook`, `filter-priority-conflicts`, etc.) — they already carry the static-analysis metadata (`effects`, `targets`, `filter_behavior`, `called_apis`) you need for most questions.\n";
+
+		// `read-file` is opt-in: the admin may have disabled it, in which case
+		// the tool is not registered for this request. Only advertise it in
+		// the system instruction when it's actually callable, so the model
+		// doesn't try (and fail) to invoke a missing tool.
+		if ( in_array( 'hooksgraph/read-file', $abilities, true ) ) {
+			$base .= "When in doubt about a conflict, READ THE FILE. The graph data is a starting point, not a verdict. Whenever a conflict signal is not unambiguously clear from the graph data alone, you MUST call `hooksgraph/read-file` to inspect the actual callback bodies before drawing a conclusion. Treat the following as low-confidence and always escalate to reading the file:\n"
+				. "- `filter_behavior.return_origin` of `conditional` (always — `conditional` means the static analyzer could not prove what the callback returns, never assume it is safe).\n"
+				. "- `filter_behavior.return_origin` of `unknown`, `derived`, or `replaced` when the user is asking about correctness or potential conflicts.\n"
+				. "- `targets[]` entries with `confidence: syntactic` (variable-rooted, type unknown) when the answer depends on what the variable resolves to.\n"
+				. "- Two or more listeners sharing the same priority on the same hook, where you cannot tell from the metadata alone whether they actually clash.\n"
+				. "- A listener has no `effects` / `targets` / `filter_behavior` keys at all (the analyzer could not see into the callback — e.g. a string callback or a cross-file method).\n"
+				. "Pass the narrowest `start_line`/`end_line` window that covers the callback in question; never request the whole file when a range will do, and never call it for general curiosity or summarisation. If you confidently know from the graph data that there is no conflict (single listener, single firer, all metadata literal and unambiguous), you do not need to read the file.\n";
+		} else {
+			$base .= "You cannot read raw file contents — work entirely from the graph tools above. If a question genuinely requires inspecting source code that the graph doesn't expose, say so briefly and explain what additional access would be needed, rather than guessing.\n";
+		}
+
+		$base .= "Format every reply in GitHub-flavored Markdown:\n"
 			. "- Use backticks for hook names, plugin keys, file paths, callbacks, and any other identifier.\n"
 			. "- Use fenced code blocks (with a language tag when possible) for code, JSON, or file excerpts.\n"
 			. "- Use compact bullet lists or tables when returning tool data, not prose paragraphs.\n"
@@ -284,15 +401,26 @@ final class Ai_Chat_Controller {
 			return $base;
 		}
 
-		$lines = [];
-		foreach ( $history as $turn ) {
+		// History caps:
+		//  - Last 6 turns only (~3 user/assistant exchanges).
+		//  - Each turn truncated to 600 chars.
+		// Without these, by the third user message the system prompt carries
+		// the full Markdown of every prior assistant turn — providers slow
+		// down, the upstream gateway (Valet/nginx) times out at ~60s.
+		$recent  = array_slice( $history, -6 );
+		$max_len = 600;
+		$lines   = [];
+		foreach ( $recent as $turn ) {
 			if ( ! is_array( $turn ) ) {
 				continue;
 			}
-			$role = ( $turn['role'] ?? '' ) === 'assistant' ? 'Assistant' : 'User';
+			$role    = ( $turn['role'] ?? '' ) === 'assistant' ? 'Assistant' : 'User';
 			$content = trim( (string) ( $turn['content'] ?? '' ) );
 			if ( '' === $content ) {
 				continue;
+			}
+			if ( strlen( $content ) > $max_len ) {
+				$content = substr( $content, 0, $max_len ) . '… [truncated]';
 			}
 			$lines[] = $role . ': ' . $content;
 		}
@@ -301,17 +429,24 @@ final class Ai_Chat_Controller {
 			return $base;
 		}
 
-		return $base . "\n\nPrior conversation (for context):\n" . implode( "\n", $lines );
+		return $base . "\n\nPrior conversation (for context, truncated):\n" . implode( "\n", $lines );
 	}
 
 	/**
 	 * @param object $result GenerativeAiResult
 	 */
 	private function message_to_text( $result ): string {
+		// `toText()` throws when the first candidate has no text part — common
+		// on pure tool-call turns. Fall back to walking the parts ourselves
+		// so the caller always gets a string (possibly empty) instead of an
+		// uncaught exception bubbling up through the REST stack.
 		if ( is_object( $result ) && method_exists( $result, 'toText' ) ) {
-			return (string) $result->toText();
+			try {
+				return (string) $result->toText();
+			} catch ( \Throwable $e ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+				// Fall through to part-walking.
+			}
 		}
-		// Fallback: walk the message parts for text.
 		$message = is_object( $result ) && method_exists( $result, 'toMessage' ) ? $result->toMessage() : null;
 		return $this->extract_text( $message );
 	}
