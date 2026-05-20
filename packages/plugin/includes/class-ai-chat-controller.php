@@ -186,7 +186,6 @@ final class Ai_Chat_Controller {
 							),
 						]
 					);
-					$this->extend_time_limit();
 					$result = $this->generate( $messages, $system, $abilities );
 					if ( is_wp_error( $result ) ) {
 						return $this->wrap_error( $result );
@@ -217,7 +216,6 @@ final class Ai_Chat_Controller {
 				$messages[] = $split;
 			}
 
-			$this->extend_time_limit();
 			$result = $this->generate( $messages, $system, $abilities );
 			if ( is_wp_error( $result ) ) {
 				return $this->wrap_error( $result );
@@ -228,7 +226,6 @@ final class Ai_Chat_Controller {
 		// declared so the model has no choice but to produce a text answer
 		// from whatever it has already gathered. Cheaper UX than surfacing
 		// an error and asking the user to retry.
-		$this->extend_time_limit();
 		$messages[] = new UserMessage(
 			[
 				new MessagePart(
