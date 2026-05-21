@@ -440,8 +440,16 @@ final class FileParserTest extends TestCase
 
     // ── Callback metadata wire-up ───────────────────────────────
 
+    private function skipIfMetadataDisabled(): void
+    {
+        if (!FileParser::INCLUDE_CALLBACK_METADATA) {
+            $this->markTestSkipped('Callback metadata extraction disabled (FileParser::INCLUDE_CALLBACK_METADATA = false).');
+        }
+    }
+
     public function test_action_listener_closure_attaches_effects_and_targets(): void
     {
+        $this->skipIfMetadataDisabled();
         $r = $this->parseSource('<?php add_action("init", function() { update_option("x", 1); });');
         $this->assertCount(1, $r);
         $this->assertContains('writes_option', $r[0]['effects']);
@@ -450,6 +458,7 @@ final class FileParserTest extends TestCase
 
     public function test_filter_listener_closure_attaches_filter_behavior(): void
     {
+        $this->skipIfMetadataDisabled();
         $r = $this->parseSource('<?php add_filter("the_content", function($c) { return $c . "x"; });');
         $this->assertCount(1, $r);
         $this->assertSame('derived', $r[0]['filter_behavior']['return_origin']);
@@ -457,12 +466,14 @@ final class FileParserTest extends TestCase
 
     public function test_arrow_fn_body_is_parsed(): void
     {
+        $this->skipIfMetadataDisabled();
         $r = $this->parseSource('<?php add_action("init", fn() => update_option("x", 1));');
         $this->assertContains('writes_option', $r[0]['effects']);
     }
 
     public function test_this_method_callback_resolved_in_same_file(): void
     {
+        $this->skipIfMetadataDisabled();
         $code = '<?php class C { public function reg() { add_filter("x", [$this, "m"]); } public function m($v) { return $v . "x"; } }';
         $r = $this->parseSource($code);
         $this->assertCount(1, $r);
@@ -486,6 +497,7 @@ final class FileParserTest extends TestCase
 
     public function test_two_listeners_have_independent_metadata(): void
     {
+        $this->skipIfMetadataDisabled();
         $code = '<?php add_action("a", function() { update_option("o1", 1); }); add_action("b", function() { get_option("o2"); });';
         $r = $this->parseSource($code);
         $this->assertCount(2, $r);

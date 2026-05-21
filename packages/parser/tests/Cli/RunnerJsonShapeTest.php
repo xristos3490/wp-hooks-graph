@@ -14,6 +14,10 @@ final class RunnerJsonShapeTest extends TestCase
 {
     public function test_listener_edge_carries_new_callback_metadata_fields(): void
     {
+        if (!FileParser::INCLUDE_CALLBACK_METADATA) {
+            $this->markTestSkipped('Callback metadata extraction disabled (FileParser::INCLUDE_CALLBACK_METADATA = false).');
+        }
+
         $tmp = sys_get_temp_dir() . '/hg_shape_' . uniqid();
         mkdir($tmp);
         $php = <<<'PHP'

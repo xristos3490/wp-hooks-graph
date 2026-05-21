@@ -24,6 +24,13 @@ final class FileParser
     public const ACTION_FUNCTIONS = ['do_action', 'do_action_ref_array', 'add_action'];
 
     /**
+     * Toggle for callback metadata extraction (effects, targets, called_apis,
+     * filter_behavior). When false, the analyzer pipeline is skipped entirely
+     * and listener records carry no metadata keys.
+     */
+    public const INCLUDE_CALLBACK_METADATA = false;
+
+    /**
      * Parse a PHP file and return the list of hook calls found.
      *
      * Each entry is an associative array with the shape documented in README.md
@@ -176,16 +183,18 @@ final class FileParser
                     $callbackClass  = $cb['callback_class'];
                     $callbackMethod = $cb['callback_method'];
 
-                    $body = self::resolveCallbackBody($args[1], $callbackType, $callbackClass, $callbackMethod, $methodIndex, $scopeClass);
-                    if ($body !== null) {
-                        $firstParam = $body['by_ref'] || $body['variadic'] ? null : $body['name'];
-                        $callbackMeta = CallbackBodyAnalyzer::analyze($body['bodyTokens'], [
-                            'hook_kind'   => $hookType,
-                            'first_param' => $firstParam,
-                        ]);
-                    } elseif ($hookType === 'filter') {
-                        // No body resolved but hook is a filter — still attach an unknown filter_behavior so consumers can rely on the key being present.
-                        $callbackMeta = null;
+                    if (self::INCLUDE_CALLBACK_METADATA) {
+                        $body = self::resolveCallbackBody($args[1], $callbackType, $callbackClass, $callbackMethod, $methodIndex, $scopeClass);
+                        if ($body !== null) {
+                            $firstParam = $body['by_ref'] || $body['variadic'] ? null : $body['name'];
+                            $callbackMeta = CallbackBodyAnalyzer::analyze($body['bodyTokens'], [
+                                'hook_kind'   => $hookType,
+                                'first_param' => $firstParam,
+                            ]);
+                        } elseif ($hookType === 'filter') {
+                            // No body resolved but hook is a filter — still attach an unknown filter_behavior so consumers can rely on the key being present.
+                            $callbackMeta = null;
+                        }
                     }
                 }
                 if (count($args) >= 3) {
