@@ -29,6 +29,19 @@ final class Scan_Runner {
 	public const HOOK_INIT     = 'hooksgraph_scan_init';
 	public const HOOK_TRIAGE   = 'hooksgraph_scan_triage_pair';
 	public const HOOK_FINALIZE = 'hooksgraph_scan_finalize';
+	public const HOOK_WATCHDOG = 'hooksgraph_scan_watchdog';
+
+	/**
+	 * How long a scan can sit in an in-flight status (`queued`,
+	 * `finding_conflicts`, `triaging`) before the watchdog assumes it
+	 * crashed and starts marking its pending findings as errors. Long
+	 * enough to outlive a slow AI provider; short enough that the UI isn't
+	 * stuck on a dead scan for hours.
+	 */
+	private const WATCHDOG_STUCK_AFTER_SECONDS = 600;
+
+	/** Period between watchdog ticks while any scan is in flight. */
+	private const WATCHDOG_INTERVAL_SECONDS = 120;
 
 	public const STATUS_QUEUED            = 'queued';
 	public const STATUS_FINDING_CONFLICTS = 'finding_conflicts';
@@ -72,6 +85,7 @@ final class Scan_Runner {
 		add_action( self::HOOK_INIT, [ $this, 'run_init' ], 10, 1 );
 		add_action( self::HOOK_TRIAGE, [ $this, 'run_triage_pair' ], 10, 2 );
 		add_action( self::HOOK_FINALIZE, [ $this, 'run_finalize' ], 10, 1 );
+		add_action( self::HOOK_WATCHDOG, [ $this, 'run_watchdog' ], 10, 0 );
 	}
 
 	public function queue_init( int $scan_id ): void {
@@ -79,6 +93,19 @@ final class Scan_Runner {
 			return;
 		}
 		wp_schedule_single_event( time() + 5, self::HOOK_INIT, [ $scan_id ] );
+		$this->ensure_watchdog_scheduled();
+	}
+
+	/**
+	 * Schedule the watchdog if it's not already queued. The watchdog
+	 * self-reschedules from its own callback while any scan is in flight, so
+	 * we only need to seed it whenever a fresh scan is created.
+	 */
+	private function ensure_watchdog_scheduled(): void {
+		if ( false !== wp_next_scheduled( self::HOOK_WATCHDOG ) ) {
+			return;
+		}
+		wp_schedule_single_event( time() + self::WATCHDOG_INTERVAL_SECONDS, self::HOOK_WATCHDOG );
 	}
 
 	// -------------------------------------------------------------- init step
@@ -585,6 +612,123 @@ final class Scan_Runner {
 			$progress['failed_pairs'] = (int) ( $progress['failed_pairs'] ?? 0 ) + 1;
 		}
 		update_post_meta( $scan_id, Scan_Fields::META_PROGRESS, $progress );
+	}
+
+	// --------------------------------------------------------------- watchdog
+	//
+	// Cron callbacks that crash mid-flight (PHP fatal, max-execution-time,
+	// OOM) never reach our try/catch, so the finding stays `pending` forever
+	// and the scan gets stuck in `triaging`. The watchdog sweeps in-flight
+	// scans on a fixed cadence and force-completes anything that's both
+	// (a) older than WATCHDOG_STUCK_AFTER_SECONDS and (b) has no pending
+	// triage events queued for its `pending` findings.
+
+	public function run_watchdog(): void {
+		try {
+			$in_flight = $this->find_in_flight_scans();
+
+			foreach ( $in_flight as $scan_id ) {
+				$started_raw = (string) get_post_meta( $scan_id, Scan_Fields::META_STARTED_AT, true );
+				$started_ts  = '' !== $started_raw ? strtotime( $started_raw ) : false;
+				if ( false === $started_ts ) {
+					$started_ts = (int) get_post_field( 'post_date_gmt', $scan_id );
+					$started_ts = $started_ts ?: time();
+				}
+
+				if ( ( time() - $started_ts ) < self::WATCHDOG_STUCK_AFTER_SECONDS ) {
+					continue; // Still within the grace window.
+				}
+
+				$this->recover_stuck_scan( $scan_id );
+			}
+
+			// Reschedule while any scan is still in flight (including
+			// freshly-stuck ones we just nudged toward finalize).
+			if ( ! empty( $this->find_in_flight_scans() ) ) {
+				wp_schedule_single_event( time() + self::WATCHDOG_INTERVAL_SECONDS, self::HOOK_WATCHDOG );
+			}
+		} catch ( Throwable $e ) {
+			// Don't let watchdog itself crash silently — surface via error_log
+			// and keep the schedule alive for the next tick.
+			error_log( sprintf( '[hooksgraph] Watchdog tick failed: %s: %s', $e::class, $e->getMessage() ) );
+			wp_schedule_single_event( time() + self::WATCHDOG_INTERVAL_SECONDS, self::HOOK_WATCHDOG );
+		}
+	}
+
+	/**
+	 * Scans in any of the in-flight statuses. Bounded by `posts_per_page` so a
+	 * runaway site doesn't pull every history row.
+	 *
+	 * @return list<int>
+	 */
+	private function find_in_flight_scans(): array {
+		$query = new \WP_Query(
+			[
+				'post_type'              => Scan_CPT::POST_TYPE,
+				'post_status'            => 'any',
+				'posts_per_page'         => 50,
+				'fields'                 => 'ids',
+				'no_found_rows'          => true,
+				'update_post_meta_cache' => false,
+				'update_post_term_cache' => false,
+				'meta_query'             => [
+					[
+						'key'     => Scan_Fields::META_STATUS,
+						'value'   => [
+							self::STATUS_QUEUED,
+							self::STATUS_FINDING_CONFLICTS,
+							self::STATUS_TRIAGING,
+						],
+						'compare' => 'IN',
+					],
+				],
+			]
+		);
+		return array_map( 'intval', (array) $query->posts );
+	}
+
+	/**
+	 * Mark every `pending` finding that no longer has a queued triage event
+	 * as `error`, then force a finalize. If the scan still has live triage
+	 * events queued, do nothing — the runner will get to them.
+	 */
+	private function recover_stuck_scan( int $scan_id ): void {
+		$this->with_lock( $scan_id, function () use ( $scan_id ): void {
+			$result = $this->read_result( $scan_id );
+			if ( null === $result ) {
+				// No result blob (init crashed) — flip straight to failed.
+				update_post_meta( $scan_id, Scan_Fields::META_STATUS, self::STATUS_FAILED );
+				update_post_meta( $scan_id, Scan_Fields::META_ERROR, 'Scan stalled before any conflicts were found.' );
+				update_post_meta( $scan_id, Scan_Fields::META_FINISHED_AT, gmdate( 'c' ) );
+				return;
+			}
+
+			$has_live = false;
+			foreach ( $result['findings'] as $i => $f ) {
+				if ( 'pending' !== ( $f['verdict'] ?? '' ) ) {
+					continue;
+				}
+				$finding_id = (string) ( $f['id'] ?? '' );
+				if ( '' !== $finding_id && false !== wp_next_scheduled( self::HOOK_TRIAGE, [ $scan_id, $finding_id ] ) ) {
+					// Still queued for retry — don't touch it.
+					$has_live = true;
+					continue;
+				}
+				$result['findings'][ $i ]['verdict']   = 'error';
+				$result['findings'][ $i ]['rationale'] = '';
+				$result['findings'][ $i ]['failed_at'] = gmdate( 'c' );
+				$result['findings'][ $i ]['error']     = 'timeout_or_crash';
+				$this->bump_progress( $scan_id, 'failed' );
+			}
+
+			update_post_meta( $scan_id, Scan_Fields::META_RESULT, $result );
+
+			if ( ! $has_live ) {
+				if ( false === wp_next_scheduled( self::HOOK_FINALIZE, [ $scan_id ] ) ) {
+					wp_schedule_single_event( time() + 5, self::HOOK_FINALIZE, [ $scan_id ] );
+				}
+			}
+		} );
 	}
 
 	private function maybe_schedule_finalize( int $scan_id ): void {

@@ -39,6 +39,7 @@ class Scan_Runner_Tests extends HooksGraph_Test_Case {
 		wp_clear_scheduled_hook( Scan_Runner::HOOK_INIT );
 		wp_clear_scheduled_hook( Scan_Runner::HOOK_TRIAGE );
 		wp_clear_scheduled_hook( Scan_Runner::HOOK_FINALIZE );
+		wp_clear_scheduled_hook( Scan_Runner::HOOK_WATCHDOG );
 		delete_option( Settings::OPTION );
 		// clear post meta locks
 		parent::tear_down();
@@ -189,6 +190,65 @@ class Scan_Runner_Tests extends HooksGraph_Test_Case {
 		$this->runner->run_finalize( $id );
 		$status = get_post_meta( $id, Scan_Fields::META_STATUS, true );
 		$this->assertSame( Scan_Runner::STATUS_COMPLETED, $status );
+	}
+
+	public function test_watchdog_recovers_stuck_scan(): void {
+		$id     = $this->create_scan( [ 'alpha/alpha', 'beta/beta' ] );
+		$result = [
+			'plugins'            => [ 'alpha/alpha', 'beta/beta' ],
+			'priority_conflicts' => [],
+			'findings'           => [
+				[ 'id' => 'a#1#0', 'verdict' => 'critical', 'rationale' => 'done' ],
+				[ 'id' => 'a#1#1', 'verdict' => 'pending', 'rationale' => '' ],
+				[ 'id' => 'a#1#2', 'verdict' => 'pending', 'rationale' => '' ],
+			],
+			'summary'            => [ 'critical' => 0, 'warning' => 0, 'none' => 0, 'error' => 0 ],
+		];
+		update_post_meta( $id, Scan_Fields::META_RESULT, $result );
+		update_post_meta( $id, Scan_Fields::META_PROGRESS, [ 'total_pairs' => 3, 'completed_pairs' => 1, 'failed_pairs' => 0 ] );
+		update_post_meta( $id, Scan_Fields::META_STATUS, Scan_Runner::STATUS_TRIAGING );
+		// Simulate "started long ago" so the watchdog grace window has expired.
+		update_post_meta( $id, Scan_Fields::META_STARTED_AT, gmdate( 'c', time() - 3600 ) );
+
+		// One finding still has a queued triage event — must be left alone.
+		wp_schedule_single_event( time() + 60, Scan_Runner::HOOK_TRIAGE, [ $id, 'a#1#1' ] );
+
+		$this->runner->run_watchdog();
+
+		$after = get_post_meta( $id, Scan_Fields::META_RESULT, true );
+		$this->assertSame( 'critical', $after['findings'][0]['verdict'] ); // untouched
+		$this->assertSame( 'pending', $after['findings'][1]['verdict'] );  // still queued
+		$this->assertSame( 'error', $after['findings'][2]['verdict'] );    // recovered
+		$this->assertSame( 'timeout_or_crash', $after['findings'][2]['error'] );
+
+		// Live event present → finalize NOT scheduled yet.
+		$this->assertFalse( wp_next_scheduled( Scan_Runner::HOOK_FINALIZE, [ $id ] ) );
+
+		// Clear the live event, run again → now finalize should be scheduled.
+		wp_clear_scheduled_hook( Scan_Runner::HOOK_TRIAGE, [ $id, 'a#1#1' ] );
+		$this->runner->run_watchdog();
+		$this->assertNotFalse( wp_next_scheduled( Scan_Runner::HOOK_FINALIZE, [ $id ] ) );
+	}
+
+	public function test_watchdog_ignores_scan_within_grace_window(): void {
+		$id     = $this->create_scan( [ 'alpha/alpha' ] );
+		$result = [
+			'plugins'            => [ 'alpha/alpha' ],
+			'priority_conflicts' => [],
+			'findings'           => [ [ 'id' => 'a#1#0', 'verdict' => 'pending', 'rationale' => '' ] ],
+			'summary'            => [ 'critical' => 0, 'warning' => 0, 'none' => 0, 'error' => 0 ],
+		];
+		update_post_meta( $id, Scan_Fields::META_RESULT, $result );
+		update_post_meta( $id, Scan_Fields::META_PROGRESS, [ 'total_pairs' => 1, 'completed_pairs' => 0, 'failed_pairs' => 0 ] );
+		update_post_meta( $id, Scan_Fields::META_STATUS, Scan_Runner::STATUS_TRIAGING );
+		// Started just now — well within the grace window.
+		update_post_meta( $id, Scan_Fields::META_STARTED_AT, gmdate( 'c' ) );
+
+		$this->runner->run_watchdog();
+
+		$after = get_post_meta( $id, Scan_Fields::META_RESULT, true );
+		$this->assertSame( 'pending', $after['findings'][0]['verdict'] );
+		$this->assertFalse( wp_next_scheduled( Scan_Runner::HOOK_FINALIZE, [ $id ] ) );
 	}
 
 	public function test_run_finalize_aggregates_summary(): void {
