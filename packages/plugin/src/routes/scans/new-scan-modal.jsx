@@ -156,6 +156,12 @@ export default function NewScanModal({ open, onOpenChange, refreshList }) {
         </Dialog.Header>
         <Dialog.Content>
           <Stack direction="column" gap="md">
+            <Text variant="muted">
+              {__(
+                'Pick 2 or more parsed plugins. The scan compares their hook graphs to find listeners that share a hook and priority across plugins, then (if file reading is enabled in Settings) the AI triages each pair as critical, warning, or none.',
+                'hooksgraph'
+              )}
+            </Text>
             {error && (
               <Notice.Root variant="error">
                 <Notice.Description>{error}</Notice.Description>
