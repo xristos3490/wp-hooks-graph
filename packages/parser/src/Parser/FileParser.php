@@ -221,6 +221,15 @@ final class FileParser
                     $results[count($results) - 1]['filter_behavior'] = $callbackMeta['filter_behavior'];
                 }
             }
+            if ($edgeType === 'listens' && isset($body) && $body !== null) {
+                if (isset($body['body_start_line']) && $body['body_start_line'] !== null) {
+                    $results[count($results) - 1]['callback_body_start_line'] = $body['body_start_line'];
+                }
+                if (isset($body['body_end_line']) && $body['body_end_line'] !== null) {
+                    $results[count($results) - 1]['callback_body_end_line'] = $body['body_end_line'];
+                }
+            }
+            unset($body);
 
             $i = $j; // advance past closing ')'
         }
@@ -275,6 +284,14 @@ final class FileParser
                 }
             }
         }
+
+        // String callback referencing a top-level function in the same file.
+        if ($callbackType === 'function' && $callbackMethod !== null) {
+            $key = 'fn::' . ltrim($callbackMethod, '\\');
+            if (isset($methodIndex[$key])) {
+                return $methodIndex[$key];
+            }
+        }
         return null;
     }
 
@@ -322,11 +339,14 @@ final class FileParser
             return null;
         }
         $body = array_slice($tokens, $j + 1, $close - $j - 1);
+        [$startLine, $endLine] = self::lineSpan($tokens, $j, $close);
         return [
-            'bodyTokens' => $body,
-            'name'       => $param['name'],
-            'by_ref'     => $param['by_ref'],
-            'variadic'   => $param['variadic'],
+            'bodyTokens'      => $body,
+            'name'            => $param['name'],
+            'by_ref'          => $param['by_ref'],
+            'variadic'        => $param['variadic'],
+            'body_start_line' => $startLine,
+            'body_end_line'   => $endLine,
         ];
     }
 
@@ -354,6 +374,7 @@ final class FileParser
         // Body is the expression up to end of callbackArg tokens. Since callbackArg is one comma-split arg,
         // the entire remainder belongs to the arrow expression.
         $bodyExpr = array_slice($tokens, $j);
+        [$startLine, $endLine] = self::lineSpan($tokens, $i, $n - 1);
         // Synthesize as `return <expr>;` so the analyzers (esp. FilterReturnAnalyzer) treat it as a return.
         $body = [];
         $body[] = [T_RETURN, 'return', 1];
@@ -363,11 +384,39 @@ final class FileParser
         }
         $body[] = ';';
         return [
-            'bodyTokens' => $body,
-            'name'       => $param['name'],
-            'by_ref'     => $param['by_ref'],
-            'variadic'   => $param['variadic'],
+            'bodyTokens'      => $body,
+            'name'            => $param['name'],
+            'by_ref'          => $param['by_ref'],
+            'variadic'        => $param['variadic'],
+            'body_start_line' => $startLine,
+            'body_end_line'   => $endLine,
         ];
+    }
+
+    /**
+     * Find the first and last line numbers within tokens[$from..$to] inclusive.
+     * Returns [null,null] when no array tokens with line info are present.
+     *
+     * @param list<mixed> $tokens
+     * @return array{0:?int,1:?int}
+     */
+    private static function lineSpan(array $tokens, int $from, int $to): array
+    {
+        $start = null;
+        $end   = null;
+        for ($k = $from; $k <= $to; $k++) {
+            if (!isset($tokens[$k]) || !is_array($tokens[$k]) || !isset($tokens[$k][2])) {
+                continue;
+            }
+            $ln = (int) $tokens[$k][2];
+            if ($start === null || $ln < $start) {
+                $start = $ln;
+            }
+            if ($end === null || $ln > $end) {
+                $end = $ln;
+            }
+        }
+        return [$start, $end];
     }
 
     /**
@@ -533,16 +582,67 @@ final class FileParser
                     continue;
                 }
                 $body = array_slice($tokens, $j + 1, $close - $j - 1);
+                [$startLine, $endLine] = self::lineSpan($tokens, $j, $close);
 
                 $fqcn = $namespace === '' ? $current['name'] : $namespace . '\\' . $current['name'];
                 $entry = [
-                    'bodyTokens' => $body,
-                    'name'       => $param['name'],
-                    'by_ref'     => $param['by_ref'],
-                    'variadic'   => $param['variadic'],
+                    'bodyTokens'      => $body,
+                    'name'            => $param['name'],
+                    'by_ref'          => $param['by_ref'],
+                    'variadic'        => $param['variadic'],
+                    'body_start_line' => $startLine,
+                    'body_end_line'   => $endLine,
                 ];
                 $index[$fqcn . '::' . $methodName]          = $entry;
                 $index[$current['name'] . '::' . $methodName] = $entry;
+                continue;
+            }
+
+            // Top-level (non-class) function declaration → index for string callbacks like 'my_func'.
+            if ($tid === T_FUNCTION && empty($classStack)) {
+                $j = self::skipWhitespace($tokens, $i + 1, $count);
+                if ($j < $count && is_string($tokens[$j]) && $tokens[$j] === '&') {
+                    $j = self::skipWhitespace($tokens, $j + 1, $count);
+                }
+                // Closures (no name) are skipped here — we only index named declarations.
+                if ($j >= $count || !is_array($tokens[$j]) || $tokens[$j][0] !== T_STRING) {
+                    continue;
+                }
+                $fnName = $tokens[$j][1];
+                $j = self::skipWhitespace($tokens, $j + 1, $count);
+                if ($j >= $count || !is_string($tokens[$j]) || $tokens[$j] !== '(') {
+                    continue;
+                }
+                $paramTokens = Tokens::between($tokens, $j);
+                $param = self::parseFirstParam($paramTokens);
+                $j++; // past ')'
+                while ($j < $count) {
+                    $tt = $tokens[$j];
+                    if (is_string($tt) && ($tt === '{' || $tt === ';')) {
+                        break;
+                    }
+                    $j++;
+                }
+                if ($j >= $count || $tokens[$j] === ';') {
+                    continue;
+                }
+                $close = self::matchBracketIndex($tokens, $j, $count, '{', '}');
+                if ($close === -1) {
+                    continue;
+                }
+                $body = array_slice($tokens, $j + 1, $close - $j - 1);
+                [$startLine, $endLine] = self::lineSpan($tokens, $j, $close);
+                $entry = [
+                    'bodyTokens'      => $body,
+                    'name'            => $param['name'],
+                    'by_ref'          => $param['by_ref'],
+                    'variadic'        => $param['variadic'],
+                    'body_start_line' => $startLine,
+                    'body_end_line'   => $endLine,
+                ];
+                $fqfn = $namespace === '' ? $fnName : $namespace . '\\' . $fnName;
+                $index['fn::' . $fqfn] = $entry;
+                $index['fn::' . $fnName] = $entry;
             }
         }
 
