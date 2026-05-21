@@ -279,8 +279,28 @@ final class Scan_Runner {
 
 			[ $system, $body ] = $this->build_prompt( $hook, $prio, $pair[0] ?? [], $pair[1] ?? [], $bodies[0], $bodies[1] );
 
+			error_log( sprintf(
+				"[hooksgraph triage] scan=%d finding=%s hook=%s priority=%d\n--- SYSTEM ---\n%s\n--- BODY ---\n%s\n--- END ---",
+				$scan_id,
+				$finding_id,
+				$hook,
+				$prio,
+				$system,
+				$body
+			) );
+
 			$raw     = $this->run_prompt( $system, $body );
 			$parsed  = $this->parse_verdict( $raw );
+
+			error_log( sprintf(
+				"[hooksgraph triage] scan=%d finding=%s verdict=%s confidence=%s rationale=%s\n--- RAW ---\n%s\n--- END ---",
+				$scan_id,
+				$finding_id,
+				$parsed['verdict'] ?? '',
+				$parsed['confidence'] ?? '',
+				$parsed['rationale'] ?? '',
+				$raw
+			) );
 
 			$acquired = $this->with_lock( $scan_id, function () use ( $scan_id, $finding_id, $parsed ): void {
 				$result = $this->read_result( $scan_id );
@@ -433,21 +453,74 @@ final class Scan_Runner {
 	 * @return array{0: string, 1: string}
 	 */
 	private function build_prompt( string $hook, int $priority, array $a, array $b, string $body_a, string $body_b ): array {
-		$system = "You are a WordPress conflict triage assistant. You receive two PHP callbacks "
-			. "that are both registered on the same WordPress hook at the same priority, "
-			. "across two different plugins. Decide whether they will conflict at runtime.\n"
+		$system = "You are a WordPress filter conflict triage assistant. You receive the "
+			. "source of two PHP callbacks that are both registered on the same filter "
+			. "hook at the same priority, from two different plugins. Decide whether "
+			. "they actually conflict at runtime by reading the two function bodies.\n\n"
 			. "Output STRICT JSON only — no prose, no fences, no commentary. Schema:\n\n"
 			. "{\n"
 			. "  \"verdict\": \"critical\" | \"warning\" | \"none\",\n"
 			. "  \"confidence\": \"high\" | \"medium\" | \"low\",\n"
 			. "  \"rationale\": \"<= 240 chars, plain text\"\n"
 			. "}\n\n"
-			. "verdict guide:\n"
-			. "- critical: deterministic clobber (e.g. both filters return \$replaced_value;\n"
-			. "  or both unconditionally write the same option/meta key).\n"
-			. "- warning:  plausible interaction (shared state read+write, overlapping\n"
-			. "  side effects, order-dependent behaviour) but not a guaranteed clobber.\n"
-			. "- none:     callbacks operate on disjoint state; ordering does not matter.";
+			. "## Baseline\n"
+			. "Two callbacks on the same filter at the same priority is the ordinary,\n"
+			. "intended WordPress pattern. WordPress chains same-priority callbacks in\n"
+			. "registration order, feeding each one's return value into the next.\n"
+			. "Co-existence is not a conflict on its own. A real conflict requires\n"
+			. "evidence in the bodies that one callback discards or overwrites the\n"
+			. "other's work on overlapping state.\n\n"
+			. "## How to read each body\n"
+			. "A filter callback receives a first parameter and is expected to return a\n"
+			. "value. Classify what each body does on its realistic execution path:\n"
+			. "- Pass-through: returns the first parameter, possibly with field-level\n"
+			. "  mutations on it.\n"
+			. "- Conditional pass-through: returns the first parameter on most paths;\n"
+			. "  diverges only under narrow guards.\n"
+			. "- Derived: returns a value computed from the first parameter (wrapping,\n"
+			. "  reformatting, extracting a part of it).\n"
+			. "- Replacement: returns a value built independently of the first\n"
+			. "  parameter, so prior callbacks' contributions are dropped.\n\n"
+			. "Judge by what the code does, not by surface cues. Treat early returns of\n"
+			. "the first parameter as pass-through, not replacement.\n\n"
+			. "## Verdict rubric\n"
+			. "critical — guaranteed data loss visible in the bodies:\n"
+			. "  - Both bodies are replacements on every realistic path, OR\n"
+			. "  - Both bodies unconditionally write the same concrete keyed state\n"
+			. "    (option / meta / transient family) with literal keys and without\n"
+			. "    read-merging the existing value, OR\n"
+			. "  - Both bodies unconditionally overwrite the same named field on the\n"
+			. "    input value with incompatible content.\n"
+			. "  You must be able to name the exact data lost in the rationale.\n\n"
+			. "warning — plausible interaction, not a guaranteed clobber:\n"
+			. "  - One body is a replacement, the other passes the input through.\n"
+			. "  - Both touch the same state family but with variable keys, or one side\n"
+			. "    reads-modifies-writes.\n"
+			. "  - Overlapping externally-visible side effects on the same target\n"
+			. "    (redirect, termination, enqueue, header) where only one can win.\n"
+			. "  - One body short-circuits the filter under a condition the other does\n"
+			. "    not also gate on.\n\n"
+			. "none — no real interference:\n"
+			. "  - Either body is pass-through with no overlapping field-level\n"
+			. "    mutation.\n"
+			. "  - Both mutate the input on disjoint fields/keys.\n"
+			. "  - One body is read-only, logging, or diagnostic.\n"
+			. "  - The two bodies run under mutually exclusive guards.\n"
+			. "  - The bodies compose without targeting the same named state.\n\n"
+			. "## Process\n"
+			. "1. Read both bodies. If either is unavailable or too small to judge,\n"
+			. "   return `none` with `low` confidence.\n"
+			. "2. Identify what each body returns on its realistic path and what state\n"
+			. "   it writes outside the return value.\n"
+			. "3. If either side passes the first parameter through, default to `none`\n"
+			. "   unless both sides demonstrably fight over the same named\n"
+			. "   field/key/target.\n"
+			. "4. Escalate to `critical` only when you can quote the specific data one\n"
+			. "   side discards. Name it in the rationale.\n"
+			. "5. When in doubt between `warning` and `critical`, pick `warning`.\n"
+			. "6. When in doubt between `none` and `warning`, pick `none`. Same-\n"
+			. "   priority co-existence is the WordPress default; assume safety until\n"
+			. "   the bodies prove otherwise.";
 
 		$body  = sprintf( "HOOK: %s     PRIORITY: %d     TYPE: filter\n\n", $hook, $priority );
 		$body .= $this->format_listener( 'LISTENER A', $a, $body_a );
@@ -465,23 +538,11 @@ final class Scan_Runner {
 		$line     = (int) ( $listener['line'] ?? 0 );
 		$callback = (string) ( $listener['callback'] ?? '' );
 		$plugin   = (string) ( $listener['codebase'] ?? '' );
-		$origin   = '';
-		if ( isset( $listener['filter_behavior']['return_origin'] ) ) {
-			$origin = (string) $listener['filter_behavior']['return_origin'];
-		}
 
 		$out  = $label . "\n";
-		$out .= "  plugin:        " . $plugin . "\n";
-		$out .= "  callback:      " . $callback . "\n";
-		if ( '' !== $origin ) {
-			$out .= "  return_origin: " . $origin . "\n";
-		}
-		foreach ( [ 'effects', 'targets', 'called_apis' ] as $k ) {
-			if ( isset( $listener[ $k ] ) ) {
-				$out .= "  " . $k . ": " . wp_json_encode( $listener[ $k ] ) . "\n";
-			}
-		}
-		$out .= "  file:          " . $file . ":" . $line . "\n";
+		$out .= "  plugin:   " . $plugin . "\n";
+		$out .= "  callback: " . $callback . "\n";
+		$out .= "  file:     " . $file . ":" . $line . "\n";
 		$out .= "  body:\n  ```php\n" . $body . "\n  ```\n";
 		return $out;
 	}
