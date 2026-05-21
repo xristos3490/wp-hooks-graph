@@ -121,6 +121,23 @@ final class Rest_Controller extends WP_REST_Controller {
 
 		register_rest_route(
 			self::NAMESPACE,
+			'/parse-data',
+			[
+				'methods'             => WP_REST_Server::DELETABLE,
+				'permission_callback' => $auth,
+				'args'                => [
+					'plugin' => [
+						'required'          => true,
+						'type'              => 'string',
+						'sanitize_callback' => [ $this, 'sanitize_plugin' ],
+					],
+				],
+				'callback'            => [ $this, 'delete_parse_data' ],
+			]
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
 			'/parse-plugin',
 			[
 				'methods'             => WP_REST_Server::CREATABLE,
@@ -451,16 +468,10 @@ final class Rest_Controller extends WP_REST_Controller {
 			return new WP_Error( 'hooksgraph_invalid_plugin', __( 'Invalid plugin identifier.', 'hooksgraph' ), [ 'status' => 400 ] );
 		}
 
-		$slug    = $this->storage->slug( $plugin );
-		$matches = glob( $this->storage->dir() . '/' . $slug . '-*.json' ) ?: [];
-		if ( ! $matches ) {
+		$file = $this->storage->parsed_path( $plugin );
+		if ( null === $file || ! is_file( $file ) ) {
 			return new WP_Error( 'hooksgraph_not_parsed', __( 'No parsed graph found for this plugin.', 'hooksgraph' ), [ 'status' => 404 ] );
 		}
-
-		// Prefer the newest file on disk — handles both `parsed` (current version)
-		// and `stale` (older version) cases without the caller needing to know which.
-		usort( $matches, static fn ( string $a, string $b ): int => ( (int) @filemtime( $b ) ) <=> ( (int) @filemtime( $a ) ) );
-		$file = $matches[0];
 
 		if ( ! is_readable( $file ) ) {
 			return new WP_Error( 'hooksgraph_read_failed', __( 'Could not read the parsed graph.', 'hooksgraph' ), [ 'status' => 500 ] );
@@ -508,6 +519,30 @@ final class Rest_Controller extends WP_REST_Controller {
 			]
 		);
 		return new WP_REST_Response( $updated, 200 );
+	}
+
+	/**
+	 * Destructive: drop the parsed JSON files, codebase meta, and per-plugin
+	 * settings entry; unschedule any pending cron event so it can't recreate
+	 * the artefacts after the wipe.
+	 */
+	public function delete_parse_data( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		$plugin = (string) $request->get_param( 'plugin' );
+		if ( '' === $plugin ) {
+			return new WP_Error( 'hooksgraph_invalid_plugin', __( 'Invalid plugin identifier.', 'hooksgraph' ), [ 'status' => 400 ] );
+		}
+
+		$this->cron->unschedule( $plugin );
+		$result = $this->storage->delete_parsed_data( $plugin );
+
+		return new WP_REST_Response(
+			[
+				'plugin'        => $plugin,
+				'deleted'       => true,
+				'files_removed' => $result['files_removed'],
+			],
+			200
+		);
 	}
 
 	public function schedule_parse( WP_REST_Request $request ): WP_REST_Response|WP_Error {

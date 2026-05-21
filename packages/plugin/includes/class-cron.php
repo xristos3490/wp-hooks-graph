@@ -55,6 +55,16 @@ final class Cron {
 	}
 
 	/**
+	 * Clear any pending cron event for this plugin. Paired with destructive
+	 * delete flows so a queued parse can't resurrect the files we just blew
+	 * away.
+	 */
+	public function unschedule( string $plugin_relative ): void {
+		wp_clear_scheduled_hook( self::HOOK, [ $plugin_relative ] );
+		$this->storage->invalidate_status_map();
+	}
+
+	/**
 	 * Cron callback. Looks the plugin up fresh — its version may have changed
 	 * since the job was queued, and that's fine.
 	 */
@@ -95,6 +105,6 @@ final class Cron {
 
 	private function record_failure( string $plugin_relative, string $error ): void {
 		error_log( sprintf( '[hooksgraph] Parse failed for %s: %s', $plugin_relative, $error ) );
-		$this->storage->save_codebase_failure( $plugin_relative, $error );
+		$this->storage->record_parse_failure( $plugin_relative, $error );
 	}
 }

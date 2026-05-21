@@ -15,23 +15,31 @@ class Storage_Tests extends HooksGraph_Test_Case {
 		return new Cron( new Parser_Service( $storage ), $storage );
 	}
 
-	private function clean_storage_dir( Storage $storage ): void {
+	private function reset_state( Storage $storage ): void {
 		$storage->ensure_dir();
-		foreach ( glob( $storage->dir() . '/*.json' ) ?: [] as $f ) {
-			@unlink( $f );
-		}
+		delete_option( 'hooksgraph_plugin_settings' );
 		$storage->invalidate_status_map();
+	}
+
+	private function record_success( Storage $storage, string $plugin, string $version ): void {
+		$storage->record_parse_success(
+			$plugin,
+			$version,
+			$storage->filename( $plugin, $version ),
+			[ 'total_files' => 1, 'total_hooks' => 2, 'dynamic_hooks' => 0 ],
+			3
+		);
 	}
 
 	public function test_status_map_for_classifies_parsed_stale_and_needs_parsing(): void {
 		$storage = new Storage();
-		$this->clean_storage_dir( $storage );
+		$this->reset_state( $storage );
 		$cron = $this->make_cron( $storage );
 
-		// `alpha-fixture` has the current version on disk → parsed.
-		file_put_contents( $storage->path_for( 'alpha-fixture/alpha', '5.3.1' ), '{}' );
-		// `beta-fixture` has an older version only → stale.
-		file_put_contents( $storage->path_for( 'beta-fixture/beta', '0.9.0' ), '{}' );
+		// `alpha-fixture` has the current version recorded → parsed.
+		$this->record_success( $storage, 'alpha-fixture/alpha', '5.3.1' );
+		// `beta-fixture` has an older version recorded → stale.
+		$this->record_success( $storage, 'beta-fixture/beta', '0.9.0' );
 
 		$map = $storage->status_map_for(
 			[ 'alpha-fixture/alpha', 'beta-fixture/beta', 'gamma-fixture' ],
@@ -50,26 +58,58 @@ class Storage_Tests extends HooksGraph_Test_Case {
 
 	public function test_status_map_for_uses_transient_cache(): void {
 		$storage = new Storage();
-		$this->clean_storage_dir( $storage );
+		$this->reset_state( $storage );
 		$cron = $this->make_cron( $storage );
 
 		$keys     = [ 'cache-fixture/main' ];
 		$versions = [ 'cache-fixture/main' => '5.3.1' ];
 
-		// First call: file exists, classified `parsed`, stored in transient.
-		file_put_contents( $storage->path_for( 'cache-fixture/main', '5.3.1' ), '{}' );
+		// First call: parsed (record present).
+		$this->record_success( $storage, 'cache-fixture/main', '5.3.1' );
 		$first = $storage->status_map_for( $keys, $versions, $cron );
 		$this->assertSame( 'parsed', $first['cache-fixture/main']['status'] );
 
-		// Remove the file; cached result should still say parsed.
-		@unlink( $storage->path_for( 'cache-fixture/main', '5.3.1' ) );
+		// Direct-write the option (bypassing update_record's invalidator) so
+		// the next call hits the transient and still reports `parsed`.
+		$all = get_option( 'hooksgraph_plugin_settings', [] );
+		unset( $all['cache-fixture/main'] );
+		update_option( 'hooksgraph_plugin_settings', $all, false );
 		$second = $storage->status_map_for( $keys, $versions, $cron );
 		$this->assertSame( 'parsed', $second['cache-fixture/main']['status'] );
 
-		// Invalidation forces a recompute that reflects current disk state.
+		// Invalidation forces a recompute that reflects the cleared record.
 		$storage->invalidate_status_map();
 		$third = $storage->status_map_for( $keys, $versions, $cron );
 		$this->assertSame( 'needs_parsing', $third['cache-fixture/main']['status'] );
+	}
+
+	public function test_record_parse_failure_surfaces_as_failed_status(): void {
+		$storage = new Storage();
+		$this->reset_state( $storage );
+		$cron = $this->make_cron( $storage );
+
+		$storage->record_parse_failure( 'oops-fixture/main', 'kaboom' );
+
+		$map = $storage->status_map_for(
+			[ 'oops-fixture/main' ],
+			[ 'oops-fixture/main' => '1.0.0' ],
+			$cron
+		);
+
+		$this->assertSame( 'failed', $map['oops-fixture/main']['status'] );
+		$this->assertSame( 'kaboom', $map['oops-fixture/main']['failed_error'] );
+	}
+
+	public function test_save_settings_preserves_parse_record(): void {
+		$storage = new Storage();
+		$this->reset_state( $storage );
+
+		$this->record_success( $storage, 'merge-fixture/main', '2.0.0' );
+		$storage->save_settings( 'merge-fixture/main', [ 'tests/' ] );
+
+		$record = $storage->get_record( 'merge-fixture/main' );
+		$this->assertSame( '2.0.0', $record['last_parsed_version'] );
+		$this->assertSame( [ 'tests/' ], $record['exclude'] );
 	}
 
 	public function test_ensure_dir_creates_storage_directory(): void {

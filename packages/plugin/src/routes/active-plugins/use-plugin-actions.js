@@ -1,9 +1,11 @@
 import apiFetch from '@wordpress/api-fetch';
 import { useCallback, useMemo } from '@wordpress/element';
-import { __ } from '@wordpress/i18n';
+import { __, sprintf, _n } from '@wordpress/i18n';
+import { Button, Stack, Text } from '@wordpress/ui';
 
 const PARSE_PATH = '/hooksgraph/v1/parse-plugin';
 const DOWNLOAD_PATH = '/hooksgraph/v1/parse-download';
+const DELETE_PATH = '/hooksgraph/v1/parse-data';
 
 const DOWNLOADABLE_STATUSES = new Set(['parsed', 'stale']);
 
@@ -24,7 +26,7 @@ const triggerBrowserDownload = (blob, filename) => {
   URL.revokeObjectURL(url);
 };
 
-export function usePluginActions({ onScheduleSingle, refreshList }) {
+export function usePluginActions({ refreshList }) {
   const downloadParse = useCallback(async (item) => {
     const path = `${DOWNLOAD_PATH}?plugin=${encodeURIComponent(item.id)}`;
     const response = await apiFetch({ path, parse: false });
@@ -34,6 +36,29 @@ export function usePluginActions({ onScheduleSingle, refreshList }) {
       filenameFromContentDisposition(response.headers.get('Content-Disposition')) ?? fallback;
     triggerBrowserDownload(blob, filename);
   }, []);
+
+  // Sequential DELETE for every selected row. Like the schedule action, this
+  // is serialized: deleting parsed data unschedules pending cron events, and
+  // wp-cron's event storage races on parallel writes the same way the
+  // `cron` option does.
+  const runDelete = useCallback(
+    async (items, closeModal) => {
+      for (const item of items) {
+        try {
+          await apiFetch({
+            path: `${DELETE_PATH}?plugin=${encodeURIComponent(item.id)}`,
+            method: 'DELETE',
+          });
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error(`HooksGraph: delete failed for ${item.id}`, err);
+        }
+      }
+      closeModal?.();
+      refreshList();
+    },
+    [refreshList]
+  );
 
   return useMemo(() => {
     const runDownload = async (items) => {
@@ -47,27 +72,29 @@ export function usePluginActions({ onScheduleSingle, refreshList }) {
       }
     };
 
+    // One action, one behavior: fire POST /parse-plugin for every selected
+    // row using its stored exclude patterns. Works identically for a single
+    // row (primary button click → items=[row]) and a bulk toolbar invocation
+    // (items=[a,b,c]) — no items.length branching, no modal mid-flow.
+    //
+    // Requests are serialized intentionally: `wp_schedule_single_event()`
+    // does a non-atomic read-modify-write on the single `cron` option, so
+    // parallel POSTs would lose-update and only the last writer's event
+    // would survive. One-at-a-time keeps the cron table consistent.
     const runSchedule = async (items) => {
       if (items.length === 0) return;
-      if (items.length === 1) {
-        onScheduleSingle(items[0]);
-        return;
-      }
-      const results = await Promise.allSettled(
-        items.map((item) =>
-          apiFetch({
+      for (const item of items) {
+        try {
+          await apiFetch({
             path: PARSE_PATH,
             method: 'POST',
-            data: { plugin: item.id, exclude: item.exclude },
-          })
-        )
-      );
-      results.forEach((result, i) => {
-        if (result.status === 'rejected') {
+            data: { plugin: item.id, exclude: item.exclude ?? [] },
+          });
+        } catch (err) {
           // eslint-disable-next-line no-console
-          console.error(`HooksGraph: schedule failed for ${items[i].id}`, result.reason);
+          console.error(`HooksGraph: schedule failed for ${item.id}`, err);
         }
-      });
+      }
       refreshList();
     };
 
@@ -103,6 +130,48 @@ export function usePluginActions({ onScheduleSingle, refreshList }) {
           DOWNLOADABLE_STATUSES.has(item.parse_status) && item.parse_status !== 'parsed',
         callback: runDownload,
       },
+      {
+        id: 'delete-parse-data',
+        label: __('Delete', 'hooksgraph'),
+        isDestructive: true,
+        supportsBulk: true,
+        // Eligible whenever there's something to wipe: an on-disk file, a
+        // pending cron event, or a stored failure record.
+        isEligible: (item) =>
+          item.parse_status === 'parsed' ||
+          item.parse_status === 'stale' ||
+          item.parse_status === 'scheduled' ||
+          item.parse_status === 'failed',
+        RenderModal: ({ items, closeModal }) => (
+          <Stack direction="row" align="center" justify="space-between" gap="md">
+            <Text>
+              {sprintf(
+                /* translators: %d: number of plugins selected. */
+                _n(
+                  'Delete parsed data for %d plugin? This removes the on-disk JSON, the codebase metadata option, and unschedules any pending parse. The plugin itself is not affected.',
+                  'Delete parsed data for %d plugins? This removes their on-disk JSON, codebase metadata options, and unschedules any pending parses. The plugins themselves are not affected.',
+                  items.length,
+                  'hooksgraph'
+                ),
+                items.length
+              )}
+            </Text>
+            <Stack direction="row" align="center" gap="sm" style={{ flexShrink: 0 }}>
+              <Button variant="outline" onClick={closeModal}>
+                {__('Cancel', 'hooksgraph')}
+              </Button>
+              <Button
+                variant="solid"
+                tone="brand"
+                isDestructive
+                onClick={() => runDelete(items, closeModal)}
+              >
+                {__('Delete', 'hooksgraph')}
+              </Button>
+            </Stack>
+          </Stack>
+        ),
+      },
     ];
-  }, [downloadParse, onScheduleSingle, refreshList]);
+  }, [downloadParse, refreshList, runDelete]);
 }
