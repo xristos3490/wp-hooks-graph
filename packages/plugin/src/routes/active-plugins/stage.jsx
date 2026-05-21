@@ -19,7 +19,9 @@ export default function ActivePluginsStage() {
   const defaultView = useMemo(() => getDefaultView(tab), [tab]);
   const [view, setView] = useState(defaultView);
 
-  const query = useMemo(() => viewToQuery(view, tab), [view, tab]);
+  // `tab` is passed through for future use, but viewToQuery doesn't read it
+  // yet — keep it out of the deps so switching tabs doesn't refetch.
+  const query = useMemo(() => viewToQuery(view, tab), [view]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const {
     records,
