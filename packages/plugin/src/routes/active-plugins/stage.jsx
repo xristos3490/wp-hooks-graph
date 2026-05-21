@@ -13,8 +13,7 @@ import { usePluginActions } from './use-plugin-actions';
 import { usePluginFields } from './use-plugin-fields';
 import { getDefaultView, viewToQuery } from './view-utils';
 
-export default function ActivePluginsStage() {
-  const [tab, setTab] = useState('dashboard');
+export default function ActivePluginsStage({ tab, setTab }) {
   const fields = usePluginFields();
   const defaultView = useMemo(() => getDefaultView(tab), [tab]);
   const [view, setView] = useState(defaultView);
@@ -93,6 +92,7 @@ export default function ActivePluginsStage() {
           <Tabs.List variant="minimal">
             <Tabs.Tab value="dashboard">{__('Dashboard', 'hooksgraph')}</Tabs.Tab>
             <Tabs.Tab value="active-plugins">{__('Active plugins', 'hooksgraph')}</Tabs.Tab>
+            <Tabs.Tab value="scans">{__('Scans', 'hooksgraph')}</Tabs.Tab>
             <Tabs.Tab value="assistant">{__('AI Assistant', 'hooksgraph')}</Tabs.Tab>
             <Tabs.Tab value="settings">{__('Settings', 'hooksgraph')}</Tabs.Tab>
           </Tabs.List>

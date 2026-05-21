@@ -38,7 +38,8 @@ body.tools_page_hooksgraph {
   // children, so the 48px-tall Tabs.List sits flush with the
   // border-bottom and the active-tab underline indicator (positioned at
   // `bottom: 0` of the tablist) lands exactly on the divider.
-  .hooksgraph-plugins__view-actions {
+  .hooksgraph-plugins__view-actions,
+  .hooksgraph-scans__view-actions {
     box-sizing: border-box;
     padding-inline: 24px;
     border-bottom: 1px solid var(--wpds-color-stroke-surface-neutral, #dbdbdb);
@@ -50,6 +51,35 @@ body.tools_page_hooksgraph {
 
   .dataviews-filters__container {
     padding-top: var(--wpds-dimension-padding-md);
+  }
+
+  .hooksgraph-scans__detail-meta {
+    padding: 16px 24px 0;
+  }
+
+  // The DataViews table defaults to nowrap + ellipsis for every cell. The
+  // single-scan findings list needs wide multi-line cells for listeners and
+  // rationale text, so opt back into wrapping scoped to this view only.
+  .hooksgraph-scans__detail {
+    .dataviews-view-table {
+      table-layout: auto;
+    }
+
+    .dataviews-view-table__row td,
+    .dataviews-view-table__cell-content-wrapper {
+      white-space: normal;
+      overflow: visible;
+      text-overflow: clip;
+      vertical-align: top;
+    }
+
+    .hooksgraph-scans__rationale-cell {
+      min-width: 320px;
+      max-width: 520px;
+      white-space: normal;
+      word-break: break-word;
+      line-height: 1.5;
+    }
   }
 
   .hooksgraph-plugins__dashboard {
