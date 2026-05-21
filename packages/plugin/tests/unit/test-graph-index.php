@@ -33,6 +33,7 @@ class Graph_Index_Tests extends HooksGraph_Abilities_Test_Case {
 	public function test_for_plugin_returns_wp_error_on_invalid_json(): void {
 		$path = $this->storage->path_for( 'bogus/bogus', '1.0.0' );
 		file_put_contents( $path, '{ not json' );
+		$this->storage->record_parse_success( 'bogus/bogus', '1.0.0', basename( $path ), array(), 0 );
 
 		$err = $this->index->for_plugin( 'bogus/bogus' );
 		$this->assertInstanceOf( WP_Error::class, $err );
@@ -46,8 +47,10 @@ class Graph_Index_Tests extends HooksGraph_Abilities_Test_Case {
 		$this->assertSame( $first, $second );
 	}
 
-	public function test_for_plugin_picks_newest_file_when_multiple_versions_present(): void {
-		// Drop a second, older version alongside the staged one.
+	public function test_for_plugin_uses_recorded_filename(): void {
+		// Even with a stale file alongside, Graph_Index follows whatever the
+		// settings record points at — there's no filesystem newest-wins
+		// heuristic anymore.
 		$old = $this->storage->path_for( 'alpha/alpha', '0.0.1' );
 		copy( $this->storage->path_for( 'alpha/alpha', '1.0.0' ), $old );
 		touch( $old, time() - 3600 );

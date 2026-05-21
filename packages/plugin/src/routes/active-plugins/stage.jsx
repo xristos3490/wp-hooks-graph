@@ -1,4 +1,3 @@
-import apiFetch from '@wordpress/api-fetch';
 import { Spinner } from '@wordpress/components';
 import { store as coreStore, useEntityRecords } from '@wordpress/core-data';
 import { useDispatch } from '@wordpress/data';
@@ -8,14 +7,11 @@ import { __ } from '@wordpress/i18n';
 import { Notice, Stack, Tabs } from '@wordpress/ui';
 
 import AiChatView from '../../ai-chat-view';
-import ScheduleParseModal from '../../schedule-parse-modal';
 import SettingsView from '../../settings-view';
 import { PLUGIN_ENTITY } from './entity';
 import { usePluginActions } from './use-plugin-actions';
 import { usePluginFields } from './use-plugin-fields';
 import { getDefaultView, viewToQuery } from './view-utils';
-
-const PARSE_PATH = '/hooksgraph/v1/parse-plugin';
 
 export default function ActivePluginsStage() {
   const [tab, setTab] = useState('dashboard');
@@ -23,11 +19,9 @@ export default function ActivePluginsStage() {
   const defaultView = useMemo(() => getDefaultView(tab), [tab]);
   const [view, setView] = useState(defaultView);
 
-  const [scheduleTarget, setScheduleTarget] = useState(null);
-  const [scheduleSubmitting, setScheduleSubmitting] = useState(false);
-  const [scheduleError, setScheduleError] = useState(null);
-
-  const query = useMemo(() => viewToQuery(view, tab), [view, tab]);
+  // `tab` is passed through for future use, but viewToQuery doesn't read it
+  // yet — keep it out of the deps so switching tabs doesn't refetch.
+  const query = useMemo(() => viewToQuery(view, tab), [view]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const {
     records,
@@ -51,42 +45,7 @@ export default function ActivePluginsStage() {
     [data, view, fields]
   );
 
-  const closeSchedule = useCallback(() => {
-    setScheduleTarget(null);
-    setScheduleError(null);
-    setScheduleSubmitting(false);
-  }, []);
-
-  const submitSchedule = useCallback(
-    async (exclude) => {
-      if (!scheduleTarget) return;
-      setScheduleSubmitting(true);
-      setScheduleError(null);
-      try {
-        await apiFetch({
-          path: PARSE_PATH,
-          method: 'POST',
-          data: { plugin: scheduleTarget.id, exclude },
-        });
-        closeSchedule();
-        refreshList();
-      } catch (err) {
-        setScheduleError(
-          err?.message ?? __('Could not schedule the parse. Please try again.', 'hooksgraph')
-        );
-        setScheduleSubmitting(false);
-      }
-    },
-    [scheduleTarget, closeSchedule, refreshList]
-  );
-
-  const actions = usePluginActions({
-    onScheduleSingle: (item) => {
-      setScheduleError(null);
-      setScheduleTarget(item);
-    },
-    refreshList,
-  });
+  const actions = usePluginActions({ refreshList });
 
   if (isResolving && !hasResolved) {
     return (
@@ -112,63 +71,52 @@ export default function ActivePluginsStage() {
   const isSettings = tab === 'settings';
 
   return (
-    <>
-      <DataViews
-        data={rows}
-        fields={fields}
-        view={view}
-        onChangeView={setView}
-        paginationInfo={paginationInfo}
-        defaultLayouts={{ table: {} }}
-        getItemId={(item) => item.id}
-        actions={actions}
-        isLoading={isResolving}
+    <DataViews
+      data={rows}
+      fields={fields}
+      view={view}
+      onChangeView={setView}
+      paginationInfo={paginationInfo}
+      defaultLayouts={{ table: {} }}
+      getItemId={(item) => item.id}
+      actions={actions}
+      isLoading={isResolving}
+    >
+      <Stack
+        className="hooksgraph-plugins__view-actions"
+        direction="row"
+        justify="space-between"
+        align="center"
+        gap="sm"
       >
-        <Stack
-          className="hooksgraph-plugins__view-actions"
-          direction="row"
-          justify="space-between"
-          align="center"
-          gap="sm"
-        >
-          <Tabs.Root value={tab} onValueChange={setTab}>
-            <Tabs.List variant="minimal">
-              <Tabs.Tab value="dashboard">{__('Dashboard', 'hooksgraph')}</Tabs.Tab>
-              <Tabs.Tab value="active-plugins">{__('Active plugins', 'hooksgraph')}</Tabs.Tab>
-              <Tabs.Tab value="assistant">{__('AI Assistant', 'hooksgraph')}</Tabs.Tab>
-              <Tabs.Tab value="settings">{__('Settings', 'hooksgraph')}</Tabs.Tab>
-            </Tabs.List>
-          </Tabs.Root>
-          {isActivePlugins && (
-            <Stack direction="row" align="center" gap="xs" style={{ flexShrink: 0 }}>
-              <DataViews.Search />
-              <DataViews.FiltersToggle />
-              <DataViews.ViewConfig />
-            </Stack>
-          )}
-        </Stack>
+        <Tabs.Root value={tab} onValueChange={setTab}>
+          <Tabs.List variant="minimal">
+            <Tabs.Tab value="dashboard">{__('Dashboard', 'hooksgraph')}</Tabs.Tab>
+            <Tabs.Tab value="active-plugins">{__('Active plugins', 'hooksgraph')}</Tabs.Tab>
+            <Tabs.Tab value="assistant">{__('AI Assistant', 'hooksgraph')}</Tabs.Tab>
+            <Tabs.Tab value="settings">{__('Settings', 'hooksgraph')}</Tabs.Tab>
+          </Tabs.List>
+        </Tabs.Root>
         {isActivePlugins && (
-          <>
-            <DataViews.FiltersToggled className="dataviews-filters__container" />
-            <DataViews.Layout />
-            <DataViews.Footer />
-          </>
+          <Stack direction="row" align="center" gap="xs" style={{ flexShrink: 0 }}>
+            <DataViews.Search />
+            <DataViews.FiltersToggle />
+            <DataViews.ViewConfig />
+          </Stack>
         )}
-        {isAssistant && <AiChatView />}
-        {isSettings && <SettingsView />}
-        {!isActivePlugins && !isAssistant && !isSettings && (
-          <h1 className="hooksgraph-plugins__dashboard">{__('Dashboard', 'hooksgraph')}</h1>
-        )}
-      </DataViews>
-      {scheduleTarget && (
-        <ScheduleParseModal
-          plugin={scheduleTarget}
-          isSubmitting={scheduleSubmitting}
-          error={scheduleError}
-          onSubmit={submitSchedule}
-          onClose={closeSchedule}
-        />
+      </Stack>
+      {isActivePlugins && (
+        <>
+          <DataViews.FiltersToggled className="dataviews-filters__container" />
+          <DataViews.Layout />
+          <DataViews.Footer />
+        </>
       )}
-    </>
+      {isAssistant && <AiChatView />}
+      {isSettings && <SettingsView />}
+      {!isActivePlugins && !isAssistant && !isSettings && (
+        <h1 className="hooksgraph-plugins__dashboard">{__('Dashboard', 'hooksgraph')}</h1>
+      )}
+    </DataViews>
   );
 }

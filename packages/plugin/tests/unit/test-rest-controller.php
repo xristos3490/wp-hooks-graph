@@ -15,6 +15,8 @@ class Rest_Controller_Tests extends HooksGraph_Test_Case {
 
 	private static int $admin_id = 0;
 
+	private $previous_active_plugins = null;
+
 	public static function wpSetUpBeforeClass( $factory ): void {
 		self::$admin_id = $factory->user->create( [ 'role' => 'administrator' ] );
 	}
@@ -32,12 +34,24 @@ class Rest_Controller_Tests extends HooksGraph_Test_Case {
 		}
 		wp_cache_set( 'plugins', [ '' => $this->fake_plugin_index() ], 'plugins' );
 
+		// Snapshot so tear_down restores it — HooksGraph_Test_Case doesn't
+		// reset options between tests, so leaking active_plugins here would
+		// cause order-dependent failures elsewhere.
+		$this->previous_active_plugins = get_option( 'active_plugins' );
 		update_option( 'active_plugins', [ 'akismet/akismet.php', 'hello.php' ] );
 	}
 
 	public function tear_down(): void {
 		wp_cache_delete( 'plugins', 'plugins' );
 		( new Storage() )->invalidate_status_map();
+
+		if ( false === $this->previous_active_plugins ) {
+			delete_option( 'active_plugins' );
+		} else {
+			update_option( 'active_plugins', $this->previous_active_plugins );
+		}
+		$this->previous_active_plugins = null;
+
 		parent::tear_down();
 	}
 

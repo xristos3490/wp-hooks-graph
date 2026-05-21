@@ -67,15 +67,14 @@ final class Graph_Index {
 	}
 
 	/**
-	 * Newest `<slug>-*.json` for the plugin key, or WP_Error when nothing
-	 * matches.
+	 * Path of the parsed JSON for this plugin as recorded in
+	 * `hooksgraph_plugin_settings`, or WP_Error when nothing has been parsed.
 	 *
 	 * @return string|WP_Error
 	 */
 	private function resolve_path( string $plugin_key ) {
-		$slug    = $this->storage->slug( $plugin_key );
-		$matches = glob( $this->storage->dir() . '/' . $slug . '-*.json' ) ?: array();
-		if ( ! $matches ) {
+		$path = $this->storage->parsed_path( $plugin_key );
+		if ( null === $path || ! is_file( $path ) ) {
 			return new WP_Error(
 				'hooksgraph_not_parsed',
 				/* translators: %s: plugin key */
@@ -83,11 +82,7 @@ final class Graph_Index {
 				array( 'status' => 404 )
 			);
 		}
-		usort(
-			$matches,
-			static fn ( string $a, string $b ): int => ( (int) @filemtime( $b ) ) <=> ( (int) @filemtime( $a ) )
-		);
-		return $matches[0];
+		return $path;
 	}
 
 	/**

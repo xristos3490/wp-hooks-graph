@@ -48,6 +48,8 @@ abstract class HooksGraph_Abilities_Test_Case extends HooksGraph_Test_Case {
 				@unlink( $file );
 			}
 		}
+		delete_option( 'hooksgraph_plugin_settings' );
+		$this->storage->invalidate_status_map();
 		parent::tear_down();
 	}
 
@@ -58,6 +60,14 @@ abstract class HooksGraph_Abilities_Test_Case extends HooksGraph_Test_Case {
 			$dst = $this->storage->path_for( $meta['plugin'], $meta['version'] );
 			if ( file_exists( $src ) ) {
 				copy( $src, $dst );
+				$raw = json_decode( (string) file_get_contents( $src ), true );
+				$this->storage->record_parse_success(
+					$meta['plugin'],
+					$meta['version'],
+					basename( $dst ),
+					is_array( $raw['metadata'] ?? null ) ? $raw['metadata'] : array(),
+					is_array( $raw['edges'] ?? null ) ? count( $raw['edges'] ) : 0
+				);
 			}
 		}
 	}
