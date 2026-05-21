@@ -256,21 +256,35 @@ final class Storage {
 		}
 
 		// One glob() over the storage dir; bucket files by slug so each plugin
-		// resolves with a hash lookup instead of a per-plugin glob.
+		// resolves with a hash lookup instead of a per-plugin glob. Matching is
+		// longest-prefix against known slugs because plugin versions can contain
+		// dashes (e.g. `10.9.0-dev`) — splitting on the last `-` would misroute
+		// `woocommerce-10.9.0-dev.json` to a non-existent `woocommerce-10.9.0`
+		// slug. Longest-prefix also disambiguates `woocommerce` from
+		// `woocommerce-bookings`.
+		$known_slugs = [];
+		foreach ( $plugin_keys as $key ) {
+			$known_slugs[ $this->slug( $key ) ] = true;
+		}
+		$known_slugs = array_keys( $known_slugs );
+		usort( $known_slugs, static fn ( string $a, string $b ): int => strlen( $b ) <=> strlen( $a ) );
+
 		$files_by_slug = [];
 		foreach ( glob( $this->dir() . '/*.json' ) ?: [] as $file ) {
 			$base = basename( $file, '.json' );
-			$dash = strrpos( $base, '-' );
-			if ( false === $dash ) {
-				continue;
+			foreach ( $known_slugs as $slug ) {
+				$prefix = $slug . '-';
+				if ( ! str_starts_with( $base, $prefix ) ) {
+					continue;
+				}
+				$version = substr( $base, strlen( $prefix ) );
+				$mtime   = @filemtime( $file );
+				$files_by_slug[ $slug ][] = [
+					'version' => $version,
+					'mtime'   => false === $mtime ? 0 : (int) $mtime,
+				];
+				break;
 			}
-			$slug    = substr( $base, 0, $dash );
-			$version = substr( $base, $dash + 1 );
-			$mtime   = @filemtime( $file );
-			$files_by_slug[ $slug ][] = [
-				'version' => $version,
-				'mtime'   => false === $mtime ? 0 : (int) $mtime,
-			];
 		}
 
 		$map = [];
