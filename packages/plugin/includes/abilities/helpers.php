@@ -1,10 +1,12 @@
 <?php
 /**
- * Shared helpers for hooksgraph ability handlers.
+ * Shared helpers for the HooksGraph ability handlers.
  *
  * PHP ports of `packages/mcp/src/lib/paginate.js` and `packages/mcp/src/lib/shape.js`.
- * Kept in plain functions in the `HooksGraph\Plugin\Abilities\` namespace — the
- * 10 ability files all need these and a class wrapper would add no value.
+ * Plain namespaced functions — every ability needs them and a class wrapper would
+ * add no value.
+ *
+ * @package HooksGraph\Plugin
  */
 
 declare(strict_types=1);

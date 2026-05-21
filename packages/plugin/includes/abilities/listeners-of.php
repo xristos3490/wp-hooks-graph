@@ -1,22 +1,25 @@
 <?php
 /**
- * Ability: hooksgraph/listeners_of
+ * Ability: hooksgraph/listeners-of
+ *
+ * Included from {@see \HooksGraph\Plugin\hooksgraph_register_abilities()} with
+ * `$index` (Graph_Index) and `$storage` (Storage) in local scope.
+ *
+ * @package HooksGraph\Plugin
  */
 
 declare(strict_types=1);
 
 namespace HooksGraph\Plugin\Abilities;
 
-use HooksGraph\Plugin\Graph_Index;
-use HooksGraph\Plugin\Storage;
-
 defined( 'ABSPATH' ) || exit;
 
-/**
- * @return array<string, mixed>
- */
-function hooksgraph_ability_listeners_of( Graph_Index $idx, Storage $storage ): array {
-	return array(
+/** @var \HooksGraph\Plugin\Graph_Index $index */
+
+\wp_register_ability(
+	'hooksgraph/listeners-of',
+	array(
+		'category'            => 'hooksgraph',
 		'label'               => __( 'List hook listeners', 'hooksgraph' ),
 		'description'         => __( 'List every add_action/add_filter registration for a given hook in one plugin codebase, paginated. Use when the user wants to know which callbacks subscribe to a hook.', 'hooksgraph' ),
 		'input_schema'        => array(
@@ -24,7 +27,7 @@ function hooksgraph_ability_listeners_of( Graph_Index $idx, Storage $storage ): 
 			'properties'           => array(
 				'plugin' => array(
 					'type'        => 'string',
-					'description' => __( 'Plugin key like "akismet/akismet". Call hooksgraph/list_codebases for available plugins.', 'hooksgraph' ),
+					'description' => __( 'Plugin key like "akismet/akismet". Call hooksgraph/list-codebases for available plugins.', 'hooksgraph' ),
 				),
 				'hook'   => array( 'type' => 'string', 'description' => __( 'Hook name.', 'hooksgraph' ) ),
 				'limit'  => array( 'type' => 'integer', 'minimum' => 1, 'maximum' => 500, 'default' => 50 ),
@@ -33,8 +36,8 @@ function hooksgraph_ability_listeners_of( Graph_Index $idx, Storage $storage ): 
 			'required'             => array( 'plugin', 'hook' ),
 			'additionalProperties' => false,
 		),
-		'execute_callback'    => static function ( array $input ) use ( $idx ) {
-			$built = $idx->for_plugin( $input['plugin'] );
+		'execute_callback'    => static function ( array $input ) use ( $index ) {
+			$built = $index->for_plugin( $input['plugin'] );
 			if ( $built instanceof \WP_Error ) {
 				return $built;
 			}
@@ -57,5 +60,5 @@ function hooksgraph_ability_listeners_of( Graph_Index $idx, Storage $storage ): 
 				'idempotent'  => true,
 			),
 		),
-	);
-}
+	)
+);

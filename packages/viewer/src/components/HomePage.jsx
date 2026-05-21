@@ -3,6 +3,7 @@ import { Button, EmptyState, Stack, Text, Badge } from '@wordpress/ui';
 import Logo from './Logo';
 import HomePageBackground from './HomePageBackground';
 import GitHubLink from './GitHubLink';
+import Footer from './Footer';
 import './HomePage.css';
 
 export default function HomePage({ onFileLoad, isLoading, onLoadDemo, hasDemo }) {
@@ -121,6 +122,8 @@ export default function HomePage({ onFileLoad, isLoading, onLoadDemo, hasDemo })
           <GitHubLink />
         </Stack>
       </main>
+
+      <Footer />
 
       <input
         ref={inputRef}

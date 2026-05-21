@@ -79,7 +79,7 @@ final class Graph_Index {
 			return new WP_Error(
 				'hooksgraph_not_parsed',
 				/* translators: %s: plugin key */
-				sprintf( __( 'No parsed graph found for "%s". Call hooksgraph/list_codebases to see what is available.', 'hooksgraph' ), $plugin_key ),
+				sprintf( __( 'No parsed graph found for "%s". Call hooksgraph/list-codebases to see what is available.', 'hooksgraph' ), $plugin_key ),
 				array( 'status' => 404 )
 			);
 		}

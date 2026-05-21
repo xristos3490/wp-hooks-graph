@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       HooksGraph
- * Plugin URI:        https://github.com/hooksgraph/wp-hooks-graph
+ * Plugin URI:        https://github.com/xristos3490/wp-hooks-graph
  * Description:       Visualize WordPress hook relationships (do_action/add_action/apply_filters/add_filter).
  * Version:           0.1.0
  * Requires at least: 6.5
@@ -36,21 +36,24 @@ foreach ( $hooksgraph_autoload_candidates as $hooksgraph_autoload ) {
 unset( $hooksgraph_autoload, $hooksgraph_autoload_candidates );
 
 require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-storage.php';
+require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-settings.php';
 require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-parser-service.php';
 require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-cron.php';
 require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-admin-page.php';
 require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-rest-controller.php';
+require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-ai-chat-controller.php';
 require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-graph-index.php';
-require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-abilities-registrar.php';
+// Abilities are registered via top-level add_action() calls inside this file.
+require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/abilities.php';
 
 add_action( 'plugins_loaded', static function (): void {
-	$storage = new \HooksGraph\Plugin\Storage();
-	$parser  = new \HooksGraph\Plugin\Parser_Service( $storage );
-	$cron    = new \HooksGraph\Plugin\Cron( $parser, $storage );
-	$index   = new \HooksGraph\Plugin\Graph_Index( $storage );
+	$storage  = new \HooksGraph\Plugin\Storage();
+	$settings = new \HooksGraph\Plugin\Settings();
+	$parser   = new \HooksGraph\Plugin\Parser_Service( $storage );
+	$cron     = new \HooksGraph\Plugin\Cron( $parser, $storage );
 
 	( new \HooksGraph\Plugin\Admin_Page() )->register();
-	( new \HooksGraph\Plugin\Rest_Controller( $storage, $cron ) )->register();
-	( new \HooksGraph\Plugin\Abilities_Registrar( $storage, $index ) )->register();
+	( new \HooksGraph\Plugin\Rest_Controller( $storage, $cron, $settings ) )->register();
+	( new \HooksGraph\Plugin\Ai_Chat_Controller( $settings ) )->register();
 	$cron->register();
 } );

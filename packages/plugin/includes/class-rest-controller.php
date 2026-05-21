@@ -12,8 +12,6 @@ declare(strict_types=1);
 
 namespace HooksGraph\Plugin;
 
-use WordPress\AiClient\Messages\DTO\MessagePart;
-use WordPress\AiClient\Messages\DTO\UserMessage;
 use WP_Error;
 use WP_REST_Controller;
 use WP_REST_Request;
@@ -30,7 +28,8 @@ final class Rest_Controller extends WP_REST_Controller {
 
 	public function __construct(
 		private Storage $storage,
-		private Cron $cron
+		private Cron $cron,
+		private Settings $settings
 	) {
 		$this->namespace = self::NAMESPACE;
 		$this->rest_base = self::REST_BASE;
@@ -99,11 +98,24 @@ final class Rest_Controller extends WP_REST_Controller {
 
 		register_rest_route(
 			self::NAMESPACE,
-			'/ai/list-codebases',
+			'/settings',
 			[
-				'methods'             => WP_REST_Server::CREATABLE,
-				'permission_callback' => $auth,
-				'callback'            => [ $this, 'ai_list_codebases' ],
+				[
+					'methods'             => WP_REST_Server::READABLE,
+					'permission_callback' => $auth,
+					'callback'            => [ $this, 'get_settings' ],
+				],
+				[
+					'methods'             => WP_REST_Server::CREATABLE,
+					'permission_callback' => $auth,
+					'args'                => [
+						'allow_read_files' => [
+							'required' => false,
+							'type'     => 'boolean',
+						],
+					],
+					'callback'            => [ $this, 'update_settings' ],
+				],
 			]
 		);
 
@@ -485,107 +497,17 @@ final class Rest_Controller extends WP_REST_Controller {
 		return $response;
 	}
 
-	/**
-	 * Run a single-turn AI Client loop scoped to the `hooksgraph/list-codebases`
-	 * ability and return the model's final text answer.
-	 *
-	 * Surfaces the WP 7.0 AI Client + Abilities API integration in the simplest
-	 * possible form so the admin UI can demonstrate "ask the model what's
-	 * parsed" without bespoke prompt plumbing.
-	 */
-	public function ai_list_codebases( WP_REST_Request $request ): WP_REST_Response|WP_Error {
-		if ( ! function_exists( 'wp_ai_client_prompt' ) ) {
-			return new WP_Error(
-				'hooksgraph_ai_unavailable',
-				__( 'The WordPress AI Client is not available on this site. Requires WordPress 7.0+.', 'hooksgraph' ),
-				[ 'status' => 501 ]
-			);
-		}
+	public function get_settings( WP_REST_Request $request ): WP_REST_Response {
+		return new WP_REST_Response( $this->settings->all(), 200 );
+	}
 
-		// The AI Client defaults each provider HTTP call to 30s. A tool-call
-		// loop compounds that across turns, and cold starts on aggregator
-		// providers (e.g. OpenRouter) routinely brush the limit on a single
-		// turn. Bump it for the duration of this request only.
-		$timeout_filter = static fn (): int => 120;
-		add_filter( 'wp_ai_client_default_request_timeout', $timeout_filter );
-
-		$allowed  = [ 'hooksgraph/list-codebases' ];
-		$resolver = new \WP_AI_Client_Ability_Function_Resolver( ...$allowed );
-		$user_msg = __( 'List every plugin codebase available for hooksgraph querying on this site. For each, show the plugin key, version, status, and total parsed hooks.', 'hooksgraph' );
-		$system   = __( 'You are an assistant inside a WordPress admin page. Use the hooksgraph tools to answer factual questions about parsed plugin codebases on this site. Always call the relevant tool — do not guess.', 'hooksgraph' );
-
-		/**
-		 * Filter the model preference list for hooksgraph AI features. Each
-		 * entry can be a model id string (e.g. `'openai/gpt-4o-mini'`) or a
-		 * `[provider_id, model_id]` tuple (e.g. `['openrouter', 'openai/gpt-4o-mini']`).
-		 * Required for provider configurations (e.g. OpenRouter) that expose
-		 * many models — the AI Client refuses to pick one when multiple
-		 * advertise the text_generation + function_calling capability pair.
-		 *
-		 * Return an empty array to fall back to the AI Client's auto-pick.
-		 *
-		 * @param array<int, string|array{0:string,1:string}> $preferences
-		 */
-		$preferences = (array) apply_filters( 'hooksgraph_ai_model_preference', array( array( 'openrouter', 'anthropic/claude-sonnet-4.5' ) ) );
-
-		$build = static function () use ( $user_msg, $system, $allowed, $preferences ) {
-			$builder = wp_ai_client_prompt( $user_msg )
-				->using_system_instruction( $system )
-				->using_abilities( ...$allowed );
-			if ( ! empty( $preferences ) ) {
-				$builder = $builder->using_model_preference( ...$preferences );
-			}
-			return $builder;
-		};
-
-		// Seed history with the user turn so `with_history()` (which prepends
-		// onto the builder's messages) keeps a user-role message at index 0 on
-		// follow-up iterations — otherwise the model's first response becomes
-		// $history[0] and the AI Client rejects the prompt with
-		// `prompt_invalid_argument`.
-		$history = [ new UserMessage( [ new MessagePart( $user_msg ) ] ) ];
-		$result  = $build()->generate_text_result();
-
-		try {
-			for ( $i = 0; $i < 5; $i++ ) {
-				if ( is_wp_error( $result ) ) {
-					return $result;
-				}
-				$assistant = $result->toMessage();
-				$history[] = $assistant;
-				if ( ! $resolver->has_ability_calls( $assistant ) ) {
-					break;
-				}
-				$history[] = $resolver->execute_abilities( $assistant );
-				$result    = $build()->with_history( ...$history )->generate_text_result();
-			}
-		} finally {
-			remove_filter( 'wp_ai_client_default_request_timeout', $timeout_filter );
-		}
-
-		if ( is_wp_error( $result ) ) {
-			return $result;
-		}
-
-		// `toText()` throws when the final candidate has no text part (e.g.
-		// iteration cap hit with the model still emitting tool calls). Collect
-		// text parts manually so the response degrades to "" instead of a 500.
-		$text = '';
-		foreach ( $result->toMessage()->getParts() as $part ) {
-			if ( $part->getType()->isText() ) {
-				$text .= $part->getText();
-			}
-		}
-		$iteration_capped = $resolver->has_ability_calls( $result->toMessage() );
-
-		return new WP_REST_Response(
+	public function update_settings( WP_REST_Request $request ): WP_REST_Response {
+		$updated = $this->settings->update(
 			[
-				'text'             => $text,
-				'iterations'       => $i,
-				'iteration_capped' => $iteration_capped,
-			],
-			200
+				'allow_read_files' => (bool) $request->get_param( 'allow_read_files' ),
+			]
 		);
+		return new WP_REST_Response( $updated, 200 );
 	}
 
 	public function schedule_parse( WP_REST_Request $request ): WP_REST_Response|WP_Error {

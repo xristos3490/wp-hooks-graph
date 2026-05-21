@@ -1,0 +1,17 @@
+.hg-footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  padding: var(--wpds-dimension-padding-md);
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  font-size: var(--wpds-typography-font-size-sm);
+}
+
+.hg-footer a {
+  display: inline-flex;
+  align-items: center;
+  color: inherit;
+}

@@ -1,30 +1,34 @@
 <?php
 /**
- * Ability: hooksgraph/shared_hooks
+ * Ability: hooksgraph/shared-hooks
+ *
+ * Included from {@see \HooksGraph\Plugin\hooksgraph_register_abilities()} with
+ * `$index` (Graph_Index) and `$storage` (Storage) in local scope.
+ *
+ * @package HooksGraph\Plugin
  */
 
 declare(strict_types=1);
 
 namespace HooksGraph\Plugin\Abilities;
 
-use HooksGraph\Plugin\Graph_Index;
-use HooksGraph\Plugin\Storage;
-
 defined( 'ABSPATH' ) || exit;
 
-/**
- * @return array<string, mixed>
- */
-function hooksgraph_ability_shared_hooks( Graph_Index $idx, Storage $storage ): array {
-	return array(
+/** @var \HooksGraph\Plugin\Graph_Index $index */
+/** @var \HooksGraph\Plugin\Storage $storage */
+
+\wp_register_ability(
+	'hooksgraph/shared-hooks',
+	array(
+		'category'            => 'hooksgraph',
 		'label'               => __( 'Hooks shared across plugins', 'hooksgraph' ),
 		'description'         => __( 'Enumerate hook names that appear in 2+ plugin codebases. Useful for finding hooks that multiple plugins integrate with.', 'hooksgraph' ),
 		'input_schema'        => array(
 			'type'                 => 'object',
 			'properties'           => array(
 				'plugins'     => array(
-					'type'  => 'array',
-					'items' => array( 'type' => 'string' ),
+					'type'        => 'array',
+					'items'       => array( 'type' => 'string' ),
 					'description' => __( 'Restrict to this subset of plugin keys. Defaults to every active+parsed plugin.', 'hooksgraph' ),
 				),
 				'substring'   => array( 'type' => 'string', 'minLength' => 1 ),
@@ -39,7 +43,7 @@ function hooksgraph_ability_shared_hooks( Graph_Index $idx, Storage $storage ): 
 			),
 			'additionalProperties' => false,
 		),
-		'execute_callback'    => static function ( array $input ) use ( $idx, $storage ) {
+		'execute_callback'    => static function ( array $input ) use ( $index, $storage ) {
 			$keys = ! empty( $input['plugins'] ) && is_array( $input['plugins'] )
 				? array_values( array_map( 'strval', $input['plugins'] ) )
 				: active_parsed_plugin_keys( $storage );
@@ -51,7 +55,7 @@ function hooksgraph_ability_shared_hooks( Graph_Index $idx, Storage $storage ): 
 
 			$table = array(); // hookName => [codebase_id => {fire_count, listen_count, hook_type}]
 			foreach ( $keys as $key ) {
-				$built = $idx->for_plugin( $key );
+				$built = $index->for_plugin( $key );
 				if ( $built instanceof \WP_Error ) {
 					continue;
 				}
@@ -117,10 +121,8 @@ function hooksgraph_ability_shared_hooks( Graph_Index $idx, Storage $storage ): 
 						if ( $aTotal !== $bTotal ) {
 							return $bTotal <=> $aTotal;
 						}
-					} else {
-						if ( count( $a['sources'] ) !== count( $b['sources'] ) ) {
-							return count( $b['sources'] ) <=> count( $a['sources'] );
-						}
+					} elseif ( count( $a['sources'] ) !== count( $b['sources'] ) ) {
+						return count( $b['sources'] ) <=> count( $a['sources'] );
 					}
 					return $a['hook'] <=> $b['hook'];
 				}
@@ -136,5 +138,5 @@ function hooksgraph_ability_shared_hooks( Graph_Index $idx, Storage $storage ): 
 				'idempotent'  => true,
 			),
 		),
-	);
-}
+	)
+);

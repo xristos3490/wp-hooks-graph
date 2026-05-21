@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" aria-label="Hooks Graph logo">
+  <circle cx="200" cy="200" r="190" fill="#0b0b0c"/>
+  <g stroke="#ffffff" stroke-width="22" stroke-linecap="round">
+    <line x1="125" y1="115" x2="125" y2="200"/>
+    <line x1="125" y1="200" x2="125" y2="285"/>
+    <line x1="125" y1="200" x2="275" y2="200"/>
+    <line x1="275" y1="115" x2="275" y2="200"/>
+    <line x1="275" y1="200" x2="275" y2="285"/>
+  </g>
+  <g fill="#ffffff">
+    <circle cx="125" cy="115" r="20"/>
+    <circle cx="125" cy="200" r="20"/>
+    <circle cx="125" cy="285" r="20"/>
+    <circle cx="275" cy="115" r="20"/>
+    <circle cx="275" cy="200" r="20"/>
+    <circle cx="275" cy="285" r="20"/>
+  </g>
+</svg>

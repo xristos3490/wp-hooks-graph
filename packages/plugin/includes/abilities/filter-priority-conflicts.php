@@ -1,22 +1,26 @@
 <?php
 /**
- * Ability: hooksgraph/filter_priority_conflicts
+ * Ability: hooksgraph/filter-priority-conflicts
+ *
+ * Included from {@see \HooksGraph\Plugin\hooksgraph_register_abilities()} with
+ * `$index` (Graph_Index) and `$storage` (Storage) in local scope.
+ *
+ * @package HooksGraph\Plugin
  */
 
 declare(strict_types=1);
 
 namespace HooksGraph\Plugin\Abilities;
 
-use HooksGraph\Plugin\Graph_Index;
-use HooksGraph\Plugin\Storage;
-
 defined( 'ABSPATH' ) || exit;
 
-/**
- * @return array<string, mixed>
- */
-function hooksgraph_ability_filter_priority_conflicts( Graph_Index $idx, Storage $storage ): array {
-	return array(
+/** @var \HooksGraph\Plugin\Graph_Index $index */
+/** @var \HooksGraph\Plugin\Storage $storage */
+
+\wp_register_ability(
+	'hooksgraph/filter-priority-conflicts',
+	array(
+		'category'            => 'hooksgraph',
 		'label'               => __( 'Find filter priority conflicts', 'hooksgraph' ),
 		'description'         => __( 'Find filter hooks where listeners from 2+ plugin codebases share the same priority. Filter execution order affects return values — earlier callbacks can overwrite what later ones receive.', 'hooksgraph' ),
 		'input_schema'        => array(
@@ -25,8 +29,8 @@ function hooksgraph_ability_filter_priority_conflicts( Graph_Index $idx, Storage
 				'hook'          => array( 'type' => 'string', 'description' => __( 'Exact hook name.', 'hooksgraph' ) ),
 				'substring'     => array( 'type' => 'string', 'description' => __( 'Case-insensitive substring filter on hook name.', 'hooksgraph' ) ),
 				'plugins'       => array(
-					'type'  => 'array',
-					'items' => array( 'type' => 'string' ),
+					'type'        => 'array',
+					'items'       => array( 'type' => 'string' ),
 					'description' => __( 'Restrict to this subset of plugin keys. Defaults to all active+parsed.', 'hooksgraph' ),
 				),
 				'min_codebases' => array( 'type' => 'integer', 'minimum' => 2, 'default' => 2 ),
@@ -35,7 +39,7 @@ function hooksgraph_ability_filter_priority_conflicts( Graph_Index $idx, Storage
 			),
 			'additionalProperties' => false,
 		),
-		'execute_callback'    => static function ( array $input ) use ( $idx, $storage ) {
+		'execute_callback'    => static function ( array $input ) use ( $index, $storage ) {
 			$hook      = $input['hook'] ?? null;
 			$substring = $input['substring'] ?? null;
 			$hasHook   = is_string( $hook ) && '' !== $hook;
@@ -58,7 +62,7 @@ function hooksgraph_ability_filter_priority_conflicts( Graph_Index $idx, Storage
 
 			$loaded = array();
 			foreach ( $keys as $key ) {
-				$built = $idx->for_plugin( $key );
+				$built = $index->for_plugin( $key );
 				if ( $built instanceof \WP_Error ) {
 					continue;
 				}
@@ -168,5 +172,5 @@ function hooksgraph_ability_filter_priority_conflicts( Graph_Index $idx, Storage
 				'idempotent'  => true,
 			),
 		),
-	);
-}
+	)
+);

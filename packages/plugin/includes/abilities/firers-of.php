@@ -1,22 +1,25 @@
 <?php
 /**
- * Ability: hooksgraph/firers_of
+ * Ability: hooksgraph/firers-of
+ *
+ * Included from {@see \HooksGraph\Plugin\hooksgraph_register_abilities()} with
+ * `$index` (Graph_Index) and `$storage` (Storage) in local scope.
+ *
+ * @package HooksGraph\Plugin
  */
 
 declare(strict_types=1);
 
 namespace HooksGraph\Plugin\Abilities;
 
-use HooksGraph\Plugin\Graph_Index;
-use HooksGraph\Plugin\Storage;
-
 defined( 'ABSPATH' ) || exit;
 
-/**
- * @return array<string, mixed>
- */
-function hooksgraph_ability_firers_of( Graph_Index $idx, Storage $storage ): array {
-	return array(
+/** @var \HooksGraph\Plugin\Graph_Index $index */
+
+\wp_register_ability(
+	'hooksgraph/firers-of',
+	array(
+		'category'            => 'hooksgraph',
 		'label'               => __( 'List hook firers', 'hooksgraph' ),
 		'description'         => __( 'List every do_action/apply_filters call site for a given hook in one plugin codebase, paginated. Use when the user asks where a hook is fired from.', 'hooksgraph' ),
 		'input_schema'        => array(
@@ -30,8 +33,8 @@ function hooksgraph_ability_firers_of( Graph_Index $idx, Storage $storage ): arr
 			'required'             => array( 'plugin', 'hook' ),
 			'additionalProperties' => false,
 		),
-		'execute_callback'    => static function ( array $input ) use ( $idx ) {
-			$built = $idx->for_plugin( $input['plugin'] );
+		'execute_callback'    => static function ( array $input ) use ( $index ) {
+			$built = $index->for_plugin( $input['plugin'] );
 			if ( $built instanceof \WP_Error ) {
 				return $built;
 			}
@@ -54,5 +57,5 @@ function hooksgraph_ability_firers_of( Graph_Index $idx, Storage $storage ): arr
 				'idempotent'  => true,
 			),
 		),
-	);
-}
+	)
+);

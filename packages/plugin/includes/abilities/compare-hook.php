@@ -1,24 +1,28 @@
 <?php
 /**
- * Ability: hooksgraph/compare_hook
+ * Ability: hooksgraph/compare-hook
+ *
+ * Included from {@see \HooksGraph\Plugin\hooksgraph_register_abilities()} with
+ * `$index` (Graph_Index) and `$storage` (Storage) in local scope.
+ *
+ * @package HooksGraph\Plugin
  */
 
 declare(strict_types=1);
 
 namespace HooksGraph\Plugin\Abilities;
 
-use HooksGraph\Plugin\Graph_Index;
-use HooksGraph\Plugin\Storage;
-
 defined( 'ABSPATH' ) || exit;
 
 const COMPARE_HOOK_CANDIDATE_CAP = 500;
 
-/**
- * @return array<string, mixed>
- */
-function hooksgraph_ability_compare_hook( Graph_Index $idx, Storage $storage ): array {
-	return array(
+/** @var \HooksGraph\Plugin\Graph_Index $index */
+/** @var \HooksGraph\Plugin\Storage $storage */
+
+\wp_register_ability(
+	'hooksgraph/compare-hook',
+	array(
+		'category'            => 'hooksgraph',
 		'label'               => __( 'Compare a hook across plugins', 'hooksgraph' ),
 		'description'         => __( 'Pivot one or more hooks across plugin codebases. Provide exactly one of `hook` (exact) or `substring` (case-insensitive). Returns matches with fires + listeners grouped across codebases, listeners sorted by priority.', 'hooksgraph' ),
 		'input_schema'        => array(
@@ -27,8 +31,8 @@ function hooksgraph_ability_compare_hook( Graph_Index $idx, Storage $storage ): 
 				'hook'      => array( 'type' => 'string', 'description' => __( 'Exact hook name. Mutually exclusive with substring.', 'hooksgraph' ) ),
 				'substring' => array( 'type' => 'string', 'description' => __( 'Case-insensitive substring. Mutually exclusive with hook.', 'hooksgraph' ) ),
 				'plugins'   => array(
-					'type'  => 'array',
-					'items' => array( 'type' => 'string' ),
+					'type'        => 'array',
+					'items'       => array( 'type' => 'string' ),
 					'description' => __( 'Restrict to this subset of plugin keys. Defaults to all active+parsed.', 'hooksgraph' ),
 				),
 				'limit'     => array( 'type' => 'integer', 'minimum' => 1, 'maximum' => 500, 'default' => 20 ),
@@ -36,7 +40,7 @@ function hooksgraph_ability_compare_hook( Graph_Index $idx, Storage $storage ): 
 			),
 			'additionalProperties' => false,
 		),
-		'execute_callback'    => static function ( array $input ) use ( $idx, $storage ) {
+		'execute_callback'    => static function ( array $input ) use ( $index, $storage ) {
 			$hook      = $input['hook'] ?? null;
 			$substring = $input['substring'] ?? null;
 			$hasHook   = is_string( $hook ) && '' !== $hook;
@@ -56,7 +60,7 @@ function hooksgraph_ability_compare_hook( Graph_Index $idx, Storage $storage ): 
 
 			$loaded = array();
 			foreach ( $keys as $key ) {
-				$built = $idx->for_plugin( $key );
+				$built = $index->for_plugin( $key );
 				if ( $built instanceof \WP_Error ) {
 					continue;
 				}
@@ -140,5 +144,5 @@ function hooksgraph_ability_compare_hook( Graph_Index $idx, Storage $storage ): 
 				'idempotent'  => true,
 			),
 		),
-	);
-}
+	)
+);
