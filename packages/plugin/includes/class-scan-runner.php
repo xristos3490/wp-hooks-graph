@@ -393,9 +393,21 @@ final class Scan_Runner {
 			return '(body unavailable)';
 		}
 
-		// Map codebase id → plugin key. The ability surface emits the
-		// `codebase_id` (slug) — we need the full plugin key. In practice
-		// they match for foldered + single-file plugins, but be defensive.
+		// Prefer the exact span the parser recorded for this callback's body.
+		// Falls back to a window around the add_filter() call only when the
+		// parser couldn't resolve the body (string callback into another file,
+		// closure assigned to a variable, etc.).
+		$body_start = isset( $listener['callback_body_start_line'] ) ? (int) $listener['callback_body_start_line'] : 0;
+		$body_end   = isset( $listener['callback_body_end_line'] ) ? (int) $listener['callback_body_end_line'] : 0;
+
+		if ( $body_start > 0 && $body_end >= $body_start ) {
+			$start_line = max( 1, $body_start - 2 );
+			$end_line   = $body_end + 2;
+		} else {
+			$start_line = max( 1, $line - 5 );
+			$end_line   = $line + 80;
+		}
+
 		$plugin_key = $this->resolve_plugin_key( $plugin );
 
 		if ( ! function_exists( '\\wp_get_ability' ) ) {
@@ -410,8 +422,8 @@ final class Scan_Runner {
 			[
 				'plugin'     => $plugin_key,
 				'file_path'  => $file,
-				'start_line' => max( 1, $line - 5 ),
-				'end_line'   => $line + 80,
+				'start_line' => $start_line,
+				'end_line'   => $end_line,
 			]
 		);
 		if ( $response instanceof \WP_Error || ! is_array( $response ) ) {
