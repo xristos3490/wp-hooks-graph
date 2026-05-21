@@ -12,7 +12,14 @@ const DOWNLOADABLE_STATUSES = new Set(['parsed', 'stale']);
 const filenameFromContentDisposition = (header) => {
   if (!header) return null;
   const match = header.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
-  return match ? decodeURIComponent(match[1]) : null;
+  if (!match) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    // Malformed percent-encoding — fall back to the raw match so the caller
+    // can still surface *something* rather than throwing mid-download.
+    return match[1];
+  }
 };
 
 const triggerBrowserDownload = (blob, filename) => {
