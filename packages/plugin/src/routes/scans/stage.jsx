@@ -4,7 +4,8 @@ import { useDispatch } from '@wordpress/data';
 import { DataViews, filterSortAndPaginate } from '@wordpress/dataviews';
 import { useCallback, useMemo, useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
-import { Button, Notice, Stack, Tabs } from '@wordpress/ui';
+import { Button, EmptyState, Notice, Stack, Tabs } from '@wordpress/ui';
+import { search } from '@wordpress/icons';
 
 import ScanDetailView from './detail-panel';
 import { SCAN_ENTITY } from './entity';
@@ -13,12 +14,12 @@ import { useScanActions } from './use-scan-actions';
 import { useScanFields } from './use-scan-fields';
 import { getDefaultView, viewToQuery } from './view-utils';
 
-export default function ScansStage({ tab, setTab }) {
+export default function ScansStage({ view: routeView, selectedId, navigate }) {
   const fields = useScanFields();
   const defaultView = useMemo(() => getDefaultView(), []);
   const [view, setView] = useState(defaultView);
   const [isNewOpen, setIsNewOpen] = useState(false);
-  const [selectedScanId, setSelectedScanId] = useState(null);
+  const selectedScanId = selectedId !== null ? Number(selectedId) : null;
 
   const query = useMemo(() => viewToQuery(view), [view]);
 
@@ -40,7 +41,10 @@ export default function ScansStage({ tab, setTab }) {
     [data, view, fields]
   );
 
-  const onView = useCallback((item) => setSelectedScanId(item.id), []);
+  const onView = useCallback(
+    (item) => navigate({ view: 'scans', id: item.id }),
+    [navigate]
+  );
   const actions = useScanActions({ onView, refreshList });
 
   if (isResolving && !hasResolved) {
@@ -64,9 +68,30 @@ export default function ScansStage({ tab, setTab }) {
 
   if (selectedScanId !== null) {
     return (
-      <ScanDetailView scanId={selectedScanId} onBack={() => setSelectedScanId(null)} />
+      <ScanDetailView
+        scanId={selectedScanId}
+        onBack={() => navigate({ view: 'scans', id: null })}
+      />
     );
   }
+
+  const emptyState = (
+    <EmptyState.Root style={{ marginBlockStart: '120px' }}>
+      <EmptyState.Icon icon={search} />
+      <EmptyState.Title>{__('No scans yet', 'hooksgraph')}</EmptyState.Title>
+      <EmptyState.Description>
+        {__(
+          'Run a scan to analyse hook relationships across your active plugins. Results appear here as soon as a scan completes.',
+          'hooksgraph'
+        )}
+      </EmptyState.Description>
+      <EmptyState.Actions>
+        <Button variant="solid" tone="brand" onClick={() => setIsNewOpen(true)}>
+          {__('New scan', 'hooksgraph')}
+        </Button>
+      </EmptyState.Actions>
+    </EmptyState.Root>
+  );
 
   return (
     <>
@@ -81,6 +106,7 @@ export default function ScansStage({ tab, setTab }) {
         actions={actions}
         isLoading={isResolving && !hasResolved}
         onClickItem={(item) => onView(item)}
+        empty={emptyState}
       >
         <Stack
           className="hooksgraph-scans__view-actions"
@@ -89,9 +115,11 @@ export default function ScansStage({ tab, setTab }) {
           align="center"
           gap="sm"
         >
-          <Tabs.Root value={tab} onValueChange={setTab}>
+          <Tabs.Root
+            value={routeView}
+            onValueChange={(next) => navigate({ view: next, id: null })}
+          >
             <Tabs.List variant="minimal">
-              <Tabs.Tab value="dashboard">{__('Dashboard', 'hooksgraph')}</Tabs.Tab>
               <Tabs.Tab value="active-plugins">{__('Active plugins', 'hooksgraph')}</Tabs.Tab>
               <Tabs.Tab value="scans">{__('Scans', 'hooksgraph')}</Tabs.Tab>
               <Tabs.Tab value="assistant">{__('AI Assistant', 'hooksgraph')}</Tabs.Tab>

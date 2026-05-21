@@ -13,14 +13,14 @@ import { usePluginActions } from './use-plugin-actions';
 import { usePluginFields } from './use-plugin-fields';
 import { getDefaultView, viewToQuery } from './view-utils';
 
-export default function ActivePluginsStage({ tab, setTab }) {
+export default function ActivePluginsStage({ view: routeView, navigate }) {
   const fields = usePluginFields();
-  const defaultView = useMemo(() => getDefaultView(tab), [tab]);
+  const defaultView = useMemo(() => getDefaultView(routeView), [routeView]);
   const [view, setView] = useState(defaultView);
 
-  // `tab` is passed through for future use, but viewToQuery doesn't read it
+  // `routeView` is passed through for future use, but viewToQuery doesn't read it
   // yet — keep it out of the deps so switching tabs doesn't refetch.
-  const query = useMemo(() => viewToQuery(view, tab), [view]); // eslint-disable-line react-hooks/exhaustive-deps
+  const query = useMemo(() => viewToQuery(view, routeView), [view]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const {
     records,
@@ -65,9 +65,9 @@ export default function ActivePluginsStage({ tab, setTab }) {
     );
   }
 
-  const isActivePlugins = tab === 'active-plugins';
-  const isAssistant = tab === 'assistant';
-  const isSettings = tab === 'settings';
+  const isActivePlugins = routeView === 'active-plugins';
+  const isAssistant = routeView === 'assistant';
+  const isSettings = routeView === 'settings';
 
   return (
     <DataViews
@@ -88,9 +88,11 @@ export default function ActivePluginsStage({ tab, setTab }) {
         align="center"
         gap="sm"
       >
-        <Tabs.Root value={tab} onValueChange={setTab}>
+        <Tabs.Root
+          value={routeView}
+          onValueChange={(next) => navigate({ view: next, id: null })}
+        >
           <Tabs.List variant="minimal">
-            <Tabs.Tab value="dashboard">{__('Dashboard', 'hooksgraph')}</Tabs.Tab>
             <Tabs.Tab value="active-plugins">{__('Active plugins', 'hooksgraph')}</Tabs.Tab>
             <Tabs.Tab value="scans">{__('Scans', 'hooksgraph')}</Tabs.Tab>
             <Tabs.Tab value="assistant">{__('AI Assistant', 'hooksgraph')}</Tabs.Tab>
@@ -114,9 +116,6 @@ export default function ActivePluginsStage({ tab, setTab }) {
       )}
       {isAssistant && <AiChatView />}
       {isSettings && <SettingsView />}
-      {!isActivePlugins && !isAssistant && !isSettings && (
-        <h1 className="hooksgraph-plugins__dashboard">{__('Dashboard', 'hooksgraph')}</h1>
-      )}
     </DataViews>
   );
 }

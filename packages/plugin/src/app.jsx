@@ -1,12 +1,17 @@
 import { Page } from '@wordpress/admin-ui';
-import { useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 
 import ActivePluginsStage from './routes/active-plugins/stage';
 import ScansStage from './routes/scans/stage';
+import { useUrlState } from './router/use-url-state';
+
+const ALLOWED_VIEWS = ['active-plugins', 'scans', 'assistant', 'settings'];
 
 export default function App() {
-  const [tab, setTab] = useState('dashboard');
+  const { view, id, navigate } = useUrlState({
+    defaultView: 'active-plugins',
+    allowedViews: ALLOWED_VIEWS,
+  });
 
   return (
     <Page
@@ -15,10 +20,10 @@ export default function App() {
       subTitle={__('Active plugins on this site.', 'hooksgraph')}
       ariaLabel={__('HooksGraph admin page', 'hooksgraph')}
     >
-      {tab === 'scans' ? (
-        <ScansStage tab={tab} setTab={setTab} />
+      {view === 'scans' ? (
+        <ScansStage view={view} selectedId={id} navigate={navigate} />
       ) : (
-        <ActivePluginsStage tab={tab} setTab={setTab} />
+        <ActivePluginsStage view={view} selectedId={id} navigate={navigate} />
       )}
     </Page>
   );
