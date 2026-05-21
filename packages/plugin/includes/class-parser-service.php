@@ -61,7 +61,7 @@ final class Parser_Service {
 
 		$this->storage->prune_older( $plugin_relative, basename( $output_path ) );
 
-		$this->storage->save_codebase_meta(
+		$this->storage->record_parse_success(
 			$plugin_relative,
 			$version,
 			basename( $output_path ),

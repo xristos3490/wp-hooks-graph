@@ -61,18 +61,17 @@ defined( 'ABSPATH' ) || exit;
 					continue;
 				}
 
-				$last = $storage->last_parsed_at( $key );
-				$meta = $storage->get_codebase_meta( $key );
+				$record = $storage->get_record( $key );
 
 				$out[] = array(
 					'plugin'         => $key,
 					'version'        => $version,
 					'status'         => $status,
-					'last_parsed_at' => null !== $last ? gmdate( 'c', $last ) : null,
-					'total_files'    => isset( $meta['total_files'] ) ? (int) $meta['total_files'] : 0,
-					'total_hooks'    => isset( $meta['total_hooks'] ) ? (int) $meta['total_hooks'] : 0,
-					'total_edges'    => isset( $meta['total_edges'] ) ? (int) $meta['total_edges'] : 0,
-					'dynamic_hooks'  => isset( $meta['dynamic_hooks'] ) ? (int) $meta['dynamic_hooks'] : 0,
+					'last_parsed_at' => null !== $record['last_parsed_at'] ? gmdate( 'c', $record['last_parsed_at'] ) : null,
+					'total_files'    => (int) ( $record['total_files'] ?? 0 ),
+					'total_hooks'    => (int) ( $record['total_hooks'] ?? 0 ),
+					'total_edges'    => (int) ( $record['total_edges'] ?? 0 ),
+					'dynamic_hooks'  => (int) ( $record['dynamic_hooks'] ?? 0 ),
 				);
 			}
 			return $out;

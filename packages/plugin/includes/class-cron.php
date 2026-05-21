@@ -43,11 +43,25 @@ final class Cron {
 			return self::SCHEDULE_EXISTING;
 		}
 		$queued = wp_schedule_single_event( time() + 5, self::HOOK, [ $plugin_relative ] );
-		return false === $queued ? self::SCHEDULE_FAILED : self::SCHEDULE_NEW;
+		if ( false === $queued ) {
+			return self::SCHEDULE_FAILED;
+		}
+		$this->storage->invalidate_status_map();
+		return self::SCHEDULE_NEW;
 	}
 
 	public function is_scheduled( string $plugin_relative ): bool {
 		return false !== wp_next_scheduled( self::HOOK, [ $plugin_relative ] );
+	}
+
+	/**
+	 * Clear any pending cron event for this plugin. Paired with destructive
+	 * delete flows so a queued parse can't resurrect the files we just blew
+	 * away.
+	 */
+	public function unschedule( string $plugin_relative ): void {
+		wp_clear_scheduled_hook( self::HOOK, [ $plugin_relative ] );
+		$this->storage->invalidate_status_map();
 	}
 
 	/**
@@ -81,11 +95,16 @@ final class Cron {
 				$plugin_relative,
 				sprintf( '%s: %s', $e::class, $e->getMessage() )
 			);
+		} finally {
+			// The on-disk state changed (file written, meta option updated, or
+			// failure recorded). Drop the cached status map so the next REST
+			// hit doesn't keep showing `scheduled`.
+			$this->storage->invalidate_status_map();
 		}
 	}
 
 	private function record_failure( string $plugin_relative, string $error ): void {
 		error_log( sprintf( '[hooksgraph] Parse failed for %s: %s', $plugin_relative, $error ) );
-		$this->storage->save_codebase_failure( $plugin_relative, $error );
+		$this->storage->record_parse_failure( $plugin_relative, $error );
 	}
 }

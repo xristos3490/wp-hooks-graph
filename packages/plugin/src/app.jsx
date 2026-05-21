@@ -1,7 +1,7 @@
 import { Page } from '@wordpress/admin-ui';
 import { __ } from '@wordpress/i18n';
 
-import PluginsView from './plugins-view';
+import ActivePluginsStage from './routes/active-plugins/stage';
 
 export default function App() {
   return (
@@ -11,7 +11,7 @@ export default function App() {
       subTitle={__('Active plugins on this site.', 'hooksgraph')}
       ariaLabel={__('HooksGraph admin page', 'hooksgraph')}
     >
-      <PluginsView />
+      <ActivePluginsStage />
     </Page>
   );
 }
