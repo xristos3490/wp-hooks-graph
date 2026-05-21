@@ -18,6 +18,8 @@ packages/plugin/dist/
 vendor/
 packages/*/vendor/
 .phpunit.cache/
+.phpunit.result.cache
+packages/*/.phpunit.result.cache
 .phpstan-cache/
 
 # Tooling

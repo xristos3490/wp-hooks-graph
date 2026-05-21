@@ -25,7 +25,8 @@ final class Rest_Controller {
 
 	public function __construct(
 		private Storage $storage,
-		private Cron $cron
+		private Cron $cron,
+		private Settings $settings
 	) {}
 
 	public function register(): void {
@@ -59,6 +60,29 @@ final class Rest_Controller {
 					],
 				],
 				'callback'            => [ $this, 'download_parse' ],
+			]
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/settings',
+			[
+				[
+					'methods'             => WP_REST_Server::READABLE,
+					'permission_callback' => $auth,
+					'callback'            => [ $this, 'get_settings' ],
+				],
+				[
+					'methods'             => WP_REST_Server::CREATABLE,
+					'permission_callback' => $auth,
+					'args'                => [
+						'allow_read_files' => [
+							'required' => false,
+							'type'     => 'boolean',
+						],
+					],
+					'callback'            => [ $this, 'update_settings' ],
+				],
 			]
 		);
 
@@ -238,6 +262,19 @@ final class Rest_Controller {
 		$response = new WP_REST_Response( null, 200 );
 		$response->header( 'Content-Disposition', 'attachment; filename="' . $filename . '"' );
 		return $response;
+	}
+
+	public function get_settings( WP_REST_Request $request ): WP_REST_Response {
+		return new WP_REST_Response( $this->settings->all(), 200 );
+	}
+
+	public function update_settings( WP_REST_Request $request ): WP_REST_Response {
+		$updated = $this->settings->update(
+			[
+				'allow_read_files' => (bool) $request->get_param( 'allow_read_files' ),
+			]
+		);
+		return new WP_REST_Response( $updated, 200 );
 	}
 
 	public function schedule_parse( WP_REST_Request $request ): WP_REST_Response|WP_Error {

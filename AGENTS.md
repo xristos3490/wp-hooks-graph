@@ -23,8 +23,11 @@ Parses WordPress PHP codebases for hook relationships (do_action/add_action/appl
 | `pnpm build:cli`                                                              | Assemble `packages/cli/` for npm publish — runs viewer build, `composer install --no-dev` in parser, copies into `packages/cli/{php,dist}/`                                                                         |
 | `pnpm build:plugin`                                                           | wp-scripts build for the plugin (alias: `pnpm -F @hooksgraph/plugin build`). Outputs `packages/plugin/build/`                                                                                                       |
 | `pnpm build:theme`                                                            | Build the classic theme: runs the viewer build and copies `packages/viewer/dist/` into `packages/theme/assets/`. Writes `packages/theme/assets/manifest.json` with the hashed JS/CSS filenames                     |
-| `pnpm test`                                                                   | PHPUnit + Vitest                                                                                                                                                                                                    |
-| `pnpm test:php` (or `vendor/bin/phpunit`)                                     | PHPUnit 11 suite at `packages/parser/tests/`                                                                                                                                                                        |
+| `pnpm test`                                                                   | PHPUnit + Vitest (`pnpm test:php && pnpm test:js`)                                                                                                                                                                  |
+| `pnpm test:php`                                                               | Runs both PHP suites: `pnpm test:parser` then `pnpm test:plugin`                                                                                                                                                    |
+| `pnpm test:parser` (or `vendor/bin/phpunit`)                                  | PHPUnit 11 suite at `packages/parser/tests/` (root config, no WP bootstrap)                                                                                                                                         |
+| `pnpm test:plugin`                                                            | PHPUnit 9 suite at `packages/plugin/tests/unit/`. Inlines `WP_TESTS_DIR` / `WP_CORE_DIR` pointing at `~/.hooks-graph-unit-tests/` and runs `pnpm -F @hooksgraph/plugin test` (→ `vendor/bin/phpunit` in the plugin) |
+| `pnpm test:plugin:install`                                                   | One-time installer for the plugin suite. Runs `packages/plugin/bin/install-wp-tests.sh hooksgraph_test root '' 127.0.0.1 latest` with the same env vars — downloads WP core + WP test lib under `~/.hooks-graph-unit-tests/`. Needs local MySQL + svn |
 | `pnpm test:js`                                                                | Vitest (MCP suite under `packages/mcp/tests/`, viewer tests under `packages/viewer/src/**/*.test.js`)                                                                                                               |
 | `pnpm test:watch`                                                             | Vitest in watch mode                                                                                                                                                                                                |
 | `pnpm mcp -- [--storage <dir>]`                                               | Run the stdio MCP server (wraps `packages/mcp/bin/hooksgraph-mcp.js`). Storage resolves CLI arg → `HOOKSGRAPH_CODEBASES_DIR` env → `~/.hooksgraph/codebases/`                                                       |
@@ -57,7 +60,14 @@ packages/
     src/                server.js, registry.js, index.js, tools/, lib/.
     tests/              Vitest (per-tool coverage + registry + pagination, fixtures under tests/fixtures/).
   plugin/             WP.org plugin shell — scaffolding only. Real build pipeline (strauss + wp-scripts) is a follow-up spec.
-    hooksgraph.php      Plugin header only.
+    hooksgraph.php      Plugin header + runtime wiring.
+    bin/install-wp-tests.sh  Trimmed WP test-suite installer (no WC). Pulls WP core + WP
+                        phpunit lib into `~/.hooks-graph-unit-tests/` (overridable via
+                        `WP_TESTS_DIR` / `WP_CORE_DIR`). Driven by `pnpm test:plugin:install`.
+    phpunit.xml.dist    Plugin PHPUnit config — bootstrap=tests/bootstrap.php, testsuite "unit".
+    tests/              PHPUnit 9 suite. `bootstrap.php` loads only `hooksgraph.php` (no WC).
+                        `framework/` holds the base `HooksGraph_Test_Case` (extends `WP_UnitTestCase`).
+                        `unit/` holds test classes (`test-storage.php`, …).
   theme/              @hooksgraph/theme — WordPress classic theme that renders the Sigma viewer on the front page.
     style.css           Theme header (Theme Name, Version, …) + minimal global CSS for the viewer mount.
     index.php           Fallback template for non-front-page routes; shows a "visit /" notice.
@@ -81,7 +91,8 @@ scripts/
 Root config:
   package.json        Workspace umbrella. devDep: vitest. Scripts delegate to per-package pnpm -F calls.
   composer.json       Dev umbrella. Path repo → packages/parser; require-dev: phpunit.
-  phpunit.xml         Bootstrap = vendor/autoload.php; testsuite "parser" → packages/parser/tests/.
+  phpunit.xml         Root config — bootstrap = vendor/autoload.php; testsuite "parser" → packages/parser/tests/.
+                      The plugin suite has its own `packages/plugin/phpunit.xml.dist`.
   vitest.config.js    Explicit root=".", include = packages/viewer/src/**/*.test.js + packages/mcp/tests/**/*.test.js.
   pnpm-workspace.yaml packages: - "packages/*"
   .npmrc              public-hoist-pattern[] for react/webpack/@wordpress (wp-scripts compatibility).
@@ -195,9 +206,10 @@ Listener edges carry static-analysis facts about what each callback body does. T
 
 ## Testing
 
-- `pnpm test` runs both suites (`pnpm test:php` → PHPUnit, `pnpm test:js` → Vitest).
+- `pnpm test` runs both stacks (`pnpm test:php` → PHPUnit, `pnpm test:js` → Vitest). `pnpm test:php` itself fans out to `pnpm test:parser` (parser, PHPUnit 11, no WP) + `pnpm test:plugin` (plugin, PHPUnit 9, WP test lib).
 - `packages/parser/tests/` mirrors `packages/parser/src/`: one test class per source class. `packages/parser/tests/Support/ParsesSource.php` is a trait that writes a snippet to a temp file and invokes `FileParser::parse()`. CLI tests live under `packages/parser/tests/Cli/` — they exercise classes in the same package, so they belong with the parser; `packages/cli/` is purely the Node entrypoint.
-- PHPUnit 11 config lives in `phpunit.xml`; bootstrap uses the **root** Composer autoloader (not the parser's package-local one), which resolves `HooksGraph\` via the path repo and `HooksGraph\Tests\` via root autoload-dev.
+- Parser PHPUnit 11 config lives in `phpunit.xml`; bootstrap uses the **root** Composer autoloader (not the parser's package-local one), which resolves `HooksGraph\` via the path repo and `HooksGraph\Tests\` via root autoload-dev.
+- `packages/plugin/tests/` is a separate PHPUnit 9 suite (composer scope: `packages/plugin/vendor/`). Bootstrap loads the stock WP phpunit lib from `WP_TESTS_DIR` (defaults to `~/.hooks-graph-unit-tests/wordpress-tests-lib`), then `require`s `packages/plugin/hooksgraph.php` on `muplugins_loaded` — no WooCommerce, no DI re-init. First run requires `pnpm test:plugin:install` (needs MySQL + svn).
 - `packages/mcp/tests/` covers each MCP tool plus the registry and pagination helper. `packages/mcp/tests/helpers.js` exposes `makeCtx(storageDir)` backed by `packages/mcp/tests/fixtures/` JSON files so tools can be called in-process without spinning up a transport.
 
 ## Gotchas
@@ -211,7 +223,7 @@ Listener edges carry static-analysis facts about what each callback body does. T
 - MCP storage dir resolves in this order: CLI `--storage` → `HOOKSGRAPH_CODEBASES_DIR` env → `~/.hooksgraph/codebases/`. A missing dir throws `MissingStorageError` — don't fall back silently. The MCP server never reads from the parsed dir; populate the codebases dir with `hooksgraph parse-codebase`.
 - The MCP graph index caches parsed JSON by file path and invalidates on `mtime` change. Rewriting a storage JSON with the same mtime (rare, but possible with `touch -t`) will not refresh the cache.
 - MCP tools receive `{ registry, index }` via a shared ctx from `createServer()`. `UnknownCodebaseError` / `CodebaseLoadError` / `MissingStorageError` are converted to `isError` tool results; anything else bubbles up and crashes the transport.
-- Two composer scopes exist: root (dev umbrella — phpunit + parser via path repo) and `packages/parser/` (self-contained autoloader bundled into the CLI tarball). `packages/parser/hooksgraph.php` requires the package-local vendor; tests run against the root vendor. Don't conflate them.
+- Three composer scopes exist: root (dev umbrella — PHPUnit 11 + parser via path repo, runs the parser tests), `packages/parser/` (self-contained autoloader bundled into the CLI tarball — `packages/parser/hooksgraph.php` requires this package-local vendor), and `packages/plugin/` (PHPUnit 9 + yoast/phpunit-polyfills, runs the plugin WP suite). Don't conflate them.
 - pnpm workspace. Each package only resolves dependencies it declares; phantom deps fail loudly. `.npmrc` public-hoists react/webpack/@wordpress/\* for wp-scripts compatibility (needed once the plugin pipeline is built).
 - Sigma renderer: node `type` attribute selects the Sigma rendering program (e.g. `'circle'`), so the app's hook/file/class type is stored as `nodeType` on the graphology node and surfaced back through the cy-adapter's `data().type`. Same for edges: `type: 'arrow' | 'line'` is the program, not the hook semantic.
 - Sigma renderer: default WebGL programs only parse `#RRGGBB(AA)` colors. The repo palette emits `rgba(...)` strings for `fireEdgeAlpha` / `listenEdgeAlpha` / `*Highlight` — the sigma builder uses the hex variants (`fireEdge`, `listenEdge`) instead. Passing rgba silently zeroes the color buffer and the entire canvas goes blank.

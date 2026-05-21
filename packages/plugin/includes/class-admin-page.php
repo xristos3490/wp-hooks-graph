@@ -20,8 +20,8 @@ final class Admin_Page {
 
 	public function register_menu(): void {
 		add_management_page(
-			__( 'HooksGraph', 'hooksgraph' ),
-			__( 'HooksGraph', 'hooksgraph' ),
+			__( 'Hooks Graph', 'hooksgraph' ),
+			__( 'Hooks Graph', 'hooksgraph' ),
 			'manage_options',
 			HOOKSGRAPH_ADMIN_PAGE_SLUG,
 			[ $this, 'render_page' ]

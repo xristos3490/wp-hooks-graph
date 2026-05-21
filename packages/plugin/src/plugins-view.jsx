@@ -1,12 +1,14 @@
 import apiFetch from '@wordpress/api-fetch';
-import { Spinner } from '@wordpress/components';
+import { Notice, Spinner } from '@wordpress/components';
 import { DataViews, filterSortAndPaginate } from '@wordpress/dataviews';
 import { useCallback, useEffect, useMemo, useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
-import { Notice, Stack, Tabs } from '@wordpress/ui';
+import { Stack, Tabs } from '@wordpress/ui';
 
+import AiChatView from './ai-chat-view';
 import { defaultView, fields } from './fields';
 import ScheduleParseModal from './schedule-parse-modal';
+import SettingsView from './settings-view';
 
 const PLUGINS_PATH = '/wp/v2/plugins?context=view&per_page=100';
 const STATUS_PATH = '/hooksgraph/v1/parse-status';
@@ -225,14 +227,15 @@ export default function PluginsView() {
 
   if (status === 'error') {
     return (
-      <Notice.Root variant="error">
-        <Notice.Title>{__('Could not load plugins', 'hooksgraph')}</Notice.Title>
-        <Notice.Description>{error}</Notice.Description>
-      </Notice.Root>
+      <Notice status="error" isDismissible={false}>
+        <strong>{__('Could not load plugins', 'hooksgraph')}</strong> — {error}
+      </Notice>
     );
   }
 
   const isActivePlugins = tab === 'active-plugins';
+  const isAssistant = tab === 'assistant';
+  const isSettings = tab === 'settings';
 
   return (
     <>
@@ -258,6 +261,8 @@ export default function PluginsView() {
             <Tabs.List variant="minimal">
               <Tabs.Tab value="dashboard">{__('Dashboard', 'hooksgraph')}</Tabs.Tab>
               <Tabs.Tab value="active-plugins">{__('Active plugins', 'hooksgraph')}</Tabs.Tab>
+              <Tabs.Tab value="assistant">{__('AI Assistant', 'hooksgraph')}</Tabs.Tab>
+              <Tabs.Tab value="settings">{__('Settings', 'hooksgraph')}</Tabs.Tab>
             </Tabs.List>
           </Tabs.Root>
           {isActivePlugins && (
@@ -268,13 +273,16 @@ export default function PluginsView() {
             </Stack>
           )}
         </Stack>
-        {isActivePlugins ? (
+        {isActivePlugins && (
           <>
             <DataViews.FiltersToggled className="dataviews-filters__container" />
             <DataViews.Layout />
             <DataViews.Footer />
           </>
-        ) : (
+        )}
+        {isAssistant && <AiChatView />}
+        {isSettings && <SettingsView />}
+        {!isActivePlugins && !isAssistant && !isSettings && (
           <h1 className="hooksgraph-plugins__dashboard">{__('Dashboard', 'hooksgraph')}</h1>
         )}
       </DataViews>
