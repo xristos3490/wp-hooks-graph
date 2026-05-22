@@ -1,8 +1,6 @@
 # WordPress Hooks Graph
 
-> Static analysis for WordPress hook dependencies — point it at plugins, themes, or core and get an interactive dependency graph.
-
-Parses every `do_action`, `add_action`, `apply_filters`, and `add_filter` call using PHP's `token_get_all()` tokenizer. No WordPress runtime, no database — just source files in, dependency graph out.
+Static analysis for WordPress hook dependencies. Point it at plugins, themes, or core and get an interactive dependency graph of every `do_action`, `add_action`, `apply_filters`, and `add_filter` call — parsed straight from source via PHP's `token_get_all()` tokenizer. No WordPress runtime, no database.
 
 🔗 **Live demo:** [wphooksgraph.wpcomstaging.com](https://wphooksgraph.wpcomstaging.com/)
 
