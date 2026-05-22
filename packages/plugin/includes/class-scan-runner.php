@@ -684,8 +684,9 @@ final class Scan_Runner {
 				$started_raw = (string) get_post_meta( $scan_id, Scan_Fields::META_STARTED_AT, true );
 				$started_ts  = '' !== $started_raw ? strtotime( $started_raw ) : false;
 				if ( false === $started_ts ) {
-					$started_ts = (int) get_post_field( 'post_date_gmt', $scan_id );
-					$started_ts = $started_ts ?: time();
+					$post_date_gmt = (string) get_post_field( 'post_date_gmt', $scan_id );
+					$fallback_ts   = '' !== $post_date_gmt ? strtotime( $post_date_gmt . ' UTC' ) : false;
+					$started_ts    = false !== $fallback_ts ? $fallback_ts : time();
 				}
 
 				if ( ( time() - $started_ts ) < self::WATCHDOG_STUCK_AFTER_SECONDS ) {
@@ -800,19 +801,32 @@ final class Scan_Runner {
 	}
 
 	/**
-	 * Run `$work` under a per-scan transient lock with bounded backoff. Returns
-	 * true if the lock was acquired and the work ran (even if it threw); false
-	 * if backoff was exhausted — the caller is responsible for rescheduling so
+	 * Run `$work` under a per-scan lock with bounded backoff. Returns true if
+	 * the lock was acquired and the work ran (even if it threw); false if
+	 * backoff was exhausted — the caller is responsible for rescheduling so
 	 * the finding isn't lost. The lock is released even if the callback throws.
+	 *
+	 * Uses `add_option()` as the atomic primitive: it INSERTs into the options
+	 * table and returns false on duplicate-key, which gives us cross-process
+	 * mutual exclusion without the get/set race of `get_transient()` +
+	 * `set_transient()`. A stored timestamp lets us reclaim locks orphaned by
+	 * a fatal mid-flight (PHP fatal, OOM, max-execution-time) instead of
+	 * waiting on the TTL we no longer have.
 	 */
 	private function with_lock( int $scan_id, callable $work ): bool {
-		$key = 'hg_scan_lock_' . $scan_id;
+		$key   = 'hg_scan_lock_' . $scan_id;
+		$token = (string) time();
 		$acquired = false;
 		for ( $i = 0; $i < self::LOCK_MAX_ATTEMPTS; $i++ ) {
-			if ( false === get_transient( $key ) ) {
-				set_transient( $key, 1, self::LOCK_TTL );
+			if ( add_option( $key, $token, '', 'no' ) ) {
 				$acquired = true;
 				break;
+			}
+			// Reap a stale lock left over from a crashed worker.
+			$existing = (int) get_option( $key, 0 );
+			if ( $existing > 0 && ( time() - $existing ) > self::LOCK_TTL ) {
+				delete_option( $key );
+				continue;
 			}
 			usleep( self::LOCK_SLEEP_US );
 		}
@@ -822,7 +836,7 @@ final class Scan_Runner {
 		try {
 			$work();
 		} finally {
-			delete_transient( $key );
+			delete_option( $key );
 		}
 		return true;
 	}

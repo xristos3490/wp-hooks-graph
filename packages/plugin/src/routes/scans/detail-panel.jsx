@@ -77,20 +77,23 @@ const findingFields = [
     enableSorting: false,
     getValue: ({ item }) => {
       const pair = Array.isArray(item.pair) ? item.pair : [];
-      return pair.map((l) => `${l.plugin}:${l.callback}`).join(' vs ');
+      return pair.map((l) => `${l.codebase ?? ''}:${l.callback ?? ''}`).join(' vs ');
     },
     render: ({ item }) => {
       const pair = Array.isArray(item.pair) ? item.pair : [];
       if (pair.length === 0) return '—';
       return (
         <Stack direction="column" gap="xs" align="flex-start">
-          {pair.map((l, idx) => (
-            <Text key={`${l.plugin}-${l.callback}-${idx}`}>
-              <strong>{l.plugin}</strong> — <code>{l.callback}</code>
-              {l.file ? ` (${l.file}${l.line ? `:${l.line}` : ''})` : ''}
-              {l.return_origin ? ` · return: ${l.return_origin}` : ''}
-            </Text>
-          ))}
+          {pair.map((l, idx) => {
+            const returnOrigin = l.filter_behavior?.return_origin;
+            return (
+              <Text key={`${l.codebase ?? 'unknown'}-${l.callback ?? 'cb'}-${idx}`}>
+                <strong>{l.codebase ?? '—'}</strong> — <code>{l.callback}</code>
+                {l.file ? ` (${l.file}${l.line ? `:${l.line}` : ''})` : ''}
+                {returnOrigin ? ` · return: ${returnOrigin}` : ''}
+              </Text>
+            );
+          })}
         </Stack>
       );
     },

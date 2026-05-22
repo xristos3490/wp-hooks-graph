@@ -6,8 +6,10 @@
  * surface. Exposed through core `/wp/v2/hg-scans` so DataViews can drive list
  * + create flows without bespoke REST.
  *
- * Capabilities are mapped to `manage_options` through a `map_meta_cap` filter
- * keeps parity with the rest of the plugin's permission story.
+ * The CPT uses a unique `capability_type` (`hg_scan` / `hg_scans`) and the
+ * `map_meta_cap` filter rewrites only those scoped caps to `manage_options`,
+ * keeping parity with the rest of the plugin's permission story without
+ * affecting site-wide post caps for other users/roles.
  */
 
 declare(strict_types=1);
@@ -64,11 +66,10 @@ final class Scan_CPT {
 				'rest_base'           => self::REST_BASE,
 				'rest_namespace'      => 'wp/v2',
 				'supports'            => [ 'title', 'author', 'custom-fields' ],
-				'capability_type'     => 'post',
-				'capabilities'        => [
-					'read'                   => 'manage_options',
-					'read_private_posts'     => 'manage_options',
-				],
+				// Unique capability_type so cap checks resolve to
+				// `edit_hg_scan(s)` etc. — `map_meta_cap` then only rewrites
+				// those, leaving site-wide caps (`edit_posts`, …) untouched.
+				'capability_type'     => [ 'hg_scan', 'hg_scans' ],
 				'map_meta_cap'        => true,
 				'has_archive'         => false,
 				'hierarchical'        => false,
@@ -89,49 +90,28 @@ final class Scan_CPT {
 	 * @return array<int, string>
 	 */
 	public function map_meta_cap( $caps, $cap, $user_id, $args ): array {
-		$relevant = [
-			'edit_post',
-			'edit_posts',
-			'edit_others_posts',
-			'publish_posts',
-			'read_post',
-			'delete_post',
-			'delete_posts',
-			'delete_others_posts',
-			'delete_published_posts',
-			'edit_published_posts',
-		];
-
-		// For meta caps that reference a specific post id, only gate when that
-		// post is an hg_scan. For collection-level caps we have to gate
-		// unconditionally — there's no post in context.
-		if ( in_array( $cap, [ 'edit_post', 'read_post', 'delete_post' ], true ) ) {
-			$post_id = isset( $args[0] ) ? (int) $args[0] : 0;
-			if ( $post_id > 0 ) {
-				$post = get_post( $post_id );
-				if ( ! $post || self::POST_TYPE !== $post->post_type ) {
-					return (array) $caps;
-				}
-			}
-		}
-
-		// Map only the caps that the posts controller actually checks for our
-		// CPT — leave everything else alone.
+		// Only rewrite caps that are uniquely scoped to our CPT — never
+		// touch generic post caps (`edit_posts`, `delete_posts`, …) since
+		// `map_meta_cap` fires for every capability check site-wide and
+		// rewriting those would break unrelated authors/editors.
 		$type_caps = [
 			'edit_hg_scan',
 			'edit_hg_scans',
 			'edit_others_hg_scans',
 			'publish_hg_scans',
 			'read_hg_scan',
+			'read_private_hg_scans',
 			'delete_hg_scan',
 			'delete_hg_scans',
 			'delete_others_hg_scans',
 			'delete_published_hg_scans',
+			'delete_private_hg_scans',
 			'edit_published_hg_scans',
+			'edit_private_hg_scans',
 			'create_hg_scans',
 		];
 
-		if ( in_array( $cap, $relevant, true ) || in_array( $cap, $type_caps, true ) ) {
+		if ( in_array( $cap, $type_caps, true ) ) {
 			return [ 'manage_options' ];
 		}
 

@@ -19,7 +19,11 @@ export default function ScansStage({ view: routeView, selectedId, navigate }) {
   const defaultView = useMemo(() => getDefaultView(), []);
   const [view, setView] = useState(defaultView);
   const [isNewOpen, setIsNewOpen] = useState(false);
-  const selectedScanId = selectedId !== null ? Number(selectedId) : null;
+  const selectedScanId = useMemo(() => {
+    if (selectedId === null) return null;
+    const parsed = Number(selectedId);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }, [selectedId]);
 
   const query = useMemo(() => viewToQuery(view), [view]);
 

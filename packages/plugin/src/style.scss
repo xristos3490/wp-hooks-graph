@@ -16,8 +16,9 @@ body.tools_page_hooksgraph {
 // `@wordpress/ui` Dialog uses `z-index: var(--wp-ui-dialog-z-index, initial)`
 // on its backdrop + popup — defaulting to `initial` means no stacking context
 // override, so WP admin chrome (wpadminbar z=99999, etc.) can sit on top.
-// Set the variable site-wide so every Dialog on the hooksgraph screen wins.
-:root {
+// Scope the override to the hooksgraph admin screen so we don't change Dialog
+// stacking for other plugins/screens that share the wp-admin shell.
+body.tools_page_hooksgraph {
   --wp-ui-dialog-z-index: 100000;
 }
 

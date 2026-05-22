@@ -23,7 +23,7 @@ export default function App() {
       {view === 'scans' ? (
         <ScansStage view={view} selectedId={id} navigate={navigate} />
       ) : (
-        <ActivePluginsStage view={view} selectedId={id} navigate={navigate} />
+        <ActivePluginsStage view={view} navigate={navigate} />
       )}
     </Page>
   );
