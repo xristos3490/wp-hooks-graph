@@ -14,6 +14,7 @@ declare(strict_types=1);
 
 namespace HooksGraph\Plugin;
 
+use WP_Error;
 use WP_Post;
 
 defined( 'ABSPATH' ) || exit;
@@ -153,9 +154,19 @@ final class Scan_Fields {
 			'plugins',
 			[
 				'get_callback'    => static fn ( array $post ): array => (array) get_post_meta( (int) $post['id'], self::META_PLUGINS, true ),
-				'update_callback' => function ( $value, WP_Post $post ): void {
+				'update_callback' => function ( $value, WP_Post $post ) {
+					if ( ! current_user_can( 'manage_options' ) ) {
+						return new WP_Error( 'rest_forbidden', __( 'Sorry, you are not allowed to edit this scan.', 'hooksgraph' ), [ 'status' => 403 ] );
+					}
 					$sanitized = $this->sanitize_plugins( $value );
+					// Reject input that the sanitizer couldn't recognise as a non-empty plugin list
+					// (e.g. a string or object) — silently writing [] would wipe the scan's scope.
+					$had_input = ( is_array( $value ) && ! empty( $value ) ) || ( is_string( $value ) && '' !== $value );
+					if ( $had_input && empty( $sanitized ) ) {
+						return new WP_Error( 'rest_invalid_param', __( 'plugins must be a non-empty array of plugin keys.', 'hooksgraph' ), [ 'status' => 400 ] );
+					}
 					update_post_meta( $post->ID, self::META_PLUGINS, $sanitized );
+					return true;
 				},
 				'schema'          => [
 					'type'  => 'array',
@@ -300,7 +311,7 @@ final class Scan_Fields {
 				continue;
 			}
 			$status      = (string) ( $entry['status'] ?? '' );
-			$current_ver = (string) ( $this->storage->get_record( $key )['last_parsed_version'] ?? '' );
+			$current_ver = (string) ( $current_versions[ $key ] ?? '' );
 
 			if ( '' === $current_ver || Storage::STATUS_NEEDS_PARSING === $status ) {
 				$has_missing = true;

@@ -111,8 +111,8 @@ final class Scan_Runner {
 	// -------------------------------------------------------------- init step
 
 	public function run_init( int $scan_id ): void {
+		$previous_user = $this->assume_scan_author( $scan_id );
 		try {
-			$this->assume_scan_author( $scan_id );
 			update_post_meta( $scan_id, Scan_Fields::META_STATUS, self::STATUS_FINDING_CONFLICTS );
 			update_post_meta( $scan_id, Scan_Fields::META_STARTED_AT, gmdate( 'c' ) );
 
@@ -176,6 +176,8 @@ final class Scan_Runner {
 			update_post_meta( $scan_id, Scan_Fields::META_STATUS, self::STATUS_FAILED );
 			update_post_meta( $scan_id, Scan_Fields::META_ERROR, sprintf( '%s: %s', $e::class, $e->getMessage() ) );
 			update_post_meta( $scan_id, Scan_Fields::META_FINISHED_AT, gmdate( 'c' ) );
+		} finally {
+			$this->restore_user( $previous_user );
 		}
 	}
 
@@ -265,8 +267,8 @@ final class Scan_Runner {
 	// ------------------------------------------------------------- triage step
 
 	public function run_triage_pair( int $scan_id, string $finding_id ): void {
+		$previous_user = $this->assume_scan_author( $scan_id );
 		try {
-			$this->assume_scan_author( $scan_id );
 			$finding = $this->load_finding( $scan_id, $finding_id );
 			if ( null === $finding ) {
 				return;
@@ -315,6 +317,8 @@ final class Scan_Runner {
 		} catch ( Throwable $e ) {
 			$this->record_pair_error( $scan_id, $finding_id, $e );
 			$this->maybe_schedule_finalize( $scan_id );
+		} finally {
+			$this->restore_user( $previous_user );
 		}
 	}
 
@@ -590,8 +594,8 @@ final class Scan_Runner {
 	// ----------------------------------------------------------- finalize step
 
 	public function run_finalize( int $scan_id ): void {
+		$previous_user = $this->assume_scan_author( $scan_id );
 		try {
-			$this->assume_scan_author( $scan_id );
 			$result = $this->read_result( $scan_id );
 			if ( null === $result ) {
 				$result = [ 'findings' => [], 'summary' => [], 'priority_conflicts' => [], 'plugins' => [] ];
@@ -616,6 +620,8 @@ final class Scan_Runner {
 			update_post_meta( $scan_id, Scan_Fields::META_STATUS, self::STATUS_FAILED );
 			update_post_meta( $scan_id, Scan_Fields::META_ERROR, sprintf( '%s: %s', $e::class, $e->getMessage() ) );
 			update_post_meta( $scan_id, Scan_Fields::META_FINISHED_AT, gmdate( 'c' ) );
+		} finally {
+			$this->restore_user( $previous_user );
 		}
 	}
 
@@ -629,11 +635,17 @@ final class Scan_Runner {
 	 * directly by that user. If the author has lost the capability, the
 	 * abilities will fail honestly — no silent escalation.
 	 */
-	private function assume_scan_author( int $scan_id ): void {
+	private function assume_scan_author( int $scan_id ): int {
+		$previous = get_current_user_id();
 		$author_id = (int) get_post_field( 'post_author', $scan_id );
 		if ( $author_id > 0 ) {
 			wp_set_current_user( $author_id );
 		}
+		return $previous;
+	}
+
+	private function restore_user( int $previous ): void {
+		wp_set_current_user( $previous );
 	}
 
 	private function read_result( int $scan_id ): ?array {
@@ -836,7 +848,13 @@ final class Scan_Runner {
 		try {
 			$work();
 		} finally {
-			delete_option( $key );
+			// Only release if the option still carries our token — a slow
+			// $work() can exceed LOCK_TTL and let another worker reap the
+			// lock as stale; without this check we'd delete the successor's
+			// lock and break exclusion.
+			if ( (string) get_option( $key, '' ) === $token ) {
+				delete_option( $key );
+			}
 		}
 		return true;
 	}
