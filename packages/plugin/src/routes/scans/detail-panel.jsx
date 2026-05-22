@@ -3,7 +3,7 @@ import { useEntityRecord } from '@wordpress/core-data';
 import { DataViews, filterSortAndPaginate } from '@wordpress/dataviews';
 import { useMemo, useState } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
-import { Notice } from '@wordpress/components';
+import { Card, CardBody, Notice } from '@wordpress/components';
 import { Badge, Button, Stack, Text } from '@wordpress/ui';
 
 const VERDICT_INTENTS = {
@@ -119,7 +119,7 @@ const DEFAULT_FINDING_VIEW = {
   sort: { field: 'verdict', direction: 'asc' },
 };
 
-export default function ScanDetailView({ scanId, onBack }) {
+export default function ScanDetailView({ scanId, onBack, tabs }) {
   const [view, setView] = useState(DEFAULT_FINDING_VIEW);
 
   const { record, isResolving } = useEntityRecord('postType', 'hg_scan', scanId);
@@ -143,44 +143,64 @@ export default function ScanDetailView({ scanId, onBack }) {
     : [];
 
   const title = record?.title?.rendered || record?.title?.raw || __('Scan', 'hooksgraph');
+  const scannedPlugins = Array.isArray(record?.plugins) ? record.plugins : [];
 
-  return (
-    <div className="hooksgraph-scans__detail">
-      <DataViews
-        data={rows}
-        fields={findingFields}
-        view={view}
-        onChangeView={setView}
-        paginationInfo={paginationInfo}
-        defaultLayouts={{ table: {} }}
-        getItemId={(item) => item.id ?? `${item.hook}#${item.priority}`}
-        actions={[]}
-        isLoading={isResolving && !record}
-      >
-        <Stack
-          className="hooksgraph-scans__view-actions"
-          direction="row"
-          justify="space-between"
-          align="center"
-          gap="sm"
-        >
-          <Stack direction="row" align="center" gap="xs">
-            <Button variant="minimal" onClick={onBack} icon={<Icon icon={chevronLeft} />}>
+  const summaryCard = (
+    <Card className="hooksgraph-scans__summary-card" style={{ margin: '16px' }}>
+      <CardBody style={{ padding: '24px' }}>
+        <Stack direction="column" gap="md">
+          <Stack direction="row" align="center" gap="sm">
+            <h1 className="hooksgraph-scans__summary-title" style={{ display: 'block', margin: 0 }}>
+              {title}
+            </h1>
+            <Button
+              variant="minimal"
+              onClick={onBack}
+              icon={<Icon icon={chevronLeft} />}
+            >
               {__('Back to scans', 'hooksgraph')}
             </Button>
-            <Text weight="600">{title}</Text>
           </Stack>
-          <Stack direction="row" align="center" gap="xs">
-            <DataViews.Search />
-            <DataViews.FiltersToggle />
-            <DataViews.ViewConfig />
+          <Stack direction="row" gap="sm" wrap>
+            <Badge intent="informational">
+              {sprintf(
+                /* translators: %s: scan status. */
+                __('Status: %s', 'hooksgraph'),
+                status ?? '—'
+              )}
+            </Badge>
+            {record?.progress && (
+              <Badge intent="none">
+                {sprintf(
+                  /* translators: 1: completed, 2: total. */
+                  __('Progress: %1$d/%2$d', 'hooksgraph'),
+                  record.progress.completed_pairs ?? 0,
+                  record.progress.total_pairs ?? 0
+                )}
+              </Badge>
+            )}
+            {priorityConflicts.length > 0 && (
+              <Badge intent="none">
+                {sprintf(
+                  /* translators: %d: number of conflict groups. */
+                  __('Conflict groups: %d', 'hooksgraph'),
+                  priorityConflicts.length
+                )}
+              </Badge>
+            )}
           </Stack>
-        </Stack>
-        <Stack
-          className="hooksgraph-scans__detail-meta"
-          direction="column"
-          gap="md"
-        >
+          {scannedPlugins.length > 0 && (
+            <Stack direction="column" gap="xs" align="flex-start">
+              <Text weight="600">{__('Plugins', 'hooksgraph')}</Text>
+              <Stack direction="row" gap="xs" wrap>
+                {scannedPlugins.map((p) => (
+                  <Badge key={p} intent="none">
+                    {p}
+                  </Badge>
+                ))}
+              </Stack>
+            </Stack>
+          )}
           {freshness && freshness !== 'fresh' && (
             <Notice
               status={freshness === 'missing' ? 'error' : 'warning'}
@@ -210,46 +230,50 @@ export default function ScanDetailView({ scanId, onBack }) {
               <p>{record.error}</p>
             </Notice>
           )}
-          {triageSkipped && (
-            <Notice status="info" isDismissible={false}>
-              <strong>{__('AI triage skipped', 'hooksgraph')}</strong>
-              <p>
-                {__(
-                  'File reading is disabled in Settings, so no verdicts or rationales were generated. The list below shows only the priority-conflict pairs detected from the parsed graph.',
-                  'hooksgraph'
-                )}
-              </p>
-            </Notice>
-          )}
-          <Stack direction="row" gap="sm" wrap>
-            <Badge intent="informational">
-              {sprintf(
-                /* translators: %s: scan status. */
-                __('Status: %s', 'hooksgraph'),
-                status ?? '—'
-              )}
-            </Badge>
-            {record?.progress && (
-              <Badge intent="none">
-                {sprintf(
-                  /* translators: 1: completed, 2: total. */
-                  __('Progress: %1$d/%2$d', 'hooksgraph'),
-                  record.progress.completed_pairs ?? 0,
-                  record.progress.total_pairs ?? 0
-                )}
-              </Badge>
+        </Stack>
+      </CardBody>
+    </Card>
+  );
+
+  return (
+    <div className="hooksgraph-scans__detail">
+      {triageSkipped && (
+        <Notice status="info" isDismissible={false}>
+          <strong>{__('AI triage skipped', 'hooksgraph')}</strong>
+          <p>
+            {__(
+              'File reading is disabled in Settings, so no verdicts or rationales were generated. The list below shows only the priority-conflict pairs detected from the parsed graph.',
+              'hooksgraph'
             )}
-            {priorityConflicts.length > 0 && (
-              <Badge intent="none">
-                {sprintf(
-                  /* translators: %d: number of conflict groups. */
-                  __('Conflict groups: %d', 'hooksgraph'),
-                  priorityConflicts.length
-                )}
-              </Badge>
-            )}
+          </p>
+        </Notice>
+      )}
+      <DataViews
+        data={rows}
+        fields={findingFields}
+        view={view}
+        onChangeView={setView}
+        paginationInfo={paginationInfo}
+        defaultLayouts={{ table: {} }}
+        getItemId={(item) => item.id ?? `${item.hook}#${item.priority}`}
+        actions={[]}
+        isLoading={isResolving && !record}
+      >
+        <Stack
+          className="hooksgraph-scans__view-actions"
+          direction="row"
+          justify="space-between"
+          align="center"
+          gap="sm"
+        >
+          {tabs}
+          <Stack direction="row" align="center" gap="xs" style={{ flexShrink: 0 }}>
+            <DataViews.Search />
+            <DataViews.FiltersToggle />
+            <DataViews.ViewConfig />
           </Stack>
         </Stack>
+        {summaryCard}
         <DataViews.FiltersToggled className="dataviews-filters__container" />
         <DataViews.Layout />
         <DataViews.Footer />

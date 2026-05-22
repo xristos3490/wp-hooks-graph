@@ -17,7 +17,7 @@ export default function App() {
     <Page
       className="hooksgraph-page"
       title={__('Hooks Graph', 'hooksgraph')}
-      subTitle={__('Active plugins on this site.', 'hooksgraph')}
+      subTitle={__('Map the hooks. Spot the conflicts.', 'hooksgraph')}
       ariaLabel={__('HooksGraph admin page', 'hooksgraph')}
     >
       {view === 'scans' ? (

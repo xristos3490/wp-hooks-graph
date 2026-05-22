@@ -64,11 +64,26 @@ export default function ScansStage({ view: routeView, selectedId, navigate }) {
     );
   }
 
+  const tabs = (
+    <Tabs.Root
+      value={routeView}
+      onValueChange={(next) => navigate({ view: next, id: null })}
+    >
+      <Tabs.List variant="minimal">
+        <Tabs.Tab value="active-plugins">{__('Active plugins', 'hooksgraph')}</Tabs.Tab>
+        <Tabs.Tab value="scans">{__('Scans', 'hooksgraph')}</Tabs.Tab>
+        <Tabs.Tab value="assistant">{__('AI Assistant', 'hooksgraph')}</Tabs.Tab>
+        <Tabs.Tab value="settings">{__('Settings', 'hooksgraph')}</Tabs.Tab>
+      </Tabs.List>
+    </Tabs.Root>
+  );
+
   if (selectedScanId !== null) {
     return (
       <ScanDetailView
         scanId={selectedScanId}
         onBack={() => navigate({ view: 'scans', id: null })}
+        tabs={tabs}
       />
     );
   }
@@ -113,17 +128,7 @@ export default function ScansStage({ view: routeView, selectedId, navigate }) {
           align="center"
           gap="sm"
         >
-          <Tabs.Root
-            value={routeView}
-            onValueChange={(next) => navigate({ view: next, id: null })}
-          >
-            <Tabs.List variant="minimal">
-              <Tabs.Tab value="active-plugins">{__('Active plugins', 'hooksgraph')}</Tabs.Tab>
-              <Tabs.Tab value="scans">{__('Scans', 'hooksgraph')}</Tabs.Tab>
-              <Tabs.Tab value="assistant">{__('AI Assistant', 'hooksgraph')}</Tabs.Tab>
-              <Tabs.Tab value="settings">{__('Settings', 'hooksgraph')}</Tabs.Tab>
-            </Tabs.List>
-          </Tabs.Root>
+          {tabs}
           <Stack direction="row" align="center" gap="xs" style={{ flexShrink: 0 }}>
             <DataViews.Search />
             <DataViews.FiltersToggle />
