@@ -279,28 +279,8 @@ final class Scan_Runner {
 
 			[ $system, $body ] = $this->build_prompt( $hook, $prio, $pair[0] ?? [], $pair[1] ?? [], $bodies[0], $bodies[1] );
 
-			error_log( sprintf(
-				"[hooksgraph triage] scan=%d finding=%s hook=%s priority=%d\n--- SYSTEM ---\n%s\n--- BODY ---\n%s\n--- END ---",
-				$scan_id,
-				$finding_id,
-				$hook,
-				$prio,
-				$system,
-				$body
-			) );
-
 			$raw     = $this->run_prompt( $system, $body );
 			$parsed  = $this->parse_verdict( $raw );
-
-			error_log( sprintf(
-				"[hooksgraph triage] scan=%d finding=%s verdict=%s confidence=%s rationale=%s\n--- RAW ---\n%s\n--- END ---",
-				$scan_id,
-				$finding_id,
-				$parsed['verdict'] ?? '',
-				$parsed['confidence'] ?? '',
-				$parsed['rationale'] ?? '',
-				$raw
-			) );
 
 			$acquired = $this->with_lock( $scan_id, function () use ( $scan_id, $finding_id, $parsed ): void {
 				$result = $this->read_result( $scan_id );
