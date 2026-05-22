@@ -4,7 +4,7 @@ Static analysis for WordPress hook dependencies. Point it at plugins, themes, or
 
 🔗 **Live demo:** [wphooksgraph.wpcomstaging.com](https://wphooksgraph.wpcomstaging.com/)
 
-![Hooks Graph viewer exploring the Gutenberg codebase](images/gutenberg-hooksgraph-demo.jpg)
+![Hooks Graph viewer with custom source colors](images/hg-custom-colors.jpg)
 
 ## What's in the monorepo
 
