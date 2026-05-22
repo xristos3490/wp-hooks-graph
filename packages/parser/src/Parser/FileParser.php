@@ -66,6 +66,13 @@ final class FileParser
 
             [$id, $text, $line] = $token;
 
+            // Curly-string opens (`"{$x}"`, `${var}`) — increment so the literal
+            // `}` that closes them balances correctly and doesn't pop class scope.
+            if ($id === T_CURLY_OPEN || $id === T_DOLLAR_OPEN_CURLY_BRACES) {
+                $scope->openBrace();
+                continue;
+            }
+
             if ($id === T_NAMESPACE) {
                 $j = self::skipWhitespace($tokens, $i + 1, $count);
                 $nsName = '';
@@ -467,7 +474,17 @@ final class FileParser
         $depth = 0;
         while ($i < $n) {
             $t = $tokens[$i];
-            if (is_string($t)) {
+            if (is_array($t)) {
+                // Curly-string interpolations open with array tokens but close with
+                // a literal `}` — treat the opens as `{` so the counter stays balanced.
+                $tid = $t[0];
+                if ($open === '{' && (
+                    $tid === T_CURLY_OPEN
+                    || $tid === T_DOLLAR_OPEN_CURLY_BRACES
+                )) {
+                    $depth++;
+                }
+            } elseif (is_string($t)) {
                 if ($t === $open) {
                     $depth++;
                 } elseif ($t === $close) {
@@ -510,6 +527,12 @@ final class FileParser
                 continue;
             }
             $tid = $t[0];
+            // Curly-string opens (`"{$x}"`, `${var}`) — increment so the literal
+            // `}` that closes them balances correctly.
+            if ($tid === T_CURLY_OPEN || $tid === T_DOLLAR_OPEN_CURLY_BRACES) {
+                $braceDepth++;
+                continue;
+            }
 
             if ($tid === T_NAMESPACE) {
                 $j = self::skipWhitespace($tokens, $i + 1, $count);
