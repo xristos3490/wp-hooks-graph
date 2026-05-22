@@ -1,10 +1,10 @@
-import { Spinner } from '@wordpress/components';
+import { Notice, Spinner } from '@wordpress/components';
 import { store as coreStore, useEntityRecords } from '@wordpress/core-data';
 import { useDispatch } from '@wordpress/data';
 import { DataViews, filterSortAndPaginate } from '@wordpress/dataviews';
 import { useCallback, useMemo, useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
-import { Notice, Stack, Tabs } from '@wordpress/ui';
+import { Stack, Tabs } from '@wordpress/ui';
 
 import AiChatView from '../../ai-chat-view';
 import SettingsView from '../../settings-view';
@@ -13,15 +13,14 @@ import { usePluginActions } from './use-plugin-actions';
 import { usePluginFields } from './use-plugin-fields';
 import { getDefaultView, viewToQuery } from './view-utils';
 
-export default function ActivePluginsStage() {
-  const [tab, setTab] = useState('dashboard');
+export default function ActivePluginsStage({ view: routeView, navigate }) {
   const fields = usePluginFields();
-  const defaultView = useMemo(() => getDefaultView(tab), [tab]);
+  const defaultView = useMemo(() => getDefaultView(routeView), [routeView]);
   const [view, setView] = useState(defaultView);
 
-  // `tab` is passed through for future use, but viewToQuery doesn't read it
+  // `routeView` is passed through for future use, but viewToQuery doesn't read it
   // yet — keep it out of the deps so switching tabs doesn't refetch.
-  const query = useMemo(() => viewToQuery(view, tab), [view]); // eslint-disable-line react-hooks/exhaustive-deps
+  const query = useMemo(() => viewToQuery(view, routeView), [view]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const {
     records,
@@ -57,18 +56,16 @@ export default function ActivePluginsStage() {
 
   if (hasResolved && !records) {
     return (
-      <Notice.Root variant="error">
-        <Notice.Title>{__('Could not load plugins', 'hooksgraph')}</Notice.Title>
-        <Notice.Description>
-          {__('The plugins endpoint returned no data.', 'hooksgraph')}
-        </Notice.Description>
-      </Notice.Root>
+      <Notice status="error" isDismissible={false}>
+        <strong>{__('Could not load plugins', 'hooksgraph')}</strong>
+        <p>{__('The plugins endpoint returned no data.', 'hooksgraph')}</p>
+      </Notice>
     );
   }
 
-  const isActivePlugins = tab === 'active-plugins';
-  const isAssistant = tab === 'assistant';
-  const isSettings = tab === 'settings';
+  const isActivePlugins = routeView === 'active-plugins';
+  const isAssistant = routeView === 'assistant';
+  const isSettings = routeView === 'settings';
 
   return (
     <DataViews
@@ -89,10 +86,13 @@ export default function ActivePluginsStage() {
         align="center"
         gap="sm"
       >
-        <Tabs.Root value={tab} onValueChange={setTab}>
+        <Tabs.Root
+          value={routeView}
+          onValueChange={(next) => navigate({ view: next, id: null })}
+        >
           <Tabs.List variant="minimal">
-            <Tabs.Tab value="dashboard">{__('Dashboard', 'hooksgraph')}</Tabs.Tab>
             <Tabs.Tab value="active-plugins">{__('Active plugins', 'hooksgraph')}</Tabs.Tab>
+            <Tabs.Tab value="scans">{__('Scans', 'hooksgraph')}</Tabs.Tab>
             <Tabs.Tab value="assistant">{__('AI Assistant', 'hooksgraph')}</Tabs.Tab>
             <Tabs.Tab value="settings">{__('Settings', 'hooksgraph')}</Tabs.Tab>
           </Tabs.List>
@@ -114,9 +114,6 @@ export default function ActivePluginsStage() {
       )}
       {isAssistant && <AiChatView />}
       {isSettings && <SettingsView />}
-      {!isActivePlugins && !isAssistant && !isSettings && (
-        <h1 className="hooksgraph-plugins__dashboard">{__('Dashboard', 'hooksgraph')}</h1>
-      )}
     </DataViews>
   );
 }

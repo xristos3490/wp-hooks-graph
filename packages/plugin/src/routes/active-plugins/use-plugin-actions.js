@@ -1,7 +1,9 @@
 import apiFetch from '@wordpress/api-fetch';
-import { useCallback, useMemo } from '@wordpress/element';
+import { useCallback, useMemo, useState } from '@wordpress/element';
 import { __, sprintf, _n } from '@wordpress/i18n';
 import { Button, Stack, Text } from '@wordpress/ui';
+
+import ScheduleParseModal from '../../schedule-parse-modal';
 
 const PARSE_PATH = '/hooksgraph/v1/parse-plugin';
 const DOWNLOAD_PATH = '/hooksgraph/v1/parse-download';
@@ -79,30 +81,94 @@ export function usePluginActions({ refreshList }) {
       }
     };
 
-    // One action, one behavior: fire POST /parse-plugin for every selected
-    // row using its stored exclude patterns. Works identically for a single
-    // row (primary button click → items=[row]) and a bulk toolbar invocation
-    // (items=[a,b,c]) — no items.length branching, no modal mid-flow.
-    //
-    // Requests are serialized intentionally: `wp_schedule_single_event()`
-    // does a non-atomic read-modify-write on the single `cron` option, so
-    // parallel POSTs would lose-update and only the last writer's event
-    // would survive. One-at-a-time keeps the cron table consistent.
-    const runSchedule = async (items) => {
-      if (items.length === 0) return;
-      for (const item of items) {
+    // Fire POST /parse-plugin for every (plugin, exclude) pair sequentially.
+    // `wp_schedule_single_event` does a non-atomic read-modify-write on the
+    // `cron` option, so parallel POSTs lose-update — keep this serial.
+    const submitSchedule = async (jobs) => {
+      for (const { id, exclude } of jobs) {
         try {
           await apiFetch({
             path: PARSE_PATH,
             method: 'POST',
-            data: { plugin: item.id, exclude: item.exclude ?? [] },
+            data: { plugin: id, exclude: exclude ?? [] },
           });
         } catch (err) {
           // eslint-disable-next-line no-console
-          console.error(`HooksGraph: schedule failed for ${item.id}`, err);
+          console.error(`HooksGraph: schedule failed for ${id}`, err);
         }
       }
       refreshList();
+    };
+
+    const ScheduleRenderModal = ({ items, closeModal }) => {
+      const [isSubmitting, setIsSubmitting] = useState(false);
+      const [error, setError] = useState(null);
+
+      if (items.length === 1) {
+        const plugin = items[0];
+        return (
+          <ScheduleParseModal
+            plugin={plugin}
+            isSubmitting={isSubmitting}
+            error={error}
+            onClose={closeModal}
+            onSubmit={async (exclude) => {
+              if (isSubmitting) return;
+              setIsSubmitting(true);
+              setError(null);
+              try {
+                await submitSchedule([{ id: plugin.id, exclude }]);
+                closeModal?.();
+              } catch (err) {
+                setError(err?.message ?? __('Failed to schedule parse.', 'hooksgraph'));
+              } finally {
+                setIsSubmitting(false);
+              }
+            }}
+          />
+        );
+      }
+
+      // Bulk: re-use each row's stored exclude patterns. Editing per-row in
+      // one modal doesn't fit; the single-row modal exists for tweaking.
+      return (
+        <Stack direction="row" align="center" justify="space-between" gap="md">
+          <Text>
+            {sprintf(
+              /* translators: %d: number of plugins selected. */
+              _n(
+                'Schedule parse for %d plugin using its stored exclude patterns?',
+                'Schedule parse for %d plugins using their stored exclude patterns?',
+                items.length,
+                'hooksgraph'
+              ),
+              items.length
+            )}
+          </Text>
+          <Stack direction="row" align="center" gap="sm" style={{ flexShrink: 0 }}>
+            <Button variant="outline" onClick={closeModal} disabled={isSubmitting}>
+              {__('Cancel', 'hooksgraph')}
+            </Button>
+            <Button
+              variant="solid"
+              tone="brand"
+              loading={isSubmitting}
+              disabled={isSubmitting}
+              onClick={async () => {
+                setIsSubmitting(true);
+                try {
+                  await submitSchedule(items.map((i) => ({ id: i.id, exclude: i.exclude ?? [] })));
+                  closeModal?.();
+                } finally {
+                  setIsSubmitting(false);
+                }
+              }}
+            >
+              {__('Schedule', 'hooksgraph')}
+            </Button>
+          </Stack>
+        </Stack>
+      );
     };
 
     return [
@@ -120,14 +186,14 @@ export function usePluginActions({ refreshList }) {
         isPrimary: true,
         supportsBulk: true,
         isEligible: (item) => item.parse_status !== 'scheduled' && item.parse_status !== 'parsed',
-        callback: runSchedule,
+        RenderModal: ScheduleRenderModal,
       },
       {
         id: 'reschedule-parse',
         label: __('Re-schedule parse', 'hooksgraph'),
         supportsBulk: true,
         isEligible: (item) => item.parse_status === 'parsed',
-        callback: runSchedule,
+        RenderModal: ScheduleRenderModal,
       },
       {
         id: 'download-parse',

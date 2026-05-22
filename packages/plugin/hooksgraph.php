@@ -43,6 +43,9 @@ require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-admin-page.php';
 require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-rest-controller.php';
 require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-ai-chat-controller.php';
 require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-graph-index.php';
+require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-scan-cpt.php';
+require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-scan-fields.php';
+require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/class-scan-runner.php';
 // Abilities are registered via top-level add_action() calls inside this file.
 require_once HOOKSGRAPH_PLUGIN_DIR . 'includes/abilities.php';
 
@@ -56,4 +59,23 @@ add_action( 'plugins_loaded', static function (): void {
 	( new \HooksGraph\Plugin\Rest_Controller( $storage, $cron, $settings ) )->register();
 	( new \HooksGraph\Plugin\Ai_Chat_Controller( $settings ) )->register();
 	$cron->register();
+
+	( new \HooksGraph\Plugin\Scan_CPT() )->register();
+	( new \HooksGraph\Plugin\Scan_Fields( $storage ) )->register();
+
+	$scan_runner = new \HooksGraph\Plugin\Scan_Runner( $storage );
+	\HooksGraph\Plugin\Scan_Runner::set_instance( $scan_runner );
+	$scan_runner->register();
+
+	add_action(
+		'rest_after_insert_hg_scan',
+		static function ( $post, $request, $creating ): void {
+			if ( ! $creating ) {
+				return;
+			}
+			\HooksGraph\Plugin\Scan_Runner::instance()->queue_init( (int) $post->ID );
+		},
+		10,
+		3
+	);
 } );

@@ -202,6 +202,17 @@ final class CallbackExtractor
             ];
         }
 
+        // __CLASS__ magic constant — resolves at compile time to the enclosing class.
+        if (is_array($first) && $first[0] === T_CLASS_C) {
+            $cls = $scopeClass ?: '__CLASS__';
+            return [
+                'callback'        => "$cls::$method",
+                'callback_type'   => 'static_method',
+                'callback_class'  => $scopeClass,
+                'callback_method' => $method,
+            ];
+        }
+
         $raw = Tokens::reconstruct($firstEl);
         return [
             'callback'        => "$raw::$method",

@@ -130,7 +130,7 @@ function hook_name_from_edge_target( array $edge, array $built ): string {
 	return str_starts_with( (string) $target, $prefix ) ? substr( (string) $target, strlen( $prefix ) ) : (string) $target;
 }
 
-const METADATA_FIELDS = array( 'effects', 'targets', 'called_apis', 'filter_behavior' );
+const METADATA_FIELDS = array( 'effects', 'targets', 'called_apis', 'filter_behavior', 'callback_body_start_line', 'callback_body_end_line' );
 
 /**
  * @param array<string, mixed> $base
