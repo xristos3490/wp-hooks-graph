@@ -1,7 +1,8 @@
 import { DataForm } from '@wordpress/dataviews';
 import { useMemo, useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
-import { Button, Notice, Stack, Text } from '@wordpress/ui';
+import { Notice } from '@wordpress/components';
+import { Button, Stack, Text } from '@wordpress/ui';
 
 const stripTags = (html) => (typeof html === 'string' ? html.replace(/<[^>]*>/g, '').trim() : '');
 
@@ -86,9 +87,9 @@ export default function ScheduleParseModal({ plugin, isSubmitting, error, onSubm
       </Text>
       <DataForm data={data} fields={fields} form={form} onChange={handleChange} />
       {error && (
-        <Notice.Root variant="error">
-          <Notice.Description>{error}</Notice.Description>
-        </Notice.Root>
+        <Notice status="error" isDismissible={false}>
+          {error}
+        </Notice>
       )}
       <Stack direction="row" justify="end" gap="sm">
         <Button variant="minimal" tone="neutral" onClick={onClose} disabled={isSubmitting}>

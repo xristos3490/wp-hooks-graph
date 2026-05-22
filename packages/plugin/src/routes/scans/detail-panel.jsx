@@ -3,7 +3,8 @@ import { useEntityRecord } from '@wordpress/core-data';
 import { DataViews, filterSortAndPaginate } from '@wordpress/dataviews';
 import { useMemo, useState } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
-import { Badge, Button, Notice, Stack, Text } from '@wordpress/ui';
+import { Notice } from '@wordpress/components';
+import { Badge, Button, Stack, Text } from '@wordpress/ui';
 
 const VERDICT_INTENTS = {
   critical: 'high',
@@ -181,13 +182,16 @@ export default function ScanDetailView({ scanId, onBack }) {
           gap="md"
         >
           {freshness && freshness !== 'fresh' && (
-            <Notice.Root variant={freshness === 'missing' ? 'error' : 'warning'}>
-              <Notice.Title>
+            <Notice
+              status={freshness === 'missing' ? 'error' : 'warning'}
+              isDismissible={false}
+            >
+              <strong>
                 {freshness === 'missing'
                   ? __('One or more scanned plugins are no longer available', 'hooksgraph')
                   : __('Re-run scan', 'hooksgraph')}
-              </Notice.Title>
-              <Notice.Description>
+              </strong>
+              <p>
                 {freshness === 'missing'
                   ? __(
                       'A plugin in this scan is no longer active or has no parsed data. The findings may no longer apply.',
@@ -197,25 +201,25 @@ export default function ScanDetailView({ scanId, onBack }) {
                       'One or more plugins have changed since this scan ran. Re-run to refresh the findings.',
                       'hooksgraph'
                     )}
-              </Notice.Description>
-            </Notice.Root>
+              </p>
+            </Notice>
           )}
           {record?.error && (
-            <Notice.Root variant="error">
-              <Notice.Title>{__('Scan failed', 'hooksgraph')}</Notice.Title>
-              <Notice.Description>{record.error}</Notice.Description>
-            </Notice.Root>
+            <Notice status="error" isDismissible={false}>
+              <strong>{__('Scan failed', 'hooksgraph')}</strong>
+              <p>{record.error}</p>
+            </Notice>
           )}
           {triageSkipped && (
-            <Notice.Root variant="info">
-              <Notice.Title>{__('AI triage skipped', 'hooksgraph')}</Notice.Title>
-              <Notice.Description>
+            <Notice status="info" isDismissible={false}>
+              <strong>{__('AI triage skipped', 'hooksgraph')}</strong>
+              <p>
                 {__(
                   'File reading is disabled in Settings, so no verdicts or rationales were generated. The list below shows only the priority-conflict pairs detected from the parsed graph.',
                   'hooksgraph'
                 )}
-              </Notice.Description>
-            </Notice.Root>
+              </p>
+            </Notice>
           )}
           <Stack direction="row" gap="sm" wrap>
             <Badge intent="informational">

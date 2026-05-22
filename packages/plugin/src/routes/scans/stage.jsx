@@ -1,10 +1,10 @@
-import { Spinner } from '@wordpress/components';
+import { Notice, Spinner } from '@wordpress/components';
 import { store as coreStore, useEntityRecords } from '@wordpress/core-data';
 import { useDispatch } from '@wordpress/data';
 import { DataViews, filterSortAndPaginate } from '@wordpress/dataviews';
 import { useCallback, useMemo, useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
-import { Button, EmptyState, Notice, Stack, Tabs } from '@wordpress/ui';
+import { Button, EmptyState, Stack, Tabs } from '@wordpress/ui';
 import { search } from '@wordpress/icons';
 
 import ScanDetailView from './detail-panel';
@@ -57,12 +57,10 @@ export default function ScansStage({ view: routeView, selectedId, navigate }) {
 
   if (hasResolved && !records) {
     return (
-      <Notice.Root variant="error">
-        <Notice.Title>{__('Could not load scans', 'hooksgraph')}</Notice.Title>
-        <Notice.Description>
-          {__('The scans endpoint returned no data.', 'hooksgraph')}
-        </Notice.Description>
-      </Notice.Root>
+      <Notice status="error" isDismissible={false}>
+        <strong>{__('Could not load scans', 'hooksgraph')}</strong>
+        <p>{__('The scans endpoint returned no data.', 'hooksgraph')}</p>
+      </Notice>
     );
   }
 

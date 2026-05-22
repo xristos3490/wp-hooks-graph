@@ -1,10 +1,10 @@
-import { Spinner } from '@wordpress/components';
+import { Notice, Spinner } from '@wordpress/components';
 import { store as coreStore, useEntityRecords } from '@wordpress/core-data';
 import { useDispatch } from '@wordpress/data';
 import { DataViews, filterSortAndPaginate } from '@wordpress/dataviews';
 import { useCallback, useMemo, useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
-import { Notice, Stack, Tabs } from '@wordpress/ui';
+import { Stack, Tabs } from '@wordpress/ui';
 
 import AiChatView from '../../ai-chat-view';
 import SettingsView from '../../settings-view';
@@ -56,12 +56,10 @@ export default function ActivePluginsStage({ view: routeView, navigate }) {
 
   if (hasResolved && !records) {
     return (
-      <Notice.Root variant="error">
-        <Notice.Title>{__('Could not load plugins', 'hooksgraph')}</Notice.Title>
-        <Notice.Description>
-          {__('The plugins endpoint returned no data.', 'hooksgraph')}
-        </Notice.Description>
-      </Notice.Root>
+      <Notice status="error" isDismissible={false}>
+        <strong>{__('Could not load plugins', 'hooksgraph')}</strong>
+        <p>{__('The plugins endpoint returned no data.', 'hooksgraph')}</p>
+      </Notice>
     );
   }
 

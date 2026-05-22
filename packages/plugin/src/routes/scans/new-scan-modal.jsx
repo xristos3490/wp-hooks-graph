@@ -3,7 +3,8 @@ import { useDispatch } from '@wordpress/data';
 import { DataForm } from '@wordpress/dataviews';
 import { useCallback, useMemo, useState } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
-import { Button, Dialog, Notice, Stack, Text } from '@wordpress/ui';
+import { Notice } from '@wordpress/components';
+import { Button, Dialog, Stack, Text } from '@wordpress/ui';
 
 const defaultTitle = () =>
   `${__('Scan', 'hooksgraph')} — ${new Date().toISOString().slice(0, 10)}`;
@@ -163,20 +164,18 @@ export default function NewScanModal({ open, onOpenChange, refreshList }) {
               )}
             </Text>
             {error && (
-              <Notice.Root variant="error">
-                <Notice.Description>{error}</Notice.Description>
-              </Notice.Root>
+              <Notice status="error" isDismissible={false}>
+                {error}
+              </Notice>
             )}
             <DataForm data={data} fields={fields} form={form} onChange={(edits) => setData((prev) => ({ ...prev, ...edits }))} />
             {!isResolving && pluginOptions.length === 0 && (
-              <Notice.Root variant="warning">
-                <Notice.Description>
-                  {__(
-                    'No parsed plugins are available. Parse at least one plugin first.',
-                    'hooksgraph'
-                  )}
-                </Notice.Description>
-              </Notice.Root>
+              <Notice status="warning" isDismissible={false}>
+                {__(
+                  'No parsed plugins are available. Parse at least one plugin first.',
+                  'hooksgraph'
+                )}
+              </Notice>
             )}
           </Stack>
         </Dialog.Content>
