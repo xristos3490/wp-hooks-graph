@@ -27,6 +27,7 @@ For cross-package commands and workspace conventions, see [`AGENTS.md`](AGENTS.m
 
 ```sh
 pnpm install
+pnpm build                       # build the viewer + CLI bundle
 pnpm setup:alias                 # one-time: installs the `hooksgraph` shell alias
 hooksgraph /path/to/wordpress    # parse + serve + open
 ```

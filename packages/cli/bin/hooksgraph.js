@@ -103,7 +103,7 @@ function printTopHelp() {
 function runParse({ kind, invokedAs, args }) {
   const outputDir = resolveStorageDir(kind);
   ensureDir(outputDir);
-  const child = spawn('php', [PARSER_ENTRY, ...args], {
+  const child = spawn('php', ['-d', 'memory_limit=1G', PARSER_ENTRY, ...args], {
     stdio: 'inherit',
     env: {
       ...process.env,
@@ -117,7 +117,7 @@ function runParse({ kind, invokedAs, args }) {
 function runParseCapture(args) {
   const outputDir = resolveStorageDir('parsed');
   ensureDir(outputDir);
-  const result = spawnSync('php', [PARSER_ENTRY, '--print-path', ...args], {
+  const result = spawnSync('php', ['-d', 'memory_limit=1G', PARSER_ENTRY, '--print-path', ...args], {
     stdio: ['inherit', 'pipe', 'inherit'],
     encoding: 'utf8',
     env: {
